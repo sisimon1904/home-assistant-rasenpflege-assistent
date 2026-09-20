@@ -11,6 +11,8 @@
           "temperature_entity": "Außentemperatursensor (optional)",
           "mowed_entity": "Binärsensor „Rasen wurde gemäht“ (optional)",
           "watered_entity": "Binärsensor „Rasen wurde bewässert“ (optional)",
+          "precipitation_entity": "Sensor für gefallenen Niederschlag (optional)",
+          "default_watering_amount": "Standardmenge einer protokollierten Bewässerung",
           "area": "Rasenfläche",
           "sun_exposure": "Sonnenlage",
           "lawn_type": "Rasennutzung",
@@ -25,6 +27,8 @@
           "temperature_entity": "Dieser Sensor hat Vorrang. Wenn er nicht ausgewählt oder nicht verfügbar ist, wird automatisch die aktuelle Temperatur von OpenWeatherMap verwendet.",
           "mowed_entity": "Eine Aus→Ein-Flanke protokolliert das Mähen und bestätigt den Saisonstart. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
           "watered_entity": "Eine Aus→Ein-Flanke protokolliert die Bewässerung und aktualisiert das Bodenmodell. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
+          "precipitation_entity": "Akzeptiert Niederschlagsmenge oder Niederschlagsintensität. Ohne Sensor wird die OpenWeatherMap-Tagesvorhersage ausdrücklich als Schätzung verwendet.",
+          "default_watering_amount": "Diese Menge wird dem Bodenmodell hinzugefügt, wenn eine Bewässerung ohne berechnete Empfehlung protokolliert wird.",
           "initial_soil_moisture": "Startwert des virtuellen Bodenspeichers. Für normalen lehmigen Boden sind 70 % ein sinnvoller Anfangswert."
         }
       }
@@ -48,6 +52,8 @@
           "temperature_entity": "Außentemperatursensor (optional)",
           "mowed_entity": "Binärsensor „Rasen wurde gemäht“ (optional)",
           "watered_entity": "Binärsensor „Rasen wurde bewässert“ (optional)",
+          "precipitation_entity": "Sensor für gefallenen Niederschlag (optional)",
+          "default_watering_amount": "Standardmenge einer protokollierten Bewässerung",
           "area": "Rasenfläche",
           "sun_exposure": "Sonnenlage",
           "lawn_type": "Rasennutzung",
@@ -64,9 +70,23 @@
       "weather_data_unavailable": "Die OpenWeatherMap-Entität liefert keine aktuelle Temperatur. Verwende möglichst den Modus v3.0 und prüfe, ob die Entität verfügbar ist."
     }
   },
+  "selector": {
+    "sun_exposure": {"options": {"sunny": "Sonnig", "partial_shade": "Halbschatten", "shade": "Schatten"}},
+    "lawn_type": {"options": {"family": "Familienrasen", "play": "Stark beanspruchter Spielrasen", "ornamental": "Zierrasen", "shade": "Schattenrasen"}},
+    "soil_type": {"options": {"sandy": "Sandig", "loamy": "Lehmig und ausgewogen", "clayey": "Tonig"}}
+  },
   "entity": {
     "sensor": {
-      "status": {"name": "Pflegestatus"},
+      "status": {
+        "name": "Pflegestatus",
+        "state": {
+          "winter_dormancy": "Winterruhe",
+          "early_spring": "Vorfrühling",
+          "watering_recommended": "Bewässerung empfohlen",
+          "fertilizing_recommended": "Düngung empfohlen",
+          "good_condition": "Guter Zustand"
+        }
+      },
       "growth_status": {
         "name": "Wachstumsstatus",
         "state": {
@@ -91,11 +111,20 @@
           "mow_less": "Seltener mähen",
           "reduce_mowing": "Mähhäufigkeit im Herbst reduzieren",
           "pause_drought": "Wegen Trockenstress pausieren"
+          ,"wait_to_mow": "Bis zum nächsten Mähtermin warten"
         }
       },
       "soil_moisture": {"name": "Modellierte Bodenfeuchte"},
       "gts": {"name": "Grünlandtemperatursumme"},
-      "watering_recommendation": {"name": "Bewässerungsempfehlung"},
+      "watering_recommendation": {
+        "name": "Bewässerungsempfehlung",
+        "state": {
+          "season_pause": "Saisonpause",
+          "water_now": "Jetzt wässern",
+          "wait_for_rain": "Auf Regen warten",
+          "not_due": "Nicht fällig"
+        }
+      },
       "watering_amount": {"name": "Empfohlene Wassermenge"},
       "fertilizer_amount": {"name": "Empfohlene Düngermenge"}
     },

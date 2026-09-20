@@ -1,6 +1,6 @@
 # Rasenpflege-Assistent für Home Assistant
 
-Version 1.3.1
+Version 2.0.0
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -26,7 +26,8 @@ Vorhersagen über `weather.get_forecasts` ab.
 - GUI-Einrichtung und GUI-Optionen
 - Auswahl und Prüfung einer OpenWeatherMap-Wetterentität
 - frei wählbarer Außentemperatursensor mit automatischem OpenWeatherMap-Fallback
-- Niederschlagsdaten ausschließlich aus der OpenWeatherMap-Tagesvorhersage
+- optionaler Sensor für gemessene Niederschlagsmenge oder -intensität
+- OpenWeatherMap-Tagesvorhersage als automatisch gekennzeichneter Fallback
 - optionale Binärsensoren für „Rasen wurde gemäht“ und „Rasen wurde bewässert“
 - Grünlandtemperatursumme mit der Gewichtung Januar 0,5, Februar 0,75 und ab
   März 1,0
@@ -65,11 +66,20 @@ Referenzverdunstung wird mit der Hargreaves-Samani-Methode aus Minimum,
 Maximum, Datum und geografischer Breite geschätzt. Ein Rasenfaktor reduziert
 die Verdunstung im Winter.
 
-Für Regen verwendet das Modell ausschließlich die OpenWeatherMap-Tagesvorhersage.
-Da Vorhersageregen von der lokal tatsächlich gefallenen Menge abweichen kann,
-bleibt die Modellqualität als `low` gekennzeichnet. Wird der optionale
+Mit einem optionalen Niederschlagssensor verwendet das Modell tatsächlich
+gemessene Niederschlagswerte. Ohne Sensor dient die bereits von Home Assistant
+zwischengespeicherte OpenWeatherMap-Tagesvorhersage als Schätzung. Die
+Modellqualität wird abhängig von der verfügbaren Datenquelle als `high`,
+`medium` oder `low` gekennzeichnet. Wird der optionale
 Binärsensor „Rasen wurde bewässert“ eingeschaltet, ergänzt die Integration die
-empfohlene Wassermenge beziehungsweise ersatzweise 15 mm im virtuellen Speicher.
+berechnete Wassermenge beziehungsweise die konfigurierbare Standardmenge im
+virtuellen Speicher.
+
+Der Wert `forecast_rain_mm` bezeichnet die Summe der ersten drei täglichen
+Vorhersagezeiträume. Die Integration ruft OpenWeatherMap nicht selbst auf:
+`weather.get_forecasts` liest den Cache der offiziellen Home-Assistant-
+Integration. Der Forecast wird im Rasenpflege-Assistenten zusätzlich eine
+Stunde lang zwischengespeichert.
 
 Die modellierte Bodenfeuchte ist kein Ersatz für einen Bodensensor. Schatten,
 Gefälle, Bodenverdichtung, Dachüberstände und lokale Schauer können zu
@@ -164,7 +174,7 @@ Attribut `temperature_source` am Wachstums- und Mähroboterstatus.
 
 ## Automatische Updates mit HACS
 
-Neue stabile Versionen werden als GitHub-Releases wie `v1.3.1` veröffentlicht.
+Neue stabile Versionen werden als GitHub-Releases wie `v2.0.0` veröffentlicht.
 Eine über HACS installierte Kopie zeigt diese anschließend als Update an. Eine
 nur manuell nach `custom_components` kopierte Integration kann Home Assistant
 nicht selbst aus dem Internet aktualisieren.
@@ -184,6 +194,38 @@ nicht selbst aus dem Internet aktualisieren.
 - Mähen protokollieren (wenn kein automatischer Binärsensor gewählt ist)
 - Bewässerung protokollieren (wenn kein automatischer Binärsensor gewählt ist)
 - Düngung protokollieren
+
+## Änderungen in Version 2.0.0
+
+- Python-Quellcode und interne Zustände sind vollständig englisch. Deutsche und
+  englische Anzeigen werden über Home-Assistant-Übersetzungen bereitgestellt.
+- Gemessener und vorhergesagter Niederschlag werden getrennt behandelt.
+- Optionaler Niederschlagssensor für `mm` oder `mm/h`; ohne Sensor bleibt die
+  OpenWeatherMap-Tagesvorhersage als gekennzeichnete Schätzung aktiv.
+- Die Bewässerungsmenge wird aus dem modellierten Wasserdefizit berechnet.
+- Die Standardmenge einer protokollierten Bewässerung ist konfigurierbar.
+- Der Mähroboterstatus berücksichtigt das letzte Mähen und liefert empfohlenes
+  Intervall sowie nächsten Mähtermin.
+- Wetterdatenquelle, Forecast-Zeitpunkt und Modellvertrauen sind als Attribute
+  verfügbar.
+- Bestehende Konfigurationen werden automatisch auf Konfigurationsversion 4
+  migriert. Durch die neuen englischen Rohzustände müssen Automationen, die
+  bisher deutsche Zustandstexte verglichen haben, angepasst werden.
+
+### Dynamische Symbolfarben mit Mushroom
+
+Die Attribute `icon_color` können beispielsweise so verwendet werden:
+
+```yaml
+type: custom:mushroom-template-card
+entity: sensor.rasen_wachstumsstatus
+primary: "{{ state_attr(entity, 'friendly_name') }}"
+secondary: "{{ states(entity) }}"
+icon: mdi:grass
+icon_color: "{{ state_attr(entity, 'icon_color') }}"
+tap_action:
+  action: more-info
+```
 
 ## Grenzen
 

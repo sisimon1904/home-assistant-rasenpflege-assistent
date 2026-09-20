@@ -11,6 +11,8 @@
           "temperature_entity": "Outdoor temperature sensor (optional)",
           "mowed_entity": "Lawn was mowed binary sensor (optional)",
           "watered_entity": "Lawn was watered binary sensor (optional)",
+          "precipitation_entity": "Observed precipitation sensor (optional)",
+          "default_watering_amount": "Default recorded watering amount",
           "area": "Lawn area",
           "sun_exposure": "Sun exposure",
           "lawn_type": "Lawn use",
@@ -25,6 +27,8 @@
           "temperature_entity": "This sensor has priority. If it is not selected or is unavailable, the current OpenWeatherMap temperature is used automatically.",
           "mowed_entity": "An off-to-on transition records mowing and acknowledges the mowing season. Without a selection, use the manual button.",
           "watered_entity": "An off-to-on transition records watering and updates the soil model. Without a selection, use the manual button.",
+          "precipitation_entity": "Accepts precipitation depth or precipitation intensity. Without a sensor, the OpenWeatherMap daily forecast is used as an explicitly marked estimate.",
+          "default_watering_amount": "Amount added to the soil model when watering is recorded and no calculated recommendation is available.",
           "initial_soil_moisture": "Starting value of the virtual soil reservoir. For normal loamy soil, 70% is a reasonable initial estimate."
         }
       }
@@ -48,6 +52,8 @@
           "temperature_entity": "Outdoor temperature sensor (optional)",
           "mowed_entity": "Lawn was mowed binary sensor (optional)",
           "watered_entity": "Lawn was watered binary sensor (optional)",
+          "precipitation_entity": "Observed precipitation sensor (optional)",
+          "default_watering_amount": "Default recorded watering amount",
           "area": "Lawn area",
           "sun_exposure": "Sun exposure",
           "lawn_type": "Lawn use",
@@ -64,9 +70,23 @@
       "weather_data_unavailable": "The OpenWeatherMap entity does not provide a current temperature. Prefer mode v3.0 and verify that the entity is available."
     }
   },
+  "selector": {
+    "sun_exposure": {"options": {"sunny": "Sunny", "partial_shade": "Partial shade", "shade": "Shade"}},
+    "lawn_type": {"options": {"family": "Family lawn", "play": "Heavily used play lawn", "ornamental": "Ornamental lawn", "shade": "Shade lawn"}},
+    "soil_type": {"options": {"sandy": "Sandy", "loamy": "Balanced loam", "clayey": "Clayey"}}
+  },
   "entity": {
     "sensor": {
-      "status": {"name": "Care status"},
+      "status": {
+        "name": "Care status",
+        "state": {
+          "winter_dormancy": "Winter dormancy",
+          "early_spring": "Early spring",
+          "watering_recommended": "Watering recommended",
+          "fertilizing_recommended": "Fertilizing recommended",
+          "good_condition": "Good condition"
+        }
+      },
       "growth_status": {
         "name": "Growth status",
         "state": {
@@ -91,11 +111,20 @@
           "mow_less": "Mow less frequently",
           "reduce_mowing": "Reduce mowing for autumn",
           "pause_drought": "Pause due to drought stress"
+          ,"wait_to_mow": "Wait until the next mowing date"
         }
       },
       "soil_moisture": {"name": "Modeled soil moisture"},
       "gts": {"name": "Grassland temperature sum"},
-      "watering_recommendation": {"name": "Watering recommendation"},
+      "watering_recommendation": {
+        "name": "Watering recommendation",
+        "state": {
+          "season_pause": "Seasonal pause",
+          "water_now": "Water now",
+          "wait_for_rain": "Wait for rain",
+          "not_due": "Not due"
+        }
+      },
       "watering_amount": {"name": "Recommended water amount"},
       "fertilizer_amount": {"name": "Recommended fertilizer amount"}
     },

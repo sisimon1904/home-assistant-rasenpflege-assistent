@@ -14,14 +14,17 @@ class LawnData:
     gts: float = 0.0
     lawn_status: str = "unavailable"
     watering_recommended: bool = False
-    watering_status: str = "Keine Empfehlung"
+    watering_status: str = "not_due"
     watering_mm: float = 0.0
     watering_liters: float = 0.0
     watering_reasons: list[str] = field(default_factory=list)
     forecast_rain_mm: float | None = None
+    forecast_updated_at: str | None = None
+    observed_rain_today_mm: float = 0.0
+    precipitation_source: str = "forecast_estimate"
     watering_confidence: str = "low"
     fertilizing_recommended: bool = False
-    fertilizing_status: str = "Keine Empfehlung"
+    fertilizing_status: str = "not_due"
     fertilizer_npk: str = "–"
     fertilizer_dose_g_m2: float = 0.0
     fertilizer_total_kg: float = 0.0
@@ -39,6 +42,8 @@ class LawnData:
     mower_status: str = "collecting_data"
     mower_start_recommended: bool = False
     mower_can_be_switched_off: bool = False
+    mowing_interval_days: int | None = None
+    next_mowing_date: date | None = None
     growth_temperature_7d: float | None = None
     soil_moisture_percent: float = 70.0
     soil_water_mm: float = 0.0
@@ -72,6 +77,8 @@ class RuntimeState:
     mower_started_year: int | None = None
     last_sample_at: str | None = None
     configured_initial_soil_moisture: float = 70.0
+    precipitation_last_value: float | None = None
+    precipitation_last_sample_at: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable representation."""
@@ -97,4 +104,6 @@ class RuntimeState:
             "mower_started_year": self.mower_started_year,
             "last_sample_at": self.last_sample_at,
             "configured_initial_soil_moisture": self.configured_initial_soil_moisture,
+            "precipitation_last_value": self.precipitation_last_value,
+            "precipitation_last_sample_at": self.precipitation_last_sample_at,
         }

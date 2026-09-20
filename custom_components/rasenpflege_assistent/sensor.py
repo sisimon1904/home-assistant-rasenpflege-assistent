@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -25,17 +26,23 @@ from .const import (
     ATTR_DAYS_SINCE_MOWING,
     ATTR_DAYS_SINCE_WATERING,
     ATTR_DOSE_G_M2,
-    ATTR_FORECAST_RAIN_MM,
-    ATTR_FERTILIZING_RECOMMENDED,
     ATTR_FERTILIZER_STATUS,
+    ATTR_FERTILIZING_RECOMMENDED,
+    ATTR_FORECAST_PERIOD_DAYS,
+    ATTR_FORECAST_RAIN_MM,
+    ATTR_FORECAST_UPDATED_AT,
     ATTR_GROWTH_TEMPERATURE,
     ATTR_ICON_COLOR,
     ATTR_LAST_MOWING,
     ATTR_MODEL_CONFIDENCE,
     ATTR_MOWER_CAN_BE_SWITCHED_OFF,
     ATTR_MOWER_START_RECOMMENDED,
+    ATTR_MOWING_INTERVAL_DAYS,
+    ATTR_NEXT_MOWING_DATE,
     ATTR_NEXT_WINDOW,
     ATTR_NPK,
+    ATTR_OBSERVED_RAIN_MM,
+    ATTR_PRECIPITATION_SOURCE,
     ATTR_REASONS,
     ATTR_RECOMMENDED_LITERS,
     ATTR_RECOMMENDED_MM,
@@ -75,14 +82,15 @@ MOWER_COLORS = {
     "mow_less": "orange",
     "reduce_mowing": "orange",
     "pause_drought": "red",
+    "wait_to_mow": "grey",
 }
 
 STATUS_COLORS = {
-    "Winterruhe": "blue",
-    "Vorfrühling": "light-green",
-    "Bewässerung empfohlen": "light-blue",
-    "Düngung empfohlen": "orange",
-    "Guter Zustand": "green",
+    "winter_dormancy": "blue",
+    "early_spring": "light-green",
+    "watering_recommended": "light-blue",
+    "fertilizing_recommended": "orange",
+    "good_condition": "green",
 }
 
 
@@ -99,6 +107,14 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
         key="status",
         translation_key="status",
         icon="mdi:leaf-circle-outline",
+        device_class=SensorDeviceClass.ENUM,
+        options=[
+            "winter_dormancy",
+            "early_spring",
+            "watering_recommended",
+            "fertilizing_recommended",
+            "good_condition",
+        ],
         value_fn=lambda data: data.lawn_status,
         attributes_fn=lambda data: {
             ATTR_ICON_COLOR: STATUS_COLORS.get(data.lawn_status, "grey"),
@@ -149,6 +165,7 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             "mow_less",
             "reduce_mowing",
             "pause_drought",
+            "wait_to_mow",
         ],
         value_fn=lambda data: data.mower_status,
         attributes_fn=lambda data: {
@@ -161,6 +178,10 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             ATTR_DAYS_SINCE_MOWING: data.days_since_mowing,
             ATTR_GROWTH_TEMPERATURE: data.growth_temperature_7d,
             ATTR_TEMPERATURE_SOURCE: data.temperature_source,
+            ATTR_MOWING_INTERVAL_DAYS: data.mowing_interval_days,
+            ATTR_NEXT_MOWING_DATE: (
+                data.next_mowing_date.isoformat() if data.next_mowing_date else None
+            ),
         },
     ),
     LawnSensorDescription(
@@ -191,11 +212,17 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
         key="watering_recommendation",
         translation_key="watering_recommendation",
         icon="mdi:watering-can-outline",
+        device_class=SensorDeviceClass.ENUM,
+        options=["season_pause", "water_now", "wait_for_rain", "not_due"],
         value_fn=lambda data: data.watering_status,
         attributes_fn=lambda data: {
             ATTR_RECOMMENDED_MM: data.watering_mm,
             ATTR_RECOMMENDED_LITERS: data.watering_liters,
             ATTR_FORECAST_RAIN_MM: data.forecast_rain_mm,
+            ATTR_FORECAST_PERIOD_DAYS: 3,
+            ATTR_FORECAST_UPDATED_AT: data.forecast_updated_at,
+            ATTR_OBSERVED_RAIN_MM: data.observed_rain_today_mm,
+            ATTR_PRECIPITATION_SOURCE: data.precipitation_source,
             ATTR_DAYS_SINCE_WATERING: data.days_since_watering,
             ATTR_CONFIDENCE: data.watering_confidence,
             ATTR_REASONS: data.watering_reasons,

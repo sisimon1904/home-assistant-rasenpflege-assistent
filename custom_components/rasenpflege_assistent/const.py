@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 DOMAIN = "rasenpflege_assistent"
-INTEGRATION_VERSION = "1.3.1"
+INTEGRATION_VERSION = "2.0.0"
 PLATFORMS = ["sensor", "binary_sensor", "button"]
 
 CONF_NAME = "name"
@@ -13,6 +13,8 @@ CONF_TEMPERATURE_ENTITY = "temperature_entity"
 CONF_WEATHER_ENTITY = "weather_entity"
 CONF_MOWED_ENTITY = "mowed_entity"
 CONF_WATERED_ENTITY = "watered_entity"
+CONF_PRECIPITATION_ENTITY = "precipitation_entity"
+CONF_DEFAULT_WATERING_AMOUNT = "default_watering_amount"
 CONF_AREA = "area"
 CONF_SUN_EXPOSURE = "sun_exposure"
 CONF_LAWN_TYPE = "lawn_type"
@@ -22,15 +24,17 @@ CONF_LAST_FERTILIZING = "last_fertilizing"
 CONF_INITIAL_GTS = "initial_gts"
 CONF_INITIAL_SOIL_MOISTURE = "initial_soil_moisture"
 
-DEFAULT_NAME = "Rasen"
+DEFAULT_NAME = "Lawn"
 DEFAULT_AREA = 100.0
 DEFAULT_SUN_EXPOSURE = "sunny"
 DEFAULT_LAWN_TYPE = "family"
 DEFAULT_SOIL_TYPE = "loamy"
 DEFAULT_INITIAL_GTS = 0.0
 DEFAULT_INITIAL_SOIL_MOISTURE = 70.0
+DEFAULT_WATERING_AMOUNT = 15.0
 
 UPDATE_INTERVAL = timedelta(minutes=30)
+FORECAST_CACHE_INTERVAL = timedelta(hours=1)
 STORE_VERSION = 1
 STORE_KEY_PREFIX = f"{DOMAIN}."
 
@@ -43,6 +47,10 @@ ATTR_CONFIDENCE = "confidence"
 ATTR_RECOMMENDED_MM = "recommended_mm"
 ATTR_RECOMMENDED_LITERS = "recommended_liters"
 ATTR_FORECAST_RAIN_MM = "forecast_rain_mm"
+ATTR_FORECAST_PERIOD_DAYS = "forecast_period_days"
+ATTR_FORECAST_UPDATED_AT = "forecast_updated_at"
+ATTR_PRECIPITATION_SOURCE = "precipitation_source"
+ATTR_OBSERVED_RAIN_MM = "observed_rain_today_mm"
 ATTR_DAYS_SINCE_WATERING = "days_since_watering"
 ATTR_NPK = "npk"
 ATTR_DOSE_G_M2 = "dose_g_m2"
@@ -63,3 +71,5 @@ ATTR_MOWER_START_RECOMMENDED = "mower_start_recommended"
 ATTR_MOWER_CAN_BE_SWITCHED_OFF = "mower_can_be_switched_off"
 ATTR_LAST_MOWING = "last_mowing"
 ATTR_DAYS_SINCE_MOWING = "days_since_mowing"
+ATTR_MOWING_INTERVAL_DAYS = "mowing_interval_days"
+ATTR_NEXT_MOWING_DATE = "next_mowing_date"

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import math
 from calendar import monthrange
 from datetime import date
-import math
 from typing import Any
 
 
@@ -65,9 +65,7 @@ def hargreaves_evapotranspiration(
     phi = math.radians(max(-65.0, min(65.0, latitude)))
     dr = 1 + 0.033 * math.cos(2 * math.pi * day_of_year / 365)
     delta = 0.409 * math.sin(2 * math.pi * day_of_year / 365 - 1.39)
-    sunset_angle = math.acos(
-        max(-1.0, min(1.0, -math.tan(phi) * math.tan(delta)))
-    )
+    sunset_angle = math.acos(max(-1.0, min(1.0, -math.tan(phi) * math.tan(delta))))
     radiation = (
         24
         * 60
@@ -100,9 +98,7 @@ def update_soil_water(
     rain_efficiency: float = 0.8,
 ) -> tuple[float, float]:
     """Update a simple root-zone bucket and return water plus actual ET."""
-    effective_rain = max(0.0, precipitation_mm) * max(
-        0.0, min(1.0, rain_efficiency)
-    )
+    effective_rain = max(0.0, precipitation_mm) * max(0.0, min(1.0, rain_efficiency))
     actual_et = max(0.0, reference_et_mm * crop_coefficient)
     updated = water_mm + effective_rain + max(0.0, irrigation_mm) - actual_et
     return round(max(0.0, min(capacity_mm, updated)), 2), round(actual_et, 2)
@@ -162,6 +158,36 @@ def mower_state(*, growth: str, mower_started_year: int | None, year: int) -> st
     return "mow_less"
 
 
+def mower_recommendation(
+    *,
+    growth: str,
+    mower_started_year: int | None,
+    year: int,
+    last_mowing: date | None,
+    today: date,
+) -> dict[str, Any]:
+    """Return mower state, interval and next recommended mowing date."""
+    base_state = mower_state(
+        growth=growth, mower_started_year=mower_started_year, year=year
+    )
+    interval = {
+        "active_growth": 4,
+        "slow_growth": 7,
+        "autumn_slowdown": 10,
+        "first_awakening": 10,
+    }.get(growth)
+    next_date = None
+    if interval is not None and last_mowing is not None:
+        next_date = last_mowing.fromordinal(last_mowing.toordinal() + interval)
+        if today < next_date and base_state in {
+            "mow_regularly",
+            "mow_less",
+            "reduce_mowing",
+        }:
+            base_state = "wait_to_mow"
+    return {"status": base_state, "interval": interval, "next_date": next_date}
+
+
 def watering_recommendation(
     *,
     today: date,
@@ -172,6 +198,8 @@ def watering_recommendation(
     forecast: list[dict[str, Any]],
     last_watering: date | None,
     soil_moisture_percent: float | None = None,
+    soil_water_mm: float | None = None,
+    soil_capacity_mm: float | None = None,
 ) -> dict[str, Any]:
     """Calculate a conservative weather-based watering recommendation."""
     rain = sum_forecast_rain(forecast, 3)
@@ -181,10 +209,10 @@ def watering_recommendation(
     if month not in (4, 5, 6, 7, 8, 9, 10):
         return {
             "recommended": False,
-            "status": "Saisonpause",
+            "status": "season_pause",
             "mm": 0.0,
             "liters": 0.0,
-            "reasons": ["Außerhalb der üblichen Bewässerungssaison"],
+            "reasons": ["outside_watering_season"],
             "rain": rain,
             "confidence": "medium" if rain is not None else "low",
         }
@@ -211,40 +239,45 @@ def watering_recommendation(
     due_by_time = elapsed is None or elapsed >= interval
     if soil_moisture_percent is not None:
         due_by_time = soil_moisture_percent < 35.0
-    enough_rain = rain is not None and rain >= 8.0
+    deficit = target_mm
+    if soil_water_mm is not None and soil_capacity_mm:
+        target_water = soil_capacity_mm * 0.8
+        deficit = max(0.0, target_water - soil_water_mm)
+        target_mm = min(20.0, max(5.0, round(deficit))) if deficit > 0 else 0.0
+    rain_24h = sum_forecast_rain(forecast, 1)
+    enough_rain = (
+        rain_24h is not None and rain_24h >= min(8.0, max(3.0, deficit))
+    ) or (
+        (soil_moisture_percent is None or soil_moisture_percent >= 25.0)
+        and rain is not None
+        and rain >= 8.0
+    )
     recommended = due_by_time and not enough_rain
 
     reasons: list[str] = []
     if elapsed is None:
-        reasons.append("Letzte Bewässerung ist nicht bekannt")
+        reasons.append("last_watering_unknown")
     else:
-        reasons.append(f"Letzte Bewässerung vor {elapsed} Tagen")
+        reasons.append("last_watering_known")
     if rain is None:
-        reasons.append("Vorhersage enthält keine Niederschlagsmenge")
+        reasons.append("forecast_precipitation_unavailable")
     elif enough_rain:
-        reasons.append(
-            f"In den nächsten 3 Tagen werden etwa {rain:.1f} mm Regen erwartet"
-        )
+        reasons.append("sufficient_rain_forecast")
     else:
-        reasons.append(
-            f"Nur etwa {rain:.1f} mm Regen in den nächsten 3 Tagen erwartet"
-        )
+        reasons.append("insufficient_rain_forecast")
     if hot:
-        reasons.append("Aktuelle Temperatur erhöht den Wasserbedarf")
+        reasons.append("heat_increases_water_demand")
     if soil_moisture_percent is not None:
-        reasons.append(
-            f"Modellierte Bodenfeuchte: {soil_moisture_percent:.0f} %"
-        )
+        reasons.append("modeled_soil_moisture_used")
 
     if recommended:
-        status = "Jetzt wässern"
+        status = "water_now"
         mm = target_mm
     elif enough_rain:
-        status = "Auf Regen warten"
+        status = "wait_for_rain"
         mm = 0.0
     else:
-        remaining = max(1, interval - (elapsed or 0))
-        status = f"Voraussichtlich in {remaining} Tagen"
+        status = "not_due"
         mm = 0.0
 
     return {
@@ -271,8 +304,7 @@ def _window(
     if today > end:
         year += 1
     return (
-        f"{start_day:02d}.{start_month:02d}.{year}–"
-        f"{end_day:02d}.{end_month:02d}.{year}"
+        f"{start_day:02d}.{start_month:02d}.{year}–{end_day:02d}.{end_month:02d}.{year}"
     )
 
 
@@ -296,56 +328,54 @@ def fertilizing_recommendation(
         dose = 25.0
 
     due = False
-    status = "Derzeit nicht düngen"
+    status = "not_due"
     npk = "–"
     next_window = "–"
 
     if month in (3, 4):
-        npk = "Rasendünger, NPK etwa 20-5-8"
+        npk = "20-5-8"
         next_window = _window(today, 3, 15, 4, 30)
         if gts < 200:
-            status = "Auf Vegetationsbeginn warten"
-            reasons.append(f"Grünlandtemperatursumme erst {gts:.1f}; Richtwert: 200")
+            status = "wait_for_growth"
+            reasons.append("gts_below_200")
         elif elapsed is None or elapsed >= 42:
             due = True
-            status = "Frühjahrsdüngung empfohlen"
-            reasons.append("Grünlandtemperatursumme hat den Richtwert 200 erreicht")
+            status = "spring_fertilizing_recommended"
+            reasons.append("gts_reached_200")
         else:
-            status = "Frühjahrsdüngung bereits protokolliert"
+            status = "spring_fertilizing_recorded"
     elif month in (5, 6):
-        npk = "Langzeit-Rasendünger, NPK etwa 20-5-8"
+        npk = "20-5-8"
         next_window = _window(today, 5, 15, 6, 30)
         if elapsed is None or elapsed >= 56:
             due = True
-            status = "Sommerdüngung empfohlen"
-            reasons.append(
-                "Hauptwachstumsphase und ausreichender Abstand zur letzten Düngung"
-            )
+            status = "summer_fertilizing_recommended"
+            reasons.append("main_growth_and_interval_reached")
         else:
-            status = "Noch keine erneute Düngung"
+            status = "fertilizing_not_due_yet"
     elif month in (7, 8):
-        npk = "Kaliumbetonter Rasendünger, NPK etwa 15-5-15"
+        npk = "15-5-15"
         next_window = _window(today, 8, 15, 9, 30)
-        status = "Nur bei sichtbarem Bedarf düngen"
-        reasons.append("Bei Hitze oder Trockenstress keine stickstoffreiche Düngung")
+        status = "fertilize_only_if_needed"
+        reasons.append("avoid_nitrogen_during_heat_or_drought")
     elif month in (9, 10):
-        npk = "Herbstrasendünger, NPK etwa 8-4-15"
+        npk = "8-4-15"
         next_window = _window(today, 9, 1, 10, 15)
         if elapsed is None or elapsed >= 42:
             due = True
-            status = "Herbstdüngung empfohlen"
-            reasons.append("Kaliumbetonte Herbstdüngung unterstützt die Winterhärte")
+            status = "autumn_fertilizing_recommended"
+            reasons.append("potassium_supports_winter_hardiness")
         else:
-            status = "Herbstdüngung bereits protokolliert"
+            status = "autumn_fertilizing_recorded"
     else:
         npk = "–"
         next_window = _window(today, 3, 15, 4, 30)
-        reasons.append("Außerhalb der üblichen Düngeperiode")
+        reasons.append("outside_fertilizing_season")
 
     if elapsed is not None:
-        reasons.append(f"Letzte Düngung vor {elapsed} Tagen")
+        reasons.append("last_fertilizing_known")
     else:
-        reasons.append("Letzte Düngung ist nicht bekannt")
+        reasons.append("last_fertilizing_unknown")
 
     product_kg = round(dose * area_m2 / 1000, 2) if due else 0.0
     return {
@@ -368,11 +398,11 @@ def lawn_status(
 ) -> str:
     """Return a concise overall lawn status."""
     if today.month in (11, 12, 1, 2):
-        return "Winterruhe"
+        return "winter_dormancy"
     if gts < 200 and today.month <= 4:
-        return "Vorfrühling"
+        return "early_spring"
     if watering_due:
-        return "Bewässerung empfohlen"
+        return "watering_recommended"
     if fertilizing_due:
-        return "Düngung empfohlen"
-    return "Guter Zustand"
+        return "fertilizing_recommended"
+    return "good_condition"

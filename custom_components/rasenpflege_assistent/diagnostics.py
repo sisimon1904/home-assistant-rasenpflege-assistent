@@ -17,7 +17,12 @@ async def async_get_config_entry_diagnostics(
     """Return non-sensitive diagnostic information."""
     coordinator = entry.runtime_data
     data = asdict(coordinator.data)
-    for key in ("last_watering", "last_fertilizing", "last_mowing"):
+    for key in (
+        "last_watering",
+        "last_fertilizing",
+        "last_mowing",
+        "next_mowing_date",
+    ):
         if data[key] is not None:
             data[key] = data[key].isoformat()
     return {

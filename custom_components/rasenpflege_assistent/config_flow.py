@@ -5,15 +5,17 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant import config_entries
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.config_entries import ConfigFlowResult, OptionsFlowWithReload
 from homeassistant.const import UnitOfArea
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import entity_registry as er, selector
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import selector
 
 from .const import (
     CONF_AREA,
+    CONF_DEFAULT_WATERING_AMOUNT,
     CONF_INITIAL_GTS,
     CONF_INITIAL_SOIL_MOISTURE,
     CONF_LAST_FERTILIZING,
@@ -21,11 +23,12 @@ from .const import (
     CONF_LAWN_TYPE,
     CONF_MOWED_ENTITY,
     CONF_NAME,
+    CONF_PRECIPITATION_ENTITY,
     CONF_SOIL_TYPE,
     CONF_SUN_EXPOSURE,
     CONF_TEMPERATURE_ENTITY,
-    CONF_WEATHER_ENTITY,
     CONF_WATERED_ENTITY,
+    CONF_WEATHER_ENTITY,
     DEFAULT_AREA,
     DEFAULT_INITIAL_GTS,
     DEFAULT_INITIAL_SOIL_MOISTURE,
@@ -33,15 +36,17 @@ from .const import (
     DEFAULT_NAME,
     DEFAULT_SOIL_TYPE,
     DEFAULT_SUN_EXPOSURE,
+    DEFAULT_WATERING_AMOUNT,
     DOMAIN,
 )
 
 
-def _select(options: list[tuple[str, str]]) -> selector.SelectSelector:
-    """Build a dropdown with stable values and German labels."""
+def _select(translation_key: str, options: list[str]) -> selector.SelectSelector:
+    """Build a translated dropdown with stable machine values."""
     return selector.SelectSelector(
         selector.SelectSelectorConfig(
-            options=[{"value": value, "label": label} for value, label in options],
+            options=options,
+            translation_key=translation_key,
             mode=selector.SelectSelectorMode.DROPDOWN,
         )
     )
@@ -66,6 +71,27 @@ def _schema() -> vol.Schema:
             vol.Optional(CONF_WATERED_ENTITY): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="binary_sensor")
             ),
+            vol.Optional(CONF_PRECIPITATION_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="sensor",
+                    device_class=[
+                        SensorDeviceClass.PRECIPITATION,
+                        SensorDeviceClass.PRECIPITATION_INTENSITY,
+                    ],
+                )
+            ),
+            vol.Required(
+                CONF_DEFAULT_WATERING_AMOUNT,
+                default=DEFAULT_WATERING_AMOUNT,
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=1,
+                    max=50,
+                    step=0.5,
+                    unit_of_measurement="mm",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
             vol.Required(CONF_AREA, default=DEFAULT_AREA): selector.NumberSelector(
                 selector.NumberSelectorConfig(
                     min=1,
@@ -78,34 +104,15 @@ def _schema() -> vol.Schema:
             vol.Required(
                 CONF_SUN_EXPOSURE,
                 default=DEFAULT_SUN_EXPOSURE,
-            ): _select(
-                [
-                    ("sunny", "Sonnig"),
-                    ("partial_shade", "Halbschatten"),
-                    ("shade", "Schatten"),
-                ]
-            ),
+            ): _select("sun_exposure", ["sunny", "partial_shade", "shade"]),
             vol.Required(
                 CONF_LAWN_TYPE,
                 default=DEFAULT_LAWN_TYPE,
-            ): _select(
-                [
-                    ("family", "Familienrasen"),
-                    ("play", "Stark beanspruchter Spielrasen"),
-                    ("ornamental", "Zierrasen"),
-                    ("shade", "Schattenrasen"),
-                ]
-            ),
+            ): _select("lawn_type", ["family", "play", "ornamental", "shade"]),
             vol.Required(
                 CONF_SOIL_TYPE,
                 default=DEFAULT_SOIL_TYPE,
-            ): _select(
-                [
-                    ("sandy", "Sandig"),
-                    ("loamy", "Lehmig und ausgewogen"),
-                    ("clayey", "Tonig"),
-                ]
-            ),
+            ): _select("soil_type", ["sandy", "loamy", "clayey"]),
             vol.Optional(CONF_LAST_WATERING): selector.DateSelector(),
             vol.Optional(CONF_LAST_FERTILIZING): selector.DateSelector(),
             vol.Required(
@@ -154,7 +161,7 @@ def _validate_openweathermap_entities(
 class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Rasenpflege-Assistent."""
 
-    VERSION = 3
+    VERSION = 4
     MINOR_VERSION = 0
 
     async def async_step_user(
@@ -197,15 +204,14 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
                 current = {**self.config_entry.data, **user_input}
                 return self.async_show_form(
                     step_id="init",
-                    data_schema=self.add_suggested_values_to_schema(
-                        _schema(), current
-                    ),
+                    data_schema=self.add_suggested_values_to_schema(_schema(), current),
                     errors=errors,
                 )
             options = dict(user_input)
             options.setdefault(CONF_TEMPERATURE_ENTITY, None)
             options.setdefault(CONF_MOWED_ENTITY, None)
             options.setdefault(CONF_WATERED_ENTITY, None)
+            options.setdefault(CONF_PRECIPITATION_ENTITY, None)
             return self.async_create_entry(data=options)
 
         current = {**self.config_entry.data, **self.config_entry.options}

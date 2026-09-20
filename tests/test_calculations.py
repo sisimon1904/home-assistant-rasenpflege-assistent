@@ -7,7 +7,9 @@ from custom_components.rasenpflege_assistent.calculations import (
     grassland_temperature_increment,
     growth_state,
     hargreaves_evapotranspiration,
+    mower_recommendation,
     mower_state,
+    sum_forecast_rain,
     update_soil_water,
     watering_recommendation,
 )
@@ -49,7 +51,42 @@ def test_forecast_rain_suppresses_watering() -> None:
         last_watering=date(2026, 7, 1),
     )
     assert result["recommended"] is False
-    assert result["status"] == "Auf Regen warten"
+    assert result["status"] == "wait_for_rain"
+
+
+def test_watering_amount_uses_soil_water_deficit() -> None:
+    """The recommendation refills the modeled reservoir to 80 percent."""
+    result = watering_recommendation(
+        today=date(2026, 7, 20),
+        area_m2=100,
+        sun_exposure="sunny",
+        soil_type="loamy",
+        current_temperature=25,
+        forecast=[{"precipitation": 0}],
+        last_watering=date(2026, 7, 1),
+        soil_moisture_percent=30,
+        soil_water_mm=12,
+        soil_capacity_mm=40,
+    )
+    assert result["recommended"] is True
+    assert result["mm"] == 20
+    assert result["liters"] == 2000
+
+
+def test_daily_forecast_sum_uses_three_entries() -> None:
+    """Only the first three daily forecast periods are added."""
+    assert (
+        sum_forecast_rain(
+            [
+                {"precipitation": 1},
+                {"precipitation": 2},
+                {"precipitation": 3},
+                {"precipitation": 20},
+            ],
+            3,
+        )
+        == 6
+    )
 
 
 def test_autumn_fertilizer_quantity() -> None:
@@ -156,6 +193,20 @@ def test_mower_status_is_actionable() -> None:
         )
         == "pause_drought"
     )
+
+
+def test_recent_mowing_defers_next_run() -> None:
+    """A recent mowing is reflected in the primary mower state."""
+    result = mower_recommendation(
+        growth="active_growth",
+        mower_started_year=2026,
+        year=2026,
+        last_mowing=date(2026, 6, 9),
+        today=date(2026, 6, 10),
+    )
+    assert result["status"] == "wait_to_mow"
+    assert result["interval"] == 4
+    assert result["next_date"] == date(2026, 6, 13)
 
 
 def test_soil_bucket_and_evapotranspiration() -> None:
