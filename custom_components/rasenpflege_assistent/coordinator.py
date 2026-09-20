@@ -366,7 +366,6 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             area_m2=area,
             lawn_type=settings.get(CONF_LAWN_TYPE, DEFAULT_LAWN_TYPE),
             last_fertilizing=last_fertilizing,
-            last_mowing=last_mowing,
         )
         if fertilizing["recommended"] and watering["recommended"]:
             fertilizing.update(
@@ -413,6 +412,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             next_fertilizing_window=fertilizing["next_window"],
             last_watering=last_watering,
             last_fertilizing=last_fertilizing,
+            last_mowing=last_mowing,
             days_since_watering=days_since(last_watering, today),
             days_since_fertilizing=days_since(last_fertilizing, today),
             days_since_mowing=days_since(last_mowing, today),

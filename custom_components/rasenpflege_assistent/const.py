@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 DOMAIN = "rasenpflege_assistent"
-INTEGRATION_VERSION = "1.3.0"
+INTEGRATION_VERSION = "1.3.1"
 PLATFORMS = ["sensor", "binary_sensor", "button"]
 
 CONF_NAME = "name"

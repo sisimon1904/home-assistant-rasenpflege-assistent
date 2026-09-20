@@ -1,6 +1,6 @@
 # Rasenpflege-Assistent für Home Assistant
 
-Version 1.3.0
+Version 1.3.1
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -157,9 +157,14 @@ Attribut `temperature_source` am Wachstums- und Mähroboterstatus.
   einer Aus→Ein-Flanke. Ist ein Sensor nicht konfiguriert, bleibt die passende
   manuelle Schaltfläche erhalten.
 
+## Fehlerbehebung in Version 1.3.1
+
+- Behebt einen Einrichtungsfehler durch die irrtümliche Übergabe von
+  `last_mowing` an die Berechnung der Düngeempfehlung.
+
 ## Automatische Updates mit HACS
 
-Neue stabile Versionen werden als GitHub-Releases wie `v1.3.0` veröffentlicht.
+Neue stabile Versionen werden als GitHub-Releases wie `v1.3.1` veröffentlicht.
 Eine über HACS installierte Kopie zeigt diese anschließend als Update an. Eine
 nur manuell nach `custom_components` kopierte Integration kann Home Assistant
 nicht selbst aus dem Internet aktualisieren.
