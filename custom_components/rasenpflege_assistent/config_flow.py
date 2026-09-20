@@ -19,12 +19,13 @@ from .const import (
     CONF_LAST_FERTILIZING,
     CONF_LAST_WATERING,
     CONF_LAWN_TYPE,
+    CONF_MOWED_ENTITY,
     CONF_NAME,
-    CONF_RAIN_ENTITY,
     CONF_SOIL_TYPE,
     CONF_SUN_EXPOSURE,
     CONF_TEMPERATURE_ENTITY,
     CONF_WEATHER_ENTITY,
+    CONF_WATERED_ENTITY,
     DEFAULT_AREA,
     DEFAULT_INITIAL_GTS,
     DEFAULT_INITIAL_SOIL_MOISTURE,
@@ -59,10 +60,11 @@ def _schema() -> vol.Schema:
                     domain="sensor", device_class="temperature"
                 )
             ),
-            vol.Optional(CONF_RAIN_ENTITY): selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain="sensor", device_class="precipitation_intensity"
-                )
+            vol.Optional(CONF_MOWED_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="binary_sensor")
+            ),
+            vol.Optional(CONF_WATERED_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="binary_sensor")
             ),
             vol.Required(CONF_AREA, default=DEFAULT_AREA): selector.NumberSelector(
                 selector.NumberSelectorConfig(
@@ -146,18 +148,13 @@ def _validate_openweathermap_entities(
         weather_state = hass.states.get(user_input[CONF_WEATHER_ENTITY])
         if weather_state is None or "temperature" not in weather_state.attributes:
             errors[CONF_WEATHER_ENTITY] = "weather_data_unavailable"
-    rain_entity = user_input.get(CONF_RAIN_ENTITY)
-    if rain_entity:
-        rain_entry = registry.async_get(rain_entity)
-        if rain_entry is None or rain_entry.platform != "openweathermap":
-            errors[CONF_RAIN_ENTITY] = "not_openweathermap"
     return errors
 
 
 class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Rasenpflege-Assistent."""
 
-    VERSION = 2
+    VERSION = 3
     MINOR_VERSION = 0
 
     async def async_step_user(
@@ -207,7 +204,8 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
                 )
             options = dict(user_input)
             options.setdefault(CONF_TEMPERATURE_ENTITY, None)
-            options.setdefault(CONF_RAIN_ENTITY, None)
+            options.setdefault(CONF_MOWED_ENTITY, None)
+            options.setdefault(CONF_WATERED_ENTITY, None)
             return self.async_create_entry(data=options)
 
         current = {**self.config_entry.data, **self.config_entry.options}

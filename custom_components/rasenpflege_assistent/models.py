@@ -29,8 +29,10 @@ class LawnData:
     next_fertilizing_window: str = "–"
     last_watering: date | None = None
     last_fertilizing: date | None = None
+    last_mowing: date | None = None
     days_since_watering: int | None = None
     days_since_fertilizing: int | None = None
+    days_since_mowing: int | None = None
     current_temperature: float | None = None
     temperature_source: str = "unavailable"
     growth_status: str = "collecting_data"
@@ -56,6 +58,7 @@ class RuntimeState:
     temperature_samples: int = 0
     last_watering: str | None = None
     last_fertilizing: str | None = None
+    last_mowing: str | None = None
     configured_initial_gts: float = 0.0
     configured_last_watering: str | None = None
     configured_last_fertilizing: str | None = None
@@ -80,6 +83,7 @@ class RuntimeState:
             "temperature_samples": self.temperature_samples,
             "last_watering": self.last_watering,
             "last_fertilizing": self.last_fertilizing,
+            "last_mowing": self.last_mowing,
             "configured_initial_gts": self.configured_initial_gts,
             "configured_last_watering": self.configured_last_watering,
             "configured_last_fertilizing": self.configured_last_fertilizing,

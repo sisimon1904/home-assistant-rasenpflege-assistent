@@ -9,7 +9,8 @@
           "name": "Name",
           "weather_entity": "OpenWeatherMap weather entity",
           "temperature_entity": "Outdoor temperature sensor (optional)",
-          "rain_entity": "OpenWeatherMap rain sensor (optional, recommended)",
+          "mowed_entity": "Lawn was mowed binary sensor (optional)",
+          "watered_entity": "Lawn was watered binary sensor (optional)",
           "area": "Lawn area",
           "sun_exposure": "Sun exposure",
           "lawn_type": "Lawn use",
@@ -22,7 +23,8 @@
         "data_description": {
           "initial_gts": "If installing during the year, enter a known starting value here. From the next January 1, the integration starts automatically at 0.",
           "temperature_entity": "This sensor has priority. If it is not selected or is unavailable, the current OpenWeatherMap temperature is used automatically.",
-          "rain_entity": "With the OWM rain sensor, fallen rain is integrated. Without it, the soil model uses forecast rain and marks its quality as low.",
+          "mowed_entity": "An off-to-on transition records mowing and acknowledges the mowing season. Without a selection, use the manual button.",
+          "watered_entity": "An off-to-on transition records watering and updates the soil model. Without a selection, use the manual button.",
           "initial_soil_moisture": "Starting value of the virtual soil reservoir. For normal loamy soil, 70% is a reasonable initial estimate."
         }
       }
@@ -44,7 +46,8 @@
           "name": "Name",
           "weather_entity": "OpenWeatherMap weather entity",
           "temperature_entity": "Outdoor temperature sensor (optional)",
-          "rain_entity": "OpenWeatherMap rain sensor (optional, recommended)",
+          "mowed_entity": "Lawn was mowed binary sensor (optional)",
+          "watered_entity": "Lawn was watered binary sensor (optional)",
           "area": "Lawn area",
           "sun_exposure": "Sun exposure",
           "lawn_type": "Lawn use",
@@ -63,7 +66,7 @@
   },
   "entity": {
     "sensor": {
-      "status": {"name": "Status"},
+      "status": {"name": "Care status"},
       "growth_status": {
         "name": "Growth status",
         "state": {
@@ -94,17 +97,14 @@
       "gts": {"name": "Grassland temperature sum"},
       "watering_recommendation": {"name": "Watering recommendation"},
       "watering_amount": {"name": "Recommended water amount"},
-      "fertilizer_recommendation": {"name": "Fertilizer recommendation"},
       "fertilizer_amount": {"name": "Recommended fertilizer amount"}
     },
     "binary_sensor": {
-      "mower_can_be_switched_off": {"name": "Mower can be switched off"},
-      "mower_start_recommended": {"name": "Mower start recommended"},
       "watering_due": {"name": "Watering due"},
       "fertilizing_due": {"name": "Fertilizing due"}
     },
     "button": {
-      "mark_mowing_started": {"name": "Mark mowing season as started"},
+      "mark_mowing_started": {"name": "Record mowing"},
       "mark_watered": {"name": "Record watering"},
       "mark_fertilized": {"name": "Record fertilizing"}
     }

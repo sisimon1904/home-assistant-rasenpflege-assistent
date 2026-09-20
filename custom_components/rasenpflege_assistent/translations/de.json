@@ -9,7 +9,8 @@
           "name": "Name",
           "weather_entity": "OpenWeatherMap-Wetterentität",
           "temperature_entity": "Außentemperatursensor (optional)",
-          "rain_entity": "OpenWeatherMap-Regensensor (optional, empfohlen)",
+          "mowed_entity": "Binärsensor „Rasen wurde gemäht“ (optional)",
+          "watered_entity": "Binärsensor „Rasen wurde bewässert“ (optional)",
           "area": "Rasenfläche",
           "sun_exposure": "Sonnenlage",
           "lawn_type": "Rasennutzung",
@@ -22,7 +23,8 @@
         "data_description": {
           "initial_gts": "Bei einer Installation mitten im Jahr kann hier ein bekannter Startwert eingetragen werden. Ab dem nächsten 1. Januar zählt die Integration automatisch ab 0.",
           "temperature_entity": "Dieser Sensor hat Vorrang. Wenn er nicht ausgewählt oder nicht verfügbar ist, wird automatisch die aktuelle Temperatur von OpenWeatherMap verwendet.",
-          "rain_entity": "Mit dem OWM-Regensensor wird gefallener Regen integriert. Ohne ihn verwendet das Bodenmodell den Vorhersageregen und kennzeichnet die Qualität als niedrig.",
+          "mowed_entity": "Eine Aus→Ein-Flanke protokolliert das Mähen und bestätigt den Saisonstart. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
+          "watered_entity": "Eine Aus→Ein-Flanke protokolliert die Bewässerung und aktualisiert das Bodenmodell. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
           "initial_soil_moisture": "Startwert des virtuellen Bodenspeichers. Für normalen lehmigen Boden sind 70 % ein sinnvoller Anfangswert."
         }
       }
@@ -44,7 +46,8 @@
           "name": "Name",
           "weather_entity": "OpenWeatherMap-Wetterentität",
           "temperature_entity": "Außentemperatursensor (optional)",
-          "rain_entity": "OpenWeatherMap-Regensensor (optional, empfohlen)",
+          "mowed_entity": "Binärsensor „Rasen wurde gemäht“ (optional)",
+          "watered_entity": "Binärsensor „Rasen wurde bewässert“ (optional)",
           "area": "Rasenfläche",
           "sun_exposure": "Sonnenlage",
           "lawn_type": "Rasennutzung",
@@ -63,7 +66,7 @@
   },
   "entity": {
     "sensor": {
-      "status": {"name": "Status"},
+      "status": {"name": "Pflegestatus"},
       "growth_status": {
         "name": "Wachstumsstatus",
         "state": {
@@ -94,17 +97,14 @@
       "gts": {"name": "Grünlandtemperatursumme"},
       "watering_recommendation": {"name": "Bewässerungsempfehlung"},
       "watering_amount": {"name": "Empfohlene Wassermenge"},
-      "fertilizer_recommendation": {"name": "Düngeempfehlung"},
       "fertilizer_amount": {"name": "Empfohlene Düngermenge"}
     },
     "binary_sensor": {
-      "mower_can_be_switched_off": {"name": "Mähroboter kann abgeschaltet werden"},
-      "mower_start_recommended": {"name": "Mähroboterstart empfohlen"},
       "watering_due": {"name": "Bewässerung fällig"},
       "fertilizing_due": {"name": "Düngung fällig"}
     },
     "button": {
-      "mark_mowing_started": {"name": "Mähsaison als gestartet markieren"},
+      "mark_mowing_started": {"name": "Mähen protokollieren"},
       "mark_watered": {"name": "Bewässerung protokollieren"},
       "mark_fertilized": {"name": "Düngung protokollieren"}
     }

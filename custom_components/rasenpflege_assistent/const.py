@@ -5,13 +5,14 @@ from __future__ import annotations
 from datetime import timedelta
 
 DOMAIN = "rasenpflege_assistent"
-INTEGRATION_VERSION = "1.2.0"
+INTEGRATION_VERSION = "1.3.0"
 PLATFORMS = ["sensor", "binary_sensor", "button"]
 
 CONF_NAME = "name"
 CONF_TEMPERATURE_ENTITY = "temperature_entity"
 CONF_WEATHER_ENTITY = "weather_entity"
-CONF_RAIN_ENTITY = "rain_entity"
+CONF_MOWED_ENTITY = "mowed_entity"
+CONF_WATERED_ENTITY = "watered_entity"
 CONF_AREA = "area"
 CONF_SUN_EXPOSURE = "sun_exposure"
 CONF_LAWN_TYPE = "lawn_type"
@@ -55,3 +56,10 @@ ATTR_DAILY_EVAPOTRANSPIRATION_MM = "daily_evapotranspiration_mm"
 ATTR_GROWTH_TEMPERATURE = "growth_temperature_7d"
 ATTR_CURRENT_TEMPERATURE = "current_temperature"
 ATTR_TEMPERATURE_SOURCE = "temperature_source"
+ATTR_ICON_COLOR = "icon_color"
+ATTR_FERTILIZING_RECOMMENDED = "fertilizing_recommended"
+ATTR_FERTILIZER_STATUS = "fertilizer_status"
+ATTR_MOWER_START_RECOMMENDED = "mower_start_recommended"
+ATTR_MOWER_CAN_BE_SWITCHED_OFF = "mower_can_be_switched_off"
+ATTR_LAST_MOWING = "last_mowing"
+ATTR_DAYS_SINCE_MOWING = "days_since_mowing"

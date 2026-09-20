@@ -14,6 +14,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfMass, UnitOfVolume
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import (
@@ -21,11 +22,18 @@ from .const import (
     ATTR_CURRENT_TEMPERATURE,
     ATTR_DAILY_EVAPOTRANSPIRATION_MM,
     ATTR_DAYS_SINCE_FERTILIZING,
+    ATTR_DAYS_SINCE_MOWING,
     ATTR_DAYS_SINCE_WATERING,
     ATTR_DOSE_G_M2,
     ATTR_FORECAST_RAIN_MM,
+    ATTR_FERTILIZING_RECOMMENDED,
+    ATTR_FERTILIZER_STATUS,
     ATTR_GROWTH_TEMPERATURE,
+    ATTR_ICON_COLOR,
+    ATTR_LAST_MOWING,
     ATTR_MODEL_CONFIDENCE,
+    ATTR_MOWER_CAN_BE_SWITCHED_OFF,
+    ATTR_MOWER_START_RECOMMENDED,
     ATTR_NEXT_WINDOW,
     ATTR_NPK,
     ATTR_REASONS,
@@ -35,6 +43,7 @@ from .const import (
     ATTR_SOIL_WATER_MM,
     ATTR_TEMPERATURE_SOURCE,
     ATTR_TOTAL_KG,
+    DOMAIN,
 )
 from .coordinator import LawnCoordinator
 from .entity import LawnEntity
@@ -44,6 +53,37 @@ PARALLEL_UPDATES = 0
 
 ValueFn = Callable[[LawnData], Any]
 AttributesFn = Callable[[LawnData], dict[str, Any]]
+
+
+GROWTH_COLORS = {
+    "collecting_data": "grey",
+    "winter_dormancy": "blue",
+    "first_awakening": "light-green",
+    "sustained_growth_start": "green",
+    "active_growth": "green",
+    "slow_growth": "orange",
+    "autumn_slowdown": "orange",
+    "heat_drought_stress": "red",
+}
+
+MOWER_COLORS = {
+    "collecting_data": "grey",
+    "winter_off": "blue",
+    "keep_off": "blue",
+    "start_mower": "light-green",
+    "mow_regularly": "green",
+    "mow_less": "orange",
+    "reduce_mowing": "orange",
+    "pause_drought": "red",
+}
+
+STATUS_COLORS = {
+    "Winterruhe": "blue",
+    "Vorfrühling": "light-green",
+    "Bewässerung empfohlen": "light-blue",
+    "Düngung empfohlen": "orange",
+    "Guter Zustand": "green",
+}
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -58,13 +98,24 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="status",
         translation_key="status",
-        icon="mdi:grass",
+        icon="mdi:leaf-circle-outline",
         value_fn=lambda data: data.lawn_status,
+        attributes_fn=lambda data: {
+            ATTR_ICON_COLOR: STATUS_COLORS.get(data.lawn_status, "grey"),
+            ATTR_FERTILIZING_RECOMMENDED: data.fertilizing_recommended,
+            ATTR_FERTILIZER_STATUS: data.fertilizing_status,
+            ATTR_NPK: data.fertilizer_npk,
+            ATTR_DOSE_G_M2: data.fertilizer_dose_g_m2,
+            ATTR_TOTAL_KG: data.fertilizer_total_kg,
+            ATTR_DAYS_SINCE_FERTILIZING: data.days_since_fertilizing,
+            ATTR_NEXT_WINDOW: data.next_fertilizing_window,
+            ATTR_REASONS: data.fertilizing_reasons,
+        },
     ),
     LawnSensorDescription(
         key="growth_status",
         translation_key="growth_status",
-        icon="mdi:sprout",
+        icon="mdi:grass",
         device_class=SensorDeviceClass.ENUM,
         options=[
             "collecting_data",
@@ -78,6 +129,7 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
         ],
         value_fn=lambda data: data.growth_status,
         attributes_fn=lambda data: {
+            ATTR_ICON_COLOR: GROWTH_COLORS.get(data.growth_status, "grey"),
             ATTR_GROWTH_TEMPERATURE: data.growth_temperature_7d,
             ATTR_CURRENT_TEMPERATURE: data.current_temperature,
             ATTR_TEMPERATURE_SOURCE: data.temperature_source,
@@ -100,6 +152,13 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
         ],
         value_fn=lambda data: data.mower_status,
         attributes_fn=lambda data: {
+            ATTR_ICON_COLOR: MOWER_COLORS.get(data.mower_status, "grey"),
+            ATTR_MOWER_START_RECOMMENDED: data.mower_start_recommended,
+            ATTR_MOWER_CAN_BE_SWITCHED_OFF: data.mower_can_be_switched_off,
+            ATTR_LAST_MOWING: (
+                data.last_mowing.isoformat() if data.last_mowing else None
+            ),
+            ATTR_DAYS_SINCE_MOWING: data.days_since_mowing,
             ATTR_GROWTH_TEMPERATURE: data.growth_temperature_7d,
             ATTR_TEMPERATURE_SOURCE: data.temperature_source,
         },
@@ -152,20 +211,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
         attributes_fn=lambda data: {ATTR_RECOMMENDED_MM: data.watering_mm},
     ),
     LawnSensorDescription(
-        key="fertilizer_recommendation",
-        translation_key="fertilizer_recommendation",
-        icon="mdi:leaf-circle-outline",
-        value_fn=lambda data: data.fertilizing_status,
-        attributes_fn=lambda data: {
-            ATTR_NPK: data.fertilizer_npk,
-            ATTR_DOSE_G_M2: data.fertilizer_dose_g_m2,
-            ATTR_TOTAL_KG: data.fertilizer_total_kg,
-            ATTR_DAYS_SINCE_FERTILIZING: data.days_since_fertilizing,
-            ATTR_NEXT_WINDOW: data.next_fertilizing_window,
-            ATTR_REASONS: data.fertilizing_reasons,
-        },
-    ),
-    LawnSensorDescription(
         key="fertilizer_amount",
         translation_key="fertilizer_amount",
         icon="mdi:weight-kilogram",
@@ -187,6 +232,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up lawn sensors."""
     coordinator: LawnCoordinator = entry.runtime_data
+    registry = er.async_get(hass)
+    deprecated = registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{entry.entry_id}_fertilizer_recommendation"
+    )
+    if deprecated:
+        registry.async_remove(deprecated)
     async_add_entities(LawnSensor(coordinator, description) for description in SENSORS)
 
 

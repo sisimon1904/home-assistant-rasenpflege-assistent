@@ -12,7 +12,9 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers import entity_registry as er
 
+from .const import DOMAIN
 from .coordinator import LawnCoordinator
 from .entity import LawnEntity
 from .models import LawnData
@@ -28,18 +30,6 @@ class LawnBinarySensorDescription(BinarySensorEntityDescription):
 
 
 BINARY_SENSORS: tuple[LawnBinarySensorDescription, ...] = (
-    LawnBinarySensorDescription(
-        key="mower_can_be_switched_off",
-        translation_key="mower_can_be_switched_off",
-        icon="mdi:snowflake-off",
-        value_fn=lambda data: data.mower_can_be_switched_off,
-    ),
-    LawnBinarySensorDescription(
-        key="mower_start_recommended",
-        translation_key="mower_start_recommended",
-        icon="mdi:robot-mower-outline",
-        value_fn=lambda data: data.mower_start_recommended,
-    ),
     LawnBinarySensorDescription(
         key="watering_due",
         translation_key="watering_due",
@@ -62,6 +52,13 @@ async def async_setup_entry(
 ) -> None:
     """Set up lawn binary sensors."""
     coordinator: LawnCoordinator = entry.runtime_data
+    registry = er.async_get(hass)
+    for key in ("mower_can_be_switched_off", "mower_start_recommended"):
+        deprecated = registry.async_get_entity_id(
+            "binary_sensor", DOMAIN, f"{entry.entry_id}_{key}"
+        )
+        if deprecated:
+            registry.async_remove(deprecated)
     async_add_entities(
         LawnBinarySensor(coordinator, description) for description in BINARY_SENSORS
     )

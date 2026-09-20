@@ -1,6 +1,6 @@
 # Rasenpflege-Assistent für Home Assistant
 
-Version 1.2.0
+Version 1.3.0
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -16,7 +16,6 @@ Bewässerung und Düngung. Sie steuert weder Bewässerung noch Mähroboter selbs
 - eingerichtete OpenWeatherMap-Integration
 - empfohlen: OpenWeatherMap-Modus `v3.0`, weil dieser aktuelle Wetterdaten,
   stündliche und tägliche Vorhersagen gemeinsam bereitstellt
-- optional, aber empfohlen: der von OpenWeatherMap angelegte Regensensor
 
 Es wird kein zusätzlicher OpenWeatherMap-API-Schlüssel benötigt. Die Integration
 liest ausschließlich bereits in Home Assistant vorhandene Entitäten und ruft
@@ -27,7 +26,8 @@ Vorhersagen über `weather.get_forecasts` ab.
 - GUI-Einrichtung und GUI-Optionen
 - Auswahl und Prüfung einer OpenWeatherMap-Wetterentität
 - frei wählbarer Außentemperatursensor mit automatischem OpenWeatherMap-Fallback
-- optionale Integration des OpenWeatherMap-Regensensors
+- Niederschlagsdaten ausschließlich aus der OpenWeatherMap-Tagesvorhersage
+- optionale Binärsensoren für „Rasen wurde gemäht“ und „Rasen wurde bewässert“
 - Grünlandtemperatursumme mit der Gewichtung Januar 0,5, Februar 0,75 und ab
   März 1,0
 - Wachstumsstatus:
@@ -39,9 +39,8 @@ Vorhersagen über `weather.get_forecasts` ab.
   - Langsames Wachstum
   - Wachstum verlangsamt (Herbst)
   - Hitze- oder Trockenstress
-- eigener Mähroboterstatus mit konkreten Handlungsanweisungen
-- separater Binärsensor „Mähroboterstart empfohlen“
-- separater Binärsensor „Mähroboter kann abgeschaltet werden“
+- eigener Mähroboterstatus mit konkreten Handlungsanweisungen, Saisonhinweisen
+  und dem letzten Mähdatum als Attribute
 - modellierte Bodenfeuchte in Prozent
 - Bewässerungsempfehlung mit Zielmenge in mm und Litern
 - saisonale NPK-Empfehlung und Produktmenge
@@ -66,10 +65,11 @@ Referenzverdunstung wird mit der Hargreaves-Samani-Methode aus Minimum,
 Maximum, Datum und geografischer Breite geschätzt. Ein Rasenfaktor reduziert
 die Verdunstung im Winter.
 
-Mit ausgewähltem OpenWeatherMap-Regensensor wird dessen Regenrate über die Zeit
-integriert. Ohne Regensensor verwendet das Modell ersatzweise den vorhergesagten
-Tagesregen. Der Sensor stellt seine Modellqualität als Attribut `medium` oder
-`low` bereit.
+Für Regen verwendet das Modell ausschließlich die OpenWeatherMap-Tagesvorhersage.
+Da Vorhersageregen von der lokal tatsächlich gefallenen Menge abweichen kann,
+bleibt die Modellqualität als `low` gekennzeichnet. Wird der optionale
+Binärsensor „Rasen wurde bewässert“ eingeschaltet, ergänzt die Integration die
+empfohlene Wassermenge beziehungsweise ersatzweise 15 mm im virtuellen Speicher.
 
 Die modellierte Bodenfeuchte ist kein Ersatz für einen Bodensensor. Schatten,
 Gefälle, Bodenverdichtung, Dachüberstände und lokale Schauer können zu
@@ -88,9 +88,11 @@ Der Wachstumsstatus kombiniert:
 
 Als Frühjahrsrichtwert dient eine Grünlandtemperatursumme von 200. Werden
 zusätzlich etwa 8 °C im Sieben-Tage-Mittel erreicht und besteht kein
-Trockenstress, meldet der Mähroboterstatus **Mähroboter wieder starten**. Danach die
-Schaltfläche **Mähsaison als gestartet markieren** drücken. Der Hinweis bleibt
-für den Rest des Kalenderjahres quittiert und wird am 1. Januar zurückgesetzt.
+Trockenstress, meldet der Mähroboterstatus **Mähroboter wieder starten**. Danach
+entweder die Schaltfläche **Mähen protokollieren** drücken oder den optionalen
+Binärsensor „Rasen wurde gemäht“ kurz einschalten. Das Ereignis speichert zugleich
+das letzte Mähdatum und bestätigt den Saisonstart. Der Hinweis bleibt für den
+Rest des Kalenderjahres quittiert und wird am 1. Januar zurückgesetzt.
 
 Im Herbst wird bei sinkender Sieben-Tage-Temperatur zunächst
 **Mähhäufigkeit im Herbst reduzieren** gemeldet. Bei einem Wachstumsstopp folgt
@@ -126,7 +128,7 @@ Attribut `temperature_source` am Wachstums- und Mähroboterstatus.
 2. Home Assistant neu starten.
 3. **Einstellungen → Geräte & Dienste → Integration hinzufügen** öffnen.
 4. Nach **Rasenpflege-Assistent** suchen.
-5. OpenWeatherMap-Wetterentität, optionalen Regensensor und Rasenparameter
+5. OpenWeatherMap-Wetterentität, optionale Ereignissensoren und Rasenparameter
    auswählen.
 
 ## Aktualisierung von Version 1.0.0
@@ -135,36 +137,47 @@ Attribut `temperature_source` am Wachstums- und Mähroboterstatus.
    `/config/custom_components/rasenpflege_assistent` ersetzen.
 2. Home Assistant neu starten.
 3. Beim nächsten Start migriert Home Assistant den Konfigurationseintrag
-   automatisch auf Version 2.
+   automatisch auf Version 3.
 4. Danach unter **Einstellungen → Geräte & Dienste → Rasenpflege-Assistent →
-   Konfigurieren** den OpenWeatherMap-Regensensor und die anfängliche
-   Bodenfeuchte prüfen. Ab Version 1.2.0 kann dort zusätzlich ein lokaler
-   Außentemperatursensor ausgewählt werden.
+   Konfigurieren** die anfängliche Bodenfeuchte prüfen. Ab Version 1.2.0 kann
+   dort zusätzlich ein lokaler Außentemperatursensor ausgewählt werden.
+
+## Änderungen in Version 1.3.0
+
+- Die früheren Entitäten „Düngeempfehlung“ und „Status“ sind im neuen
+  **Pflegestatus** zusammengeführt. NPK-Typ, Dosierung, Gesamtmenge, Zeitfenster
+  und Begründungen bleiben als Attribute erhalten.
+- „Mähroboterstart empfohlen“ und „Mähroboter kann abgeschaltet werden“ sind nun
+  Attribute des **Mähroboterstatus**. Die alten doppelten Entitäten werden beim
+  Start entfernt.
+- Wachstums-, Pflege- und Mähroboterstatus liefern das Attribut `icon_color` für
+  Dashboard-Karten, die dynamische Symbolfarben unterstützen. Das normale
+  Home-Assistant-Entitätsmodell kann eine Symbolfarbe nicht selbst erzwingen.
+- Optionale Binärsensoren protokollieren Mähen und Bewässern automatisch bei
+  einer Aus→Ein-Flanke. Ist ein Sensor nicht konfiguriert, bleibt die passende
+  manuelle Schaltfläche erhalten.
 
 ## Automatische Updates mit HACS
 
-Neue stabile Versionen werden als GitHub-Releases wie `v1.2.0` veröffentlicht.
+Neue stabile Versionen werden als GitHub-Releases wie `v1.3.0` veröffentlicht.
 Eine über HACS installierte Kopie zeigt diese anschließend als Update an. Eine
 nur manuell nach `custom_components` kopierte Integration kann Home Assistant
 nicht selbst aus dem Internet aktualisieren.
 
 ## Wichtige Entitäten
 
-- Status
+- Pflegestatus
 - Wachstumsstatus
 - Mähroboterstatus
 - Modellierte Bodenfeuchte
 - Grünlandtemperatursumme
 - Bewässerungsempfehlung
 - empfohlene Wassermenge
-- Düngeempfehlung
 - empfohlene Düngermenge
-- Mähroboterstart empfohlen
-- Mähroboter kann abgeschaltet werden
 - Bewässerung fällig
 - Düngung fällig
-- Mähsaison als gestartet markieren
-- Bewässerung protokollieren
+- Mähen protokollieren (wenn kein automatischer Binärsensor gewählt ist)
+- Bewässerung protokollieren (wenn kein automatischer Binärsensor gewählt ist)
 - Düngung protokollieren
 
 ## Grenzen
