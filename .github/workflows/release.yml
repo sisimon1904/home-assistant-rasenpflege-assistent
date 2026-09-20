@@ -1,0 +1,23 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build installation archive
+        run: zip -r rasenpflege_assistent.zip custom_components/rasenpflege_assistent
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: rasenpflege_assistent.zip
+          generate_release_notes: true
