@@ -1,0 +1,112 @@
+{
+  "title": "Lawn Care Assistant",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up lawn",
+        "description": "Select your existing OpenWeatherMap weather entity. The assistant only gives recommendations and does not control irrigation.",
+        "data": {
+          "name": "Name",
+          "weather_entity": "OpenWeatherMap weather entity",
+          "temperature_entity": "Outdoor temperature sensor (optional)",
+          "rain_entity": "OpenWeatherMap rain sensor (optional, recommended)",
+          "area": "Lawn area",
+          "sun_exposure": "Sun exposure",
+          "lawn_type": "Lawn use",
+          "soil_type": "Soil type",
+          "last_watering": "Last watering (optional)",
+          "last_fertilizing": "Last fertilizing (optional)",
+          "initial_gts": "Current grassland temperature sum (0 for automatic start)",
+          "initial_soil_moisture": "Estimated initial soil moisture"
+        },
+        "data_description": {
+          "initial_gts": "If installing during the year, enter a known starting value here. From the next January 1, the integration starts automatically at 0.",
+          "temperature_entity": "This sensor has priority. If it is not selected or is unavailable, the current OpenWeatherMap temperature is used automatically.",
+          "rain_entity": "With the OWM rain sensor, fallen rain is integrated. Without it, the soil model uses forecast rain and marks its quality as low.",
+          "initial_soil_moisture": "Starting value of the virtual soil reservoir. For normal loamy soil, 70% is a reasonable initial estimate."
+        }
+      }
+    },
+    "error": {
+      "not_openweathermap": "The selected entity is not provided by the OpenWeatherMap integration.",
+      "weather_data_unavailable": "The OpenWeatherMap entity does not provide a current temperature. Prefer mode v3.0 and verify that the entity is available."
+    },
+    "abort": {
+      "already_configured": "A lawn with this name is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Edit lawn settings",
+        "description": "Changes are applied immediately after saving.",
+        "data": {
+          "name": "Name",
+          "weather_entity": "OpenWeatherMap weather entity",
+          "temperature_entity": "Outdoor temperature sensor (optional)",
+          "rain_entity": "OpenWeatherMap rain sensor (optional, recommended)",
+          "area": "Lawn area",
+          "sun_exposure": "Sun exposure",
+          "lawn_type": "Lawn use",
+          "soil_type": "Soil type",
+          "last_watering": "Correct last watering date",
+          "last_fertilizing": "Correct last fertilizing date",
+          "initial_gts": "Correct current grassland temperature sum",
+          "initial_soil_moisture": "Recalibrate modeled soil moisture"
+        }
+      }
+    },
+    "error": {
+      "not_openweathermap": "The selected entity is not provided by the OpenWeatherMap integration.",
+      "weather_data_unavailable": "The OpenWeatherMap entity does not provide a current temperature. Prefer mode v3.0 and verify that the entity is available."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": {"name": "Status"},
+      "growth_status": {
+        "name": "Growth status",
+        "state": {
+          "collecting_data": "Collecting data",
+          "winter_dormancy": "Winter dormancy (growth stopped)",
+          "first_awakening": "First awakening (tentative growth)",
+          "sustained_growth_start": "Sustained vegetation start (full growth)",
+          "active_growth": "Active growth",
+          "slow_growth": "Slow growth",
+          "autumn_slowdown": "Growth slowing (autumn)",
+          "heat_drought_stress": "Heat or drought stress (growth paused)"
+        }
+      },
+      "mower_status": {
+        "name": "Mower status",
+        "state": {
+          "collecting_data": "Collecting data",
+          "winter_off": "Switch off for winter",
+          "keep_off": "Keep switched off",
+          "start_mower": "Start mower again",
+          "mow_regularly": "Mow regularly – lawn is growing",
+          "mow_less": "Mow less frequently",
+          "reduce_mowing": "Reduce mowing for autumn",
+          "pause_drought": "Pause due to drought stress"
+        }
+      },
+      "soil_moisture": {"name": "Modeled soil moisture"},
+      "gts": {"name": "Grassland temperature sum"},
+      "watering_recommendation": {"name": "Watering recommendation"},
+      "watering_amount": {"name": "Recommended water amount"},
+      "fertilizer_recommendation": {"name": "Fertilizer recommendation"},
+      "fertilizer_amount": {"name": "Recommended fertilizer amount"}
+    },
+    "binary_sensor": {
+      "mower_can_be_switched_off": {"name": "Mower can be switched off"},
+      "mower_start_recommended": {"name": "Mower start recommended"},
+      "watering_due": {"name": "Watering due"},
+      "fertilizing_due": {"name": "Fertilizing due"}
+    },
+    "button": {
+      "mark_mowing_started": {"name": "Mark mowing season as started"},
+      "mark_watered": {"name": "Record watering"},
+      "mark_fertilized": {"name": "Record fertilizing"}
+    }
+  }
+}

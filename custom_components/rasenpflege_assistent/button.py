@@ -1,0 +1,72 @@
+"""Button platform for Rasenpflege-Assistent."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Awaitable, Callable
+
+from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+
+from .coordinator import LawnCoordinator
+from .entity import LawnEntity
+
+PARALLEL_UPDATES = 0
+
+
+@dataclass(frozen=True, kw_only=True)
+class LawnButtonDescription(ButtonEntityDescription):
+    """Describe a lawn logging button."""
+
+    press_fn: Callable[[LawnCoordinator], Awaitable[None]]
+
+
+BUTTONS: tuple[LawnButtonDescription, ...] = (
+    LawnButtonDescription(
+        key="mark_mowing_started",
+        translation_key="mark_mowing_started",
+        icon="mdi:robot-mower",
+        press_fn=lambda coordinator: coordinator.async_mark_mowing_started(),
+    ),
+    LawnButtonDescription(
+        key="mark_watered",
+        translation_key="mark_watered",
+        icon="mdi:watering-can",
+        press_fn=lambda coordinator: coordinator.async_mark_watered(),
+    ),
+    LawnButtonDescription(
+        key="mark_fertilized",
+        translation_key="mark_fertilized",
+        icon="mdi:leaf",
+        press_fn=lambda coordinator: coordinator.async_mark_fertilized(),
+    ),
+)
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
+) -> None:
+    """Set up lawn logging buttons."""
+    coordinator: LawnCoordinator = entry.runtime_data
+    async_add_entities(LawnButton(coordinator, description) for description in BUTTONS)
+
+
+class LawnButton(LawnEntity, ButtonEntity):
+    """Represent a maintenance logging button."""
+
+    entity_description: LawnButtonDescription
+
+    def __init__(
+        self, coordinator: LawnCoordinator, description: LawnButtonDescription
+    ) -> None:
+        """Initialize the button."""
+        super().__init__(coordinator, description.key)
+        self.entity_description = description
+
+    async def async_press(self) -> None:
+        """Record a completed maintenance action."""
+        await self.entity_description.press_fn(self.coordinator)
