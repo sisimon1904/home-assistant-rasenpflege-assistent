@@ -12,6 +12,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
@@ -34,12 +35,16 @@ BINARY_SENSORS: tuple[LawnBinarySensorDescription, ...] = (
         key="watering_due",
         translation_key="watering_due",
         icon="mdi:water-alert-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
         value_fn=lambda data: data.watering_recommended,
     ),
     LawnBinarySensorDescription(
         key="fertilizing_due",
         translation_key="fertilizing_due",
         icon="mdi:leaf-circle",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
         value_fn=lambda data: data.fertilizing_recommended,
     ),
 )

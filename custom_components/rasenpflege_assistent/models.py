@@ -25,7 +25,7 @@ class LawnData:
     next_rain_at: str | None = None
     forecast_updated_at: str | None = None
     observed_rain_today_mm: float = 0.0
-    precipitation_source: str = "forecast_estimate"
+    precipitation_source: str = "not_measured"
     watering_confidence: str = "low"
     fertilizing_recommended: bool = False
     fertilizing_status: str = "not_due"
@@ -60,8 +60,11 @@ class LawnData:
     data_quality: str = "insufficient"
     data_warnings: list[str] = field(default_factory=list)
     forecast_age_minutes: int | None = None
+    forecast_coverage_hours: int = 0
     temperature_history_days: int = 0
     last_calculation_at: str | None = None
+    last_soil_update_at: str | None = None
+    soil_model_gap_hours: float = 0.0
 
 
 @dataclass(slots=True)
@@ -82,16 +85,17 @@ class RuntimeState:
     temperature_min: float | None = None
     temperature_max: float | None = None
     daily_rain_mm: float = 0.0
-    forecast_today_rain_mm: float | None = None
     soil_water_mm: float | None = None
-    last_evapotranspiration_mm: float = 0.0
+    current_day_evapotranspiration_mm: float = 0.0
     daily_temperature_history: list[float] = field(default_factory=list)
     mower_started_year: int | None = None
-    last_sample_at: str | None = None
     configured_initial_soil_moisture: float = 70.0
     precipitation_last_value: float | None = None
     precipitation_last_sample_at: str | None = None
     soil_sensor_last_calibrated_at: str | None = None
+    last_soil_update_at: str | None = None
+    last_soil_model_gap_at: str | None = None
+    last_soil_model_gap_hours: float = 0.0
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable representation."""
@@ -110,14 +114,17 @@ class RuntimeState:
             "temperature_min": self.temperature_min,
             "temperature_max": self.temperature_max,
             "daily_rain_mm": self.daily_rain_mm,
-            "forecast_today_rain_mm": self.forecast_today_rain_mm,
             "soil_water_mm": self.soil_water_mm,
-            "last_evapotranspiration_mm": self.last_evapotranspiration_mm,
+            "current_day_evapotranspiration_mm": (
+                self.current_day_evapotranspiration_mm
+            ),
             "daily_temperature_history": self.daily_temperature_history,
             "mower_started_year": self.mower_started_year,
-            "last_sample_at": self.last_sample_at,
             "configured_initial_soil_moisture": self.configured_initial_soil_moisture,
             "precipitation_last_value": self.precipitation_last_value,
             "precipitation_last_sample_at": self.precipitation_last_sample_at,
             "soil_sensor_last_calibrated_at": self.soil_sensor_last_calibrated_at,
+            "last_soil_update_at": self.last_soil_update_at,
+            "last_soil_model_gap_at": self.last_soil_model_gap_at,
+            "last_soil_model_gap_hours": self.last_soil_model_gap_hours,
         }

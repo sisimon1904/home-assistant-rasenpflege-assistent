@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.1.1
+
+### Fixed
+
+- Update modeled soil moisture incrementally instead of only at midnight.
+- Apply measured precipitation immediately and never book forecast rain as
+  observed precipitation.
+- Prevent forecast windows from claiming more hourly coverage than available.
+- Preserve measured rain when temperature data is temporarily unavailable.
+- Derive the overall care status from the calculated vegetation phase.
+
+### Changed
+
+- Translate the existing `not_due` state as a clear sufficient-soil-moisture
+  message and add a distinct `water_soon` state.
+- Use the last watering interval as a supporting soil-moisture criterion.
+- Add forecast coverage, soil-update time, and model-gap diagnostics.
+- Display modeled soil moisture with one decimal place.
+- Mark duplicate watering and fertilizing binary sensors as legacy and disable
+  them by default for new installations.
+
 ## 2.1.0
 
 ### Added

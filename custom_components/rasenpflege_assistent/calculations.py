@@ -42,6 +42,17 @@ def sum_hourly_forecast_rain(
     return sum_forecast_rain(forecast, hours)
 
 
+def forecast_coverage_hours(
+    hourly_forecast: list[dict[str, Any]],
+    daily_forecast: list[dict[str, Any]],
+    maximum_hours: int = 72,
+) -> int:
+    """Return the approximate future period covered by available forecasts."""
+    hourly_coverage = min(maximum_hours, len(hourly_forecast))
+    daily_coverage = min(maximum_hours, len(daily_forecast) * 24)
+    return max(hourly_coverage, daily_coverage)
+
+
 def next_forecast_rain_at(forecast: list[dict[str, Any]]) -> str | None:
     """Return the timestamp of the next meaningful hourly precipitation."""
     for item in forecast:
@@ -224,17 +235,35 @@ def watering_recommendation(
 ) -> dict[str, Any]:
     """Calculate a conservative weather-based watering recommendation."""
     hourly_forecast = hourly_forecast or []
+    coverage_hours = forecast_coverage_hours(hourly_forecast, forecast)
     daily_rain = sum_forecast_rain(forecast, 3)
-    rain_24h = sum_hourly_forecast_rain(hourly_forecast, 24)
-    rain_48h = sum_hourly_forecast_rain(hourly_forecast, 48)
-    rain_72h = sum_hourly_forecast_rain(hourly_forecast, 72)
-    if rain_24h is None:
+    rain_24h = (
+        sum_hourly_forecast_rain(hourly_forecast, 24)
+        if len(hourly_forecast) >= 24
+        else None
+    )
+    rain_48h = (
+        sum_hourly_forecast_rain(hourly_forecast, 48)
+        if len(hourly_forecast) >= 48
+        else None
+    )
+    rain_72h = (
+        sum_hourly_forecast_rain(hourly_forecast, 72)
+        if len(hourly_forecast) >= 72
+        else None
+    )
+    if rain_24h is None and forecast:
         rain_24h = sum_forecast_rain(forecast, 1)
-    if rain_48h is None:
+    if rain_48h is None and len(forecast) >= 2:
         rain_48h = sum_forecast_rain(forecast, 2)
-    if rain_72h is None:
+    if rain_72h is None and len(forecast) >= 3:
         rain_72h = daily_rain
-    rain = rain_72h
+    if rain_72h is not None:
+        rain = rain_72h
+    elif rain_48h is not None:
+        rain = rain_48h
+    else:
+        rain = rain_24h
     elapsed = days_since(last_watering, today)
     month = today.month
 
@@ -250,8 +279,13 @@ def watering_recommendation(
             "rain_48h": rain_48h,
             "rain_72h": rain_72h,
             "next_rain_at": next_forecast_rain_at(hourly_forecast),
+            "forecast_coverage_hours": coverage_hours,
             "confidence": (
-                "high" if hourly_forecast else "medium" if rain is not None else "low"
+                "high"
+                if len(hourly_forecast) >= 24
+                else "medium"
+                if rain is not None
+                else "low"
             ),
         }
 
@@ -274,9 +308,6 @@ def watering_recommendation(
     if hot:
         interval = max(3, interval - 2)
 
-    due_by_time = elapsed is None or elapsed >= interval
-    if soil_moisture_percent is not None:
-        due_by_time = soil_moisture_percent < 35.0
     deficit = target_mm
     if soil_water_mm is not None and soil_capacity_mm:
         target_water = soil_capacity_mm * 0.8
@@ -289,7 +320,19 @@ def watering_recommendation(
         and rain is not None
         and rain >= 8.0
     )
-    recommended = due_by_time and not enough_rain
+
+    due_by_time = elapsed is None or elapsed >= interval
+    if soil_moisture_percent is None:
+        water_now = due_by_time
+        water_soon = False
+    else:
+        water_now = soil_moisture_percent < 35.0
+        water_soon = (
+            soil_moisture_percent < 45.0
+            or (due_by_time and soil_moisture_percent < 55.0)
+        ) and not water_now
+
+    recommended = water_now and not enough_rain
 
     reasons: list[str] = []
     if elapsed is None:
@@ -307,12 +350,15 @@ def watering_recommendation(
     if soil_moisture_percent is not None:
         reasons.append("modeled_soil_moisture_used")
 
-    if recommended:
-        status = "water_now"
-        mm = target_mm
-    elif enough_rain:
+    if enough_rain and (water_now or water_soon):
         status = "wait_for_rain"
         mm = 0.0
+    elif recommended:
+        status = "water_now"
+        mm = target_mm
+    elif water_soon:
+        status = "water_soon"
+        mm = target_mm
     else:
         status = "not_due"
         mm = 0.0
@@ -328,9 +374,10 @@ def watering_recommendation(
         "rain_48h": rain_48h,
         "rain_72h": rain_72h,
         "next_rain_at": next_forecast_rain_at(hourly_forecast),
+        "forecast_coverage_hours": coverage_hours,
         "confidence": (
             "high"
-            if hourly_forecast and elapsed is not None
+            if len(hourly_forecast) >= 24 and elapsed is not None
             else "medium"
             if rain is not None and elapsed is not None
             else "low"
@@ -347,6 +394,8 @@ def next_lawn_action(
     """Return the single most useful next lawn-care action."""
     if watering_status == "water_now":
         return "water_lawn"
+    if watering_status == "water_soon":
+        return "prepare_watering"
     if watering_status == "wait_for_rain":
         return "wait_for_rain"
     if mower_status == "start_mower":
@@ -462,18 +511,17 @@ def fertilizing_recommendation(
 
 def lawn_status(
     *,
-    today: date,
-    gts: float,
+    growth: str,
     watering_due: bool,
     fertilizing_due: bool,
 ) -> str:
     """Return a concise overall lawn status."""
-    if today.month in (11, 12, 1, 2):
-        return "winter_dormancy"
-    if gts < 200 and today.month <= 4:
-        return "early_spring"
     if watering_due:
         return "watering_recommended"
     if fertilizing_due:
         return "fertilizing_recommended"
+    if growth == "winter_dormancy":
+        return "winter_dormancy"
+    if growth in {"first_awakening", "sustained_growth_start"}:
+        return "early_spring"
     return "good_condition"

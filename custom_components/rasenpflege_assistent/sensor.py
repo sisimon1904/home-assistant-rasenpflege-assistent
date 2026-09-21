@@ -38,6 +38,7 @@ from .const import (
     ATTR_FERTILIZER_STATUS,
     ATTR_FERTILIZING_RECOMMENDED,
     ATTR_FORECAST_AGE_MINUTES,
+    ATTR_FORECAST_COVERAGE_HOURS,
     ATTR_FORECAST_PERIOD_DAYS,
     ATTR_FORECAST_RAIN_24H_MM,
     ATTR_FORECAST_RAIN_48H_MM,
@@ -47,6 +48,7 @@ from .const import (
     ATTR_GROWTH_TEMPERATURE,
     ATTR_ICON_COLOR,
     ATTR_LAST_MOWING,
+    ATTR_LAST_SOIL_UPDATE,
     ATTR_MEASURED_SOIL_MOISTURE,
     ATTR_MODEL_CONFIDENCE,
     ATTR_MOWER_CAN_BE_SWITCHED_OFF,
@@ -62,11 +64,14 @@ from .const import (
     ATTR_RECOMMENDED_LITERS,
     ATTR_RECOMMENDED_MM,
     ATTR_SOIL_CAPACITY_MM,
+    ATTR_SOIL_MODEL_GAP_HOURS,
+    ATTR_SOIL_MOISTURE_PERCENT,
     ATTR_SOIL_MOISTURE_SOURCE,
     ATTR_SOIL_WATER_MM,
     ATTR_TEMPERATURE_HISTORY_DAYS,
     ATTR_TEMPERATURE_SOURCE,
     ATTR_TOTAL_KG,
+    ATTR_WATERING_RECOMMENDED,
     DOMAIN,
 )
 from .coordinator import LawnCoordinator
@@ -108,6 +113,14 @@ STATUS_COLORS = {
     "watering_recommended": "light-blue",
     "fertilizing_recommended": "orange",
     "good_condition": "green",
+}
+
+WATERING_COLORS = {
+    "season_pause": "blue",
+    "not_due": "green",
+    "water_soon": "orange",
+    "water_now": "red",
+    "wait_for_rain": "light-blue",
 }
 
 
@@ -153,6 +166,7 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
         options=[
             "collecting_data",
             "water_lawn",
+            "prepare_watering",
             "wait_for_rain",
             "fertilize_lawn",
             "start_mower",
@@ -234,7 +248,7 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
         device_class=SensorDeviceClass.MOISTURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
-        suggested_display_precision=0,
+        suggested_display_precision=1,
         value_fn=lambda data: data.soil_moisture_percent,
         attributes_fn=lambda data: {
             ATTR_SOIL_WATER_MM: data.soil_water_mm,
@@ -258,11 +272,20 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
         translation_key="watering_recommendation",
         icon="mdi:watering-can-outline",
         device_class=SensorDeviceClass.ENUM,
-        options=["season_pause", "water_now", "wait_for_rain", "not_due"],
+        options=[
+            "season_pause",
+            "not_due",
+            "water_soon",
+            "water_now",
+            "wait_for_rain",
+        ],
         value_fn=lambda data: data.watering_status,
         attributes_fn=lambda data: {
+            ATTR_ICON_COLOR: WATERING_COLORS.get(data.watering_status, "grey"),
+            ATTR_WATERING_RECOMMENDED: data.watering_recommended,
             ATTR_RECOMMENDED_MM: data.watering_mm,
             ATTR_RECOMMENDED_LITERS: data.watering_liters,
+            ATTR_SOIL_MOISTURE_PERCENT: data.soil_moisture_percent,
             ATTR_FORECAST_RAIN_MM: data.forecast_rain_mm,
             ATTR_FORECAST_RAIN_24H_MM: data.forecast_rain_24h_mm,
             ATTR_FORECAST_RAIN_48H_MM: data.forecast_rain_48h_mm,
@@ -270,11 +293,14 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             ATTR_NEXT_RAIN_AT: data.next_rain_at,
             ATTR_FORECAST_PERIOD_DAYS: 3,
             ATTR_FORECAST_UPDATED_AT: data.forecast_updated_at,
+            ATTR_FORECAST_COVERAGE_HOURS: data.forecast_coverage_hours,
             ATTR_OBSERVED_RAIN_MM: data.observed_rain_today_mm,
             ATTR_PRECIPITATION_SOURCE: data.precipitation_source,
             ATTR_DAYS_SINCE_WATERING: data.days_since_watering,
             ATTR_CONFIDENCE: data.watering_confidence,
             ATTR_REASONS: data.watering_reasons,
+            ATTR_LAST_SOIL_UPDATE: data.last_soil_update_at,
+            ATTR_SOIL_MODEL_GAP_HOURS: data.soil_model_gap_hours,
         },
     ),
     LawnSensorDescription(
@@ -283,6 +309,7 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
         icon="mdi:water",
         native_unit_of_measurement=UnitOfVolume.LITERS,
         suggested_display_precision=0,
+        entity_registry_enabled_default=False,
         value_fn=lambda data: data.watering_liters,
         attributes_fn=lambda data: {ATTR_RECOMMENDED_MM: data.watering_mm},
     ),
@@ -292,6 +319,7 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
         icon="mdi:weight-kilogram",
         native_unit_of_measurement=UnitOfMass.KILOGRAMS,
         suggested_display_precision=2,
+        entity_registry_enabled_default=False,
         value_fn=lambda data: data.fertilizer_total_kg,
         attributes_fn=lambda data: {
             ATTR_NPK: data.fertilizer_npk,
@@ -310,7 +338,19 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             ATTR_DATA_WARNINGS: data.data_warnings,
             ATTR_TEMPERATURE_HISTORY_DAYS: data.temperature_history_days,
             ATTR_FORECAST_AGE_MINUTES: data.forecast_age_minutes,
+            ATTR_FORECAST_COVERAGE_HOURS: data.forecast_coverage_hours,
+            ATTR_SOIL_MODEL_GAP_HOURS: data.soil_model_gap_hours,
         },
+    ),
+    LawnSensorDescription(
+        key="forecast_coverage",
+        translation_key="forecast_coverage",
+        icon="mdi:timeline-clock-outline",
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: data.forecast_coverage_hours,
     ),
     LawnSensorDescription(
         key="soil_model_confidence",
@@ -407,6 +447,18 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
         value_fn=lambda data: data.daily_evapotranspiration_mm,
+    ),
+    LawnSensorDescription(
+        key="last_soil_update",
+        translation_key="last_soil_update",
+        icon="mdi:water-sync",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: dt_util.parse_datetime(data.last_soil_update_at or ""),
+        attributes_fn=lambda data: {
+            ATTR_SOIL_MODEL_GAP_HOURS: data.soil_model_gap_hours
+        },
     ),
     LawnSensorDescription(
         key="last_calculation",

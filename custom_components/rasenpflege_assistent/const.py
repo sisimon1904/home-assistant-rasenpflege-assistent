@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 DOMAIN = "rasenpflege_assistent"
-INTEGRATION_VERSION = "2.1.0"
+INTEGRATION_VERSION = "2.1.1"
 PLATFORMS = ["sensor", "binary_sensor", "button"]
 
 CONF_NAME = "name"
@@ -38,6 +38,7 @@ UPDATE_INTERVAL = timedelta(minutes=30)
 FORECAST_CACHE_INTERVAL = timedelta(hours=1)
 SOIL_SENSOR_CALIBRATION_INTERVAL = timedelta(hours=6)
 SOIL_SENSOR_BLEND_FACTOR = 0.25
+MAX_SOIL_MODEL_INTERVAL = timedelta(hours=2)
 STORE_VERSION = 1
 STORE_KEY_PREFIX = f"{DOMAIN}."
 
@@ -49,6 +50,7 @@ ATTR_REASONS = "reasons"
 ATTR_CONFIDENCE = "confidence"
 ATTR_RECOMMENDED_MM = "recommended_mm"
 ATTR_RECOMMENDED_LITERS = "recommended_liters"
+ATTR_WATERING_RECOMMENDED = "watering_recommended"
 ATTR_FORECAST_RAIN_MM = "forecast_rain_mm"
 ATTR_FORECAST_RAIN_24H_MM = "forecast_rain_24h_mm"
 ATTR_FORECAST_RAIN_48H_MM = "forecast_rain_48h_mm"
@@ -85,3 +87,7 @@ ATTR_NEXT_MOWING_DATE = "next_mowing_date"
 ATTR_DATA_WARNINGS = "data_warnings"
 ATTR_FORECAST_AGE_MINUTES = "forecast_age_minutes"
 ATTR_TEMPERATURE_HISTORY_DAYS = "temperature_history_days"
+ATTR_FORECAST_COVERAGE_HOURS = "forecast_coverage_hours"
+ATTR_LAST_SOIL_UPDATE = "last_soil_update"
+ATTR_SOIL_MODEL_GAP_HOURS = "soil_model_gap_hours"
+ATTR_SOIL_MOISTURE_PERCENT = "soil_moisture_percent"

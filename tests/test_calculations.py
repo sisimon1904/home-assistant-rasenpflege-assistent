@@ -4,9 +4,11 @@ from datetime import date
 
 from custom_components.rasenpflege_assistent.calculations import (
     fertilizing_recommendation,
+    forecast_coverage_hours,
     grassland_temperature_increment,
     growth_state,
     hargreaves_evapotranspiration,
+    lawn_status,
     mower_recommendation,
     mower_state,
     next_forecast_rain_at,
@@ -76,6 +78,51 @@ def test_watering_amount_uses_soil_water_deficit() -> None:
     assert result["liters"] == 2000
 
 
+def test_watering_status_uses_clear_moisture_bands() -> None:
+    """Modeled moisture produces sufficient, soon and immediate states."""
+    common = {
+        "today": date(2026, 7, 20),
+        "area_m2": 100,
+        "sun_exposure": "sunny",
+        "soil_type": "loamy",
+        "current_temperature": 24,
+        "forecast": [{"precipitation": 0}],
+        "last_watering": date(2026, 7, 19),
+        "soil_capacity_mm": 40,
+    }
+    sufficient = watering_recommendation(
+        **common, soil_moisture_percent=60, soil_water_mm=24
+    )
+    soon = watering_recommendation(
+        **common, soil_moisture_percent=40, soil_water_mm=16
+    )
+    now = watering_recommendation(
+        **common, soil_moisture_percent=30, soil_water_mm=12
+    )
+    assert sufficient["status"] == "not_due"
+    assert soon["status"] == "water_soon"
+    assert soon["recommended"] is False
+    assert now["status"] == "water_now"
+    assert now["recommended"] is True
+
+
+def test_last_watering_supports_model_recommendation() -> None:
+    """An overdue interval can advance a borderline reservoir to water soon."""
+    result = watering_recommendation(
+        today=date(2026, 7, 20),
+        area_m2=100,
+        sun_exposure="sunny",
+        soil_type="loamy",
+        current_temperature=24,
+        forecast=[{"precipitation": 0}],
+        last_watering=date(2026, 7, 1),
+        soil_moisture_percent=50,
+        soil_water_mm=20,
+        soil_capacity_mm=40,
+    )
+    assert result["status"] == "water_soon"
+
+
 def test_daily_forecast_sum_uses_three_entries() -> None:
     """Only the first three daily forecast periods are added."""
     assert (
@@ -102,6 +149,13 @@ def test_hourly_forecast_windows_and_next_rain() -> None:
     assert sum_hourly_forecast_rain(forecast, 2) == 1.2
     assert sum_hourly_forecast_rain(forecast, 3) == 3.5
     assert next_forecast_rain_at(forecast) == "2026-07-20T11:00:00+00:00"
+
+
+def test_forecast_coverage_reports_available_period() -> None:
+    """Diagnostic coverage never claims more forecast than is available."""
+    assert forecast_coverage_hours([{} for _ in range(36)], [], 72) == 36
+    assert forecast_coverage_hours([], [{}, {}], 72) == 48
+    assert forecast_coverage_hours([{} for _ in range(80)], [], 72) == 72
 
 
 def test_hourly_forecast_improves_watering_confidence() -> None:
@@ -139,6 +193,14 @@ def test_next_action_priorities() -> None:
             mower_status="wait_to_mow",
         )
         == "fertilize_lawn"
+    )
+    assert (
+        next_lawn_action(
+            watering_status="water_soon",
+            fertilizing_recommended=False,
+            mower_status="wait_to_mow",
+        )
+        == "prepare_watering"
     )
 
 
@@ -220,6 +282,18 @@ def test_growth_state_detects_autumn_slowdown() -> None:
     )
 
 
+def test_overall_status_follows_growth_in_mild_winter() -> None:
+    """The overall status no longer forces dormancy only from the month."""
+    assert (
+        lawn_status(
+            growth="first_awakening",
+            watering_due=False,
+            fertilizing_due=False,
+        )
+        == "early_spring"
+    )
+
+
 def test_mower_status_is_actionable() -> None:
     """Vegetation phases are converted into clear mower actions."""
     assert (
@@ -279,4 +353,17 @@ def test_soil_bucket_and_evapotranspiration() -> None:
         crop_coefficient=0.8,
     )
     assert 20 < water <= 40
+    assert actual_et > 0
+
+
+def test_incremental_evapotranspiration_reduces_soil_water() -> None:
+    """A small refresh interval still produces a visible water loss."""
+    water, actual_et = update_soil_water(
+        water_mm=28,
+        capacity_mm=40,
+        precipitation_mm=0,
+        reference_et_mm=0.08,
+        crop_coefficient=0.8,
+    )
+    assert water < 28
     assert actual_et > 0

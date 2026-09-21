@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 2.1.0
+Version 2.1.1
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -31,7 +31,8 @@ entities already available in Home Assistant and requests forecasts through
   fallback
 - optional observed precipitation depth or intensity sensor
 - optional physical soil-moisture sensor for gentle model calibration
-- OpenWeatherMap daily forecast as an automatically identified fallback
+- OpenWeatherMap forecasts for watering decisions, kept separate from observed
+  rainfall
 - hourly rain evaluation for the next 24, 48, and 72 hours
 - optional binary sensors for “lawn was mowed” and “lawn was watered”
 - grassland temperature sum weighted by January 0.5, February 0.75, and 1.0
@@ -68,14 +69,16 @@ new water level = previous water level
                   - estimated lawn evapotranspiration
 ```
 
-Reservoir capacity depends on soil type. Daily reference evapotranspiration is
+Reservoir capacity depends on soil type. Reference evapotranspiration is
 estimated from minimum temperature, maximum temperature, date, and geographic
-latitude using the Hargreaves-Samani method. A lawn coefficient reduces
-evapotranspiration during winter.
+latitude using the Hargreaves-Samani method. The model subtracts it
+incrementally on every update. A lawn coefficient reduces evapotranspiration
+during winter.
 
-When an optional precipitation sensor is configured, the model uses measured
-rainfall. Without that sensor, Home Assistant's cached OpenWeatherMap daily
-forecast is used as an estimate. Model confidence is reported as `high`,
+When an optional precipitation sensor is configured, the model immediately
+uses measured rainfall. Without that sensor, no assumed rain is added to the
+soil reservoir. Home Assistant's cached OpenWeatherMap forecast is used only
+for the watering recommendation. Model confidence is reported as `high`,
 `medium`, or `low` depending on the available data source. When the optional
 “lawn was watered” binary sensor changes from off to on, the calculated amount
 or the configured default amount is added to the virtual reservoir.
@@ -190,8 +193,8 @@ manually into `custom_components` cannot update itself from the internet.
 - Watering recommendation
 - Recommended water amount
 - Recommended fertilizer amount
-- Watering due
-- Fertilizing due
+- Watering due (legacy binary sensor, disabled by default)
+- Fertilizing due (legacy binary sensor, disabled by default)
 - Record mowing, when no automatic binary sensor is configured
 - Record watering, when no automatic binary sensor is configured
 - Record fertilizing
@@ -201,8 +204,8 @@ manually into `custom_components` cannot update itself from the internet.
 - Python source values and internal status keys are English. Home Assistant
   translations provide German and English display values.
 - Measured and forecast precipitation are handled separately.
-- An optional sensor accepts precipitation in `mm` or `mm/h`; without one, the
-  OpenWeatherMap daily forecast remains available as an identified estimate.
+- An optional sensor accepts precipitation in `mm` or `mm/h`; forecasts remain
+  available separately for watering decisions.
 - Watering amounts are calculated from the modeled soil-water deficit.
 - The default amount for recorded irrigation is configurable.
 - Mower status accounts for the most recent mowing and reports an interval and
@@ -255,6 +258,20 @@ Home Assistant user.
 - Home Assistant creates repair issues when temperature, forecasts, or
   configured input entities are unavailable.
 - Existing config entries migrate automatically to config-entry version 5.
+
+## Changes in version 2.1.1
+
+- Modeled soil moisture is updated on every refresh; evapotranspiration and
+  measured rain no longer wait for the day boundary.
+- Forecast rain is never added to the soil model as observed precipitation.
+- Watering states now distinguish sufficient moisture, water soon, water now,
+  wait for rain, and seasonal pause.
+- The last watering date again supports the modeled moisture decision.
+- Soil moisture is displayed with one decimal place.
+- Diagnostics expose forecast coverage, the last soil update, and time gaps.
+- Care and growth status now use a consistent vegetation phase.
+- Legacy watering and fertilizing binary sensors are disabled by default for
+  new installations; their boolean values remain available as attributes.
 
 ## Limitations
 

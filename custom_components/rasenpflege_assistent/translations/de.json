@@ -28,7 +28,7 @@
           "temperature_entity": "Dieser Sensor hat Vorrang. Wenn er nicht ausgewählt oder nicht verfügbar ist, wird automatisch die aktuelle Temperatur von OpenWeatherMap verwendet.",
           "mowed_entity": "Eine Aus→Ein-Flanke protokolliert das Mähen und bestätigt den Saisonstart. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
           "watered_entity": "Eine Aus→Ein-Flanke protokolliert die Bewässerung und aktualisiert das Bodenmodell. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
-          "precipitation_entity": "Akzeptiert Niederschlagsmenge oder Niederschlagsintensität. Ohne Sensor wird die OpenWeatherMap-Tagesvorhersage ausdrücklich als Schätzung verwendet.",
+          "precipitation_entity": "Akzeptiert Niederschlagsmenge oder Niederschlagsintensität. Ohne Sensor wird kein Regen in das Bodenmodell eingetragen; Vorhersagen dienen nur der Empfehlung.",
           "soil_moisture_entity": "Gleicht den modellierten Bodenspeicher höchstens alle sechs Stunden sanft mit dem gemessenen Prozentwert ab. Ohne Sensor arbeitet das Modell unverändert weiter.",
           "default_watering_amount": "Diese Menge wird dem Bodenmodell hinzugefügt, wenn eine Bewässerung ohne berechnete Empfehlung protokolliert wird.",
           "initial_soil_moisture": "Startwert des virtuellen Bodenspeichers. Für normalen lehmigen Boden sind 70 % ein sinnvoller Anfangswert."
@@ -95,6 +95,7 @@
         "state": {
           "collecting_data": "Daten werden gesammelt",
           "water_lawn": "Rasen wässern",
+          "prepare_watering": "Bewässerung vorbereiten",
           "wait_for_rain": "Auf Regen warten",
           "fertilize_lawn": "Rasen düngen",
           "start_mower": "Mähroboter starten",
@@ -136,9 +137,10 @@
         "name": "Bewässerungsempfehlung",
         "state": {
           "season_pause": "Saisonpause",
+          "water_soon": "Bald wässern",
           "water_now": "Jetzt wässern",
           "wait_for_rain": "Auf Regen warten",
-          "not_due": "Nicht fällig"
+          "not_due": "Bodenfeuchte ausreichend"
         }
       },
       "watering_amount": {"name": "Empfohlene Wassermenge"},
@@ -156,18 +158,20 @@
         "state": {"high": "Hoch", "medium": "Mittel", "low": "Niedrig"}
       },
       "forecast_age": {"name": "Alter der Wettervorhersage"},
+      "forecast_coverage": {"name": "Abgedeckter Vorhersagezeitraum"},
       "forecast_rain_24h": {"name": "Vorhergesagter Regen 24 Stunden"},
       "forecast_rain_72h": {"name": "Vorhergesagter Regen 72 Stunden"},
       "observed_rain_today": {"name": "Beobachteter Regen heute"},
       "temperature_source": {"name": "Temperaturquelle"},
       "precipitation_source": {"name": "Niederschlagsquelle"},
       "soil_water": {"name": "Modellierter Bodenwasservorrat"},
-      "daily_evapotranspiration": {"name": "Tägliche Verdunstung"},
+      "daily_evapotranspiration": {"name": "Verdunstung heute"},
+      "last_soil_update": {"name": "Letzte Aktualisierung des Bodenmodells"},
       "last_calculation": {"name": "Letzte Berechnung"}
     },
     "binary_sensor": {
-      "watering_due": {"name": "Bewässerung fällig"},
-      "fertilizing_due": {"name": "Düngung fällig"}
+      "watering_due": {"name": "Bewässerung fällig (veraltet)"},
+      "fertilizing_due": {"name": "Düngung fällig (veraltet)"}
     },
     "button": {
       "mark_mowing_started": {"name": "Mähen protokollieren"},

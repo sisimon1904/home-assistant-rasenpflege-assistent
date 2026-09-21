@@ -28,7 +28,7 @@
           "temperature_entity": "This sensor has priority. If it is not selected or is unavailable, the current OpenWeatherMap temperature is used automatically.",
           "mowed_entity": "An off-to-on transition records mowing and acknowledges the mowing season. Without a selection, use the manual button.",
           "watered_entity": "An off-to-on transition records watering and updates the soil model. Without a selection, use the manual button.",
-          "precipitation_entity": "Accepts precipitation depth or precipitation intensity. Without a sensor, the OpenWeatherMap daily forecast is used as an explicitly marked estimate.",
+          "precipitation_entity": "Accepts precipitation depth or precipitation intensity. Without a sensor, no rain is added to the soil model; forecasts are used only for recommendations.",
           "soil_moisture_entity": "Gently calibrates the modeled soil reservoir toward the measured percentage every six hours. Without a sensor, the model continues independently.",
           "default_watering_amount": "Amount added to the soil model when watering is recorded and no calculated recommendation is available.",
           "initial_soil_moisture": "Starting value of the virtual soil reservoir. For normal loamy soil, 70% is a reasonable initial estimate."
@@ -95,6 +95,7 @@
         "state": {
           "collecting_data": "Collecting data",
           "water_lawn": "Water lawn",
+          "prepare_watering": "Prepare watering soon",
           "wait_for_rain": "Wait for rain",
           "fertilize_lawn": "Fertilize lawn",
           "start_mower": "Start mower",
@@ -136,9 +137,10 @@
         "name": "Watering recommendation",
         "state": {
           "season_pause": "Seasonal pause",
+          "water_soon": "Water soon",
           "water_now": "Water now",
           "wait_for_rain": "Wait for rain",
-          "not_due": "Not due"
+          "not_due": "Soil moisture sufficient"
         }
       },
       "watering_amount": {"name": "Recommended water amount"},
@@ -156,18 +158,20 @@
         "state": {"high": "High", "medium": "Medium", "low": "Low"}
       },
       "forecast_age": {"name": "Forecast age"},
+      "forecast_coverage": {"name": "Forecast coverage"},
       "forecast_rain_24h": {"name": "Forecast rain 24 hours"},
       "forecast_rain_72h": {"name": "Forecast rain 72 hours"},
       "observed_rain_today": {"name": "Observed rain today"},
       "temperature_source": {"name": "Temperature source"},
       "precipitation_source": {"name": "Precipitation source"},
       "soil_water": {"name": "Modeled soil water"},
-      "daily_evapotranspiration": {"name": "Daily evapotranspiration"},
+      "daily_evapotranspiration": {"name": "Evapotranspiration today"},
+      "last_soil_update": {"name": "Last soil model update"},
       "last_calculation": {"name": "Last calculation"}
     },
     "binary_sensor": {
-      "watering_due": {"name": "Watering due"},
-      "fertilizing_due": {"name": "Fertilizing due"}
+      "watering_due": {"name": "Watering due (legacy)"},
+      "fertilizing_due": {"name": "Fertilizing due (legacy)"}
     },
     "button": {
       "mark_mowing_started": {"name": "Record mowing"},

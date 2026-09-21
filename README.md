@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 2.1.0
+Version 2.1.1
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -30,7 +30,8 @@ Vorhersagen über `weather.get_forecasts` ab.
 - frei wählbarer Außentemperatursensor mit automatischem OpenWeatherMap-Fallback
 - optionaler Sensor für gemessene Niederschlagsmenge oder -intensität
 - optionaler physischer Bodenfeuchtesensor zur sanften Modellkalibrierung
-- OpenWeatherMap-Tagesvorhersage als automatisch gekennzeichneter Fallback
+- OpenWeatherMap-Vorhersage für Bewässerungsentscheidungen, getrennt von
+  tatsächlich gemessenem Regen
 - stündliche Regenauswertung für 24, 48 und 72 Stunden
 - optionale Binärsensoren für „Rasen wurde gemäht“ und „Rasen wurde bewässert“
 - Grünlandtemperatursumme mit der Gewichtung Januar 0,5, Februar 0,75 und ab
@@ -68,16 +69,17 @@ neuer Wasserstand = alter Wasserstand
                     - geschätzte Rasenverdunstung
 ```
 
-Die Speichergröße hängt von der Bodenart ab. Die tägliche
-Referenzverdunstung wird mit der Hargreaves-Samani-Methode aus Minimum,
-Maximum, Datum und geografischer Breite geschätzt. Ein Rasenfaktor reduziert
-die Verdunstung im Winter.
+Die Speichergröße hängt von der Bodenart ab. Die Referenzverdunstung wird mit
+der Hargreaves-Samani-Methode aus Minimum, Maximum, Datum und geografischer
+Breite geschätzt. Das Modell zieht sie anteilig bei jeder Aktualisierung ab;
+ein Rasenfaktor reduziert die Verdunstung im Winter.
 
 Mit einem optionalen Niederschlagssensor verwendet das Modell tatsächlich
-gemessene Niederschlagswerte. Ohne Sensor dient die bereits von Home Assistant
-zwischengespeicherte OpenWeatherMap-Tagesvorhersage als Schätzung. Die
-Modellqualität wird abhängig von der verfügbaren Datenquelle als `high`,
-`medium` oder `low` gekennzeichnet. Wird der optionale
+gemessene Niederschlagswerte und rechnet sie unmittelbar ein. Ohne Sensor wird
+kein vermeintlicher Regen in den Bodenwasserspeicher eingetragen. Die bereits
+von Home Assistant zwischengespeicherte OpenWeatherMap-Vorhersage wird nur für
+die Bewässerungsempfehlung verwendet. Die Modellqualität wird abhängig von der
+verfügbaren Datenquelle als `high`, `medium` oder `low` gekennzeichnet. Wird der optionale
 Binärsensor „Rasen wurde bewässert“ eingeschaltet, ergänzt die Integration die
 berechnete Wassermenge beziehungsweise die konfigurierbare Standardmenge im
 virtuellen Speicher.
@@ -196,8 +198,8 @@ nicht selbst aus dem Internet aktualisieren.
 - Bewässerungsempfehlung
 - empfohlene Wassermenge
 - empfohlene Düngermenge
-- Bewässerung fällig
-- Düngung fällig
+- Bewässerung fällig (veralteter, standardmäßig deaktivierter Binärsensor)
+- Düngung fällig (veralteter, standardmäßig deaktivierter Binärsensor)
 - Mähen protokollieren (wenn kein automatischer Binärsensor gewählt ist)
 - Bewässerung protokollieren (wenn kein automatischer Binärsensor gewählt ist)
 - Düngung protokollieren
@@ -207,8 +209,7 @@ nicht selbst aus dem Internet aktualisieren.
 - Python-Quellcode und interne Zustände sind vollständig englisch. Deutsche und
   englische Anzeigen werden über Home-Assistant-Übersetzungen bereitgestellt.
 - Gemessener und vorhergesagter Niederschlag werden getrennt behandelt.
-- Optionaler Niederschlagssensor für `mm` oder `mm/h`; ohne Sensor bleibt die
-  OpenWeatherMap-Tagesvorhersage als gekennzeichnete Schätzung aktiv.
+- Optionaler Niederschlagssensor für `mm` oder `mm/h`.
 - Die Bewässerungsmenge wird aus dem modellierten Wasserdefizit berechnet.
 - Die Standardmenge einer protokollierten Bewässerung ist konfigurierbar.
 - Der Mähroboterstatus berücksichtigt das letzte Mähen und liefert empfohlenes
@@ -263,6 +264,24 @@ Home-Assistant-Benutzers passenden Zustand an.
   konfigurierte Eingangssensoren nicht verfügbar sind.
 - Bestehende Konfigurationen werden automatisch auf Konfigurationsversion 5
   migriert.
+
+## Änderungen in Version 2.1.1
+
+- Die modellierte Bodenfeuchte wird bei jeder Aktualisierung fortgeschrieben;
+  Verdunstung und gemessener Regen wirken nicht mehr erst am Tageswechsel.
+- Vorhergesagter Regen wird nicht mehr als tatsächlich gefallener Regen in das
+  Bodenmodell übernommen.
+- Die Bewässerungsempfehlung unterscheidet jetzt zwischen
+  **Bodenfeuchte ausreichend**, **Bald wässern**, **Jetzt wässern**,
+  **Auf Regen warten** und **Saisonpause**.
+- Das Datum der letzten Bewässerung ergänzt wieder die Bodenfeuchtebewertung.
+- Die modellierte Bodenfeuchte wird mit einer Nachkommastelle angezeigt.
+- Diagnoseattribute zeigen Forecast-Abdeckung, letzte Modellaktualisierung und
+  erkannte Zeitlücken.
+- Pflegestatus und Wachstumsstatus verwenden eine konsistente Vegetationsphase.
+- Die doppelten Binärsensoren für Bewässerung und Düngung gelten als veraltet
+  und sind bei neuen Installationen standardmäßig deaktiviert. Ihre booleschen
+  Werte stehen als Attribute der jeweiligen Statussensoren bereit.
 
 ## Grenzen
 
