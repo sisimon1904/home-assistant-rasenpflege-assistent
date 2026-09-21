@@ -96,6 +96,8 @@ class RuntimeState:
     configured_initial_soil_moisture: float = 70.0
     precipitation_last_value: float | None = None
     precipitation_last_sample_at: str | None = None
+    precipitation_last_source: str | None = None
+    precipitation_last_mode: str | None = None
     soil_sensor_last_calibrated_at: str | None = None
     last_soil_update_at: str | None = None
     last_soil_model_gap_at: str | None = None
@@ -129,6 +131,8 @@ class RuntimeState:
             "configured_initial_soil_moisture": self.configured_initial_soil_moisture,
             "precipitation_last_value": self.precipitation_last_value,
             "precipitation_last_sample_at": self.precipitation_last_sample_at,
+            "precipitation_last_source": self.precipitation_last_source,
+            "precipitation_last_mode": self.precipitation_last_mode,
             "soil_sensor_last_calibrated_at": self.soil_sensor_last_calibrated_at,
             "last_soil_update_at": self.last_soil_update_at,
             "last_soil_model_gap_at": self.last_soil_model_gap_at,

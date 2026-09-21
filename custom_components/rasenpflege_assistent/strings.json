@@ -41,7 +41,9 @@
     },
     "error": {
       "not_openweathermap": "The selected entity is not provided by the OpenWeatherMap integration.",
-      "weather_data_unavailable": "The OpenWeatherMap entity does not provide a current temperature. Prefer mode v3.0 and verify that the entity is available."
+      "weather_data_unavailable": "The OpenWeatherMap entity does not provide a current temperature. Prefer mode v3.0 and verify that the entity is available.",
+      "name_already_configured": "Another lawn already uses this name.",
+      "name_required": "Enter a name for the lawn."
     },
     "abort": {
       "already_configured": "A lawn with this name is already configured."
@@ -76,7 +78,9 @@
     },
     "error": {
       "not_openweathermap": "The selected entity is not provided by the OpenWeatherMap integration.",
-      "weather_data_unavailable": "The OpenWeatherMap entity does not provide a current temperature. Prefer mode v3.0 and verify that the entity is available."
+      "weather_data_unavailable": "The OpenWeatherMap entity does not provide a current temperature. Prefer mode v3.0 and verify that the entity is available.",
+      "name_already_configured": "Another lawn already uses this name.",
+      "name_required": "Enter a name for the lawn."
     }
   },
   "selector": {
@@ -208,6 +212,10 @@
     "forecast_stale": {
       "title": "Weather forecast is stale",
       "description": "The last successful forecast update is more than three hours old. Check OpenWeatherMap and its API availability."
+    },
+    "observed_precipitation_unavailable": {
+      "title": "Observed precipitation unavailable",
+      "description": "No usable observed precipitation sensor was found. Enable the OpenWeatherMap rain sensor or select a precipitation sensor in the integration options."
     }
   },
   "services": {

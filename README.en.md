@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.0.0
+Version 3.0.1
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -282,6 +282,18 @@ Home Assistant user.
 - Care and growth status now use a consistent vegetation phase.
 - Legacy watering and fertilizing binary sensors are disabled by default for
   new installations; their boolean values remain available as attributes.
+
+## Changes in version 3.0.1
+
+- Exclude past forecast entries from future rain totals and next-rain times.
+- Evaluate hourly and daily forecast freshness independently.
+- Establish a safe new precipitation baseline after outages and source or mode
+  changes.
+- Attribute precipitation intervals crossing midnight to the correct day.
+- Allow optional maintenance dates to be cleared and lawn entries to be
+  renamed consistently.
+- Preserve manual maintenance buttons when input binary sensors are configured.
+- Correct diagnostics, units, and statistics metadata.
 
 ## Changes in version 3.0.0
 

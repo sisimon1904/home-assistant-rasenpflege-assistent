@@ -51,9 +51,14 @@ def sum_hourly_forecast_rain(
         dated.append((value, item))
     if not dated:
         return sum_forecast_rain(forecast, hours)
+    dated.sort(key=lambda value: value[0])
     start = now or dated[0][0]
     if start.tzinfo is None and dated[0][0].tzinfo is not None:
         start = start.replace(tzinfo=dated[0][0].tzinfo)
+    elif start.tzinfo is not None and dated[0][0].tzinfo is None:
+        dated = [
+            (timestamp.replace(tzinfo=start.tzinfo), item) for timestamp, item in dated
+        ]
     end = start + timedelta(hours=hours)
     return sum_forecast_rain(
         [item for timestamp, item in dated if start <= timestamp < end],
@@ -65,39 +70,87 @@ def forecast_coverage_hours(
     hourly_forecast: list[dict[str, Any]],
     daily_forecast: list[dict[str, Any]],
     maximum_hours: int = 72,
+    now: datetime | None = None,
 ) -> int:
     """Return the approximate future period covered by available forecasts."""
     timestamps: list[datetime] = []
     for item in hourly_forecast:
         try:
             timestamps.append(
-                datetime.fromisoformat(
-                    str(item["datetime"]).replace("Z", "+00:00")
-                )
+                datetime.fromisoformat(str(item["datetime"]).replace("Z", "+00:00"))
             )
         except (KeyError, TypeError, ValueError):
             continue
+    had_timestamps = bool(timestamps)
+    timestamps.sort()
+    if timestamps and now is not None:
+        reference = now
+        if reference.tzinfo is None and timestamps[0].tzinfo is not None:
+            reference = reference.replace(tzinfo=timestamps[0].tzinfo)
+        elif reference.tzinfo is not None and timestamps[0].tzinfo is None:
+            timestamps = [
+                timestamp.replace(tzinfo=reference.tzinfo) for timestamp in timestamps
+            ]
+        timestamps = [timestamp for timestamp in timestamps if timestamp >= reference]
     if len(timestamps) >= 2:
-        timestamps.sort()
         step = max(1.0, (timestamps[1] - timestamps[0]).total_seconds() / 3600)
         hourly_coverage = min(
             maximum_hours,
             round((timestamps[-1] - timestamps[0]).total_seconds() / 3600 + step),
         )
+    elif timestamps:
+        hourly_coverage = min(maximum_hours, 1)
+    elif had_timestamps:
+        hourly_coverage = 0
     else:
         hourly_coverage = min(maximum_hours, len(hourly_forecast))
     daily_coverage = min(maximum_hours, len(daily_forecast) * 24)
     return max(hourly_coverage, daily_coverage)
 
 
-def next_forecast_rain_at(forecast: list[dict[str, Any]]) -> str | None:
+def next_forecast_rain_at(
+    forecast: list[dict[str, Any]], now: datetime | None = None
+) -> str | None:
     """Return the timestamp of the next meaningful hourly precipitation."""
+    dated: list[tuple[datetime, dict[str, Any]]] = []
+    undated: list[dict[str, Any]] = []
     for item in forecast:
+        raw = item.get("datetime")
+        if not raw:
+            undated.append(item)
+            continue
+        try:
+            dated.append(
+                (datetime.fromisoformat(str(raw).replace("Z", "+00:00")), item)
+            )
+        except ValueError:
+            continue
+    dated.sort(key=lambda value: value[0])
+    if now is not None and dated:
+        reference = now
+        if reference.tzinfo is None and dated[0][0].tzinfo is not None:
+            reference = reference.replace(tzinfo=dated[0][0].tzinfo)
+        elif reference.tzinfo is not None and dated[0][0].tzinfo is None:
+            dated = [
+                (timestamp.replace(tzinfo=reference.tzinfo), item)
+                for timestamp, item in dated
+            ]
+        dated = [
+            (timestamp, item) for timestamp, item in dated if timestamp >= reference
+        ]
+    for _timestamp, item in dated:
         value = item.get("precipitation", item.get("native_precipitation"))
         try:
             if float(value) >= 0.1:
                 timestamp = item.get("datetime")
                 return str(timestamp) if timestamp else None
+        except (TypeError, ValueError):
+            continue
+    for item in undated:
+        value = item.get("precipitation", item.get("native_precipitation"))
+        try:
+            if float(value) >= 0.1:
+                return None
         except (TypeError, ValueError):
             continue
     return None
@@ -170,6 +223,29 @@ def update_soil_water(
     actual_et = max(0.0, reference_et_mm * crop_coefficient)
     updated = water_mm + effective_rain + max(0.0, irrigation_mm) - actual_et
     return round(max(0.0, min(capacity_mm, updated)), 2), round(actual_et, 2)
+
+
+def precipitation_rate_amounts(
+    *,
+    rate_mm_per_hour: float,
+    now: datetime,
+    last_sample: datetime | None,
+    maximum_hours: float = 2.0,
+) -> tuple[float, float]:
+    """Return total and current-day rain represented by a rate sample."""
+    if last_sample is None:
+        return 0.0, 0.0
+    elapsed_hours = min(
+        maximum_hours,
+        max(0.0, (now - last_sample).total_seconds() / 3600),
+    )
+    amount = max(0.0, rate_mm_per_hour) * elapsed_hours
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    current_day_hours = min(
+        elapsed_hours,
+        max(0.0, (now - midnight).total_seconds() / 3600),
+    )
+    return amount, max(0.0, rate_mm_per_hour) * current_day_hours
 
 
 def growth_state(
@@ -274,24 +350,26 @@ def watering_recommendation(
     soil_water_mm: float | None = None,
     soil_capacity_mm: float | None = None,
     growth: str | None = None,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
     """Calculate a conservative weather-based watering recommendation."""
     hourly_forecast = hourly_forecast or []
-    coverage_hours = forecast_coverage_hours(hourly_forecast, forecast)
+    coverage_hours = forecast_coverage_hours(hourly_forecast, forecast, now=now)
+    hourly_coverage_hours = forecast_coverage_hours(hourly_forecast, [], now=now)
     daily_rain = sum_forecast_rain(forecast, 3)
     rain_24h = (
-        sum_hourly_forecast_rain(hourly_forecast, 24)
-        if len(hourly_forecast) >= 24
+        sum_hourly_forecast_rain(hourly_forecast, 24, now)
+        if hourly_coverage_hours >= 24
         else None
     )
     rain_48h = (
-        sum_hourly_forecast_rain(hourly_forecast, 48)
-        if len(hourly_forecast) >= 48
+        sum_hourly_forecast_rain(hourly_forecast, 48, now)
+        if hourly_coverage_hours >= 48
         else None
     )
     rain_72h = (
-        sum_hourly_forecast_rain(hourly_forecast, 72)
-        if len(hourly_forecast) >= 72
+        sum_hourly_forecast_rain(hourly_forecast, 72, now)
+        if hourly_coverage_hours >= 72
         else None
     )
     if rain_24h is None and forecast:
@@ -322,11 +400,11 @@ def watering_recommendation(
             "rain_24h": rain_24h,
             "rain_48h": rain_48h,
             "rain_72h": rain_72h,
-            "next_rain_at": next_forecast_rain_at(hourly_forecast),
+            "next_rain_at": next_forecast_rain_at(hourly_forecast, now),
             "forecast_coverage_hours": coverage_hours,
             "confidence": (
                 "high"
-                if len(hourly_forecast) >= 24
+                if hourly_coverage_hours >= 24
                 else "medium"
                 if rain is not None
                 else "low"
@@ -417,11 +495,11 @@ def watering_recommendation(
         "rain_24h": rain_24h,
         "rain_48h": rain_48h,
         "rain_72h": rain_72h,
-        "next_rain_at": next_forecast_rain_at(hourly_forecast),
+        "next_rain_at": next_forecast_rain_at(hourly_forecast, now),
         "forecast_coverage_hours": coverage_hours,
         "confidence": (
             "high"
-            if len(hourly_forecast) >= 24 and elapsed is not None
+            if hourly_coverage_hours >= 24 and elapsed is not None
             else "medium"
             if rain is not None and elapsed is not None
             else "low"

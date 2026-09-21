@@ -8,10 +8,8 @@ from dataclasses import dataclass
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import CONF_MOWED_ENTITY, CONF_WATERED_ENTITY, DOMAIN
 from .coordinator import LawnCoordinator
 from .entity import LawnEntity
 
@@ -61,25 +59,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up lawn logging buttons."""
     coordinator: LawnCoordinator = entry.runtime_data
-    hidden_keys: set[str] = set()
-    if coordinator.settings.get(CONF_MOWED_ENTITY):
-        hidden_keys.add("mark_mowing_started")
-    if coordinator.settings.get(CONF_WATERED_ENTITY):
-        hidden_keys.add("mark_watered")
-
-    registry = er.async_get(hass)
-    for key in hidden_keys:
-        existing = registry.async_get_entity_id(
-            "button", DOMAIN, f"{entry.entry_id}_{key}"
-        )
-        if existing:
-            registry.async_remove(existing)
-
-    async_add_entities(
-        LawnButton(coordinator, description)
-        for description in BUTTONS
-        if description.key not in hidden_keys
-    )
+    async_add_entities(LawnButton(coordinator, description) for description in BUTTONS)
 
 
 class LawnButton(LawnEntity, ButtonEntity):

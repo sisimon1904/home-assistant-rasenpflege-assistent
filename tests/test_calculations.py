@@ -1,7 +1,7 @@
 """Tests for the pure lawn-care calculations."""
 
 import importlib.util
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 _SPEC = importlib.util.spec_from_file_location(
@@ -25,6 +25,7 @@ mower_recommendation = _CALCULATIONS.mower_recommendation
 mower_state = _CALCULATIONS.mower_state
 next_forecast_rain_at = _CALCULATIONS.next_forecast_rain_at
 next_lawn_action = _CALCULATIONS.next_lawn_action
+precipitation_rate_amounts = _CALCULATIONS.precipitation_rate_amounts
 sum_forecast_rain = _CALCULATIONS.sum_forecast_rain
 sum_hourly_forecast_rain = _CALCULATIONS.sum_hourly_forecast_rain
 update_soil_water = _CALCULATIONS.update_soil_water
@@ -104,12 +105,8 @@ def test_watering_status_uses_clear_moisture_bands() -> None:
     sufficient = watering_recommendation(
         **common, soil_moisture_percent=60, soil_water_mm=24
     )
-    soon = watering_recommendation(
-        **common, soil_moisture_percent=40, soil_water_mm=16
-    )
-    now = watering_recommendation(
-        **common, soil_moisture_percent=30, soil_water_mm=12
-    )
+    soon = watering_recommendation(**common, soil_moisture_percent=40, soil_water_mm=16)
+    now = watering_recommendation(**common, soil_moisture_percent=30, soil_water_mm=12)
     assert sufficient["status"] == "not_due"
     assert soon["status"] == "water_soon"
     assert soon["recommended"] is False
@@ -160,6 +157,28 @@ def test_hourly_forecast_windows_and_next_rain() -> None:
     assert sum_hourly_forecast_rain(forecast, 2) == 1.2
     assert sum_hourly_forecast_rain(forecast, 3) == 3.5
     assert next_forecast_rain_at(forecast) == "2026-07-20T11:00:00+00:00"
+
+
+def test_past_forecast_entries_are_excluded() -> None:
+    """Past rain must not be reported as future precipitation."""
+    now = datetime(2026, 7, 20, 12, tzinfo=timezone.utc)
+    forecast = [
+        {"datetime": "2026-07-20T10:00:00+00:00", "precipitation": 5},
+        {"datetime": "2026-07-20T13:00:00+00:00", "precipitation": 0},
+        {"datetime": "2026-07-20T14:00:00+00:00", "precipitation": 1.5},
+    ]
+    assert sum_hourly_forecast_rain(forecast, 24, now) == 1.5
+    assert next_forecast_rain_at(forecast, now) == "2026-07-20T14:00:00+00:00"
+
+
+def test_past_forecast_has_no_future_coverage() -> None:
+    """Expired timestamped entries do not count toward forecast coverage."""
+    now = datetime(2026, 7, 20, 12, tzinfo=timezone.utc)
+    forecast = [
+        {"datetime": "2026-07-20T09:00:00+00:00", "precipitation": 0},
+        {"datetime": "2026-07-20T10:00:00+00:00", "precipitation": 0},
+    ]
+    assert forecast_coverage_hours(forecast, [], 72, now) == 0
 
 
 def test_forecast_coverage_reports_available_period() -> None:
@@ -308,18 +327,24 @@ def test_overall_status_follows_growth_in_mild_winter() -> None:
 
 def test_overall_status_distinguishes_watering_states() -> None:
     """The care status must not call every watering state immediately due."""
-    assert lawn_status(
-        growth="active_growth",
-        watering_status="water_soon",
-        fertilizing_due=False,
-        mower_status="wait_to_mow",
-    ) == "water_soon"
-    assert lawn_status(
-        growth="active_growth",
-        watering_status="wait_for_rain",
-        fertilizing_due=False,
-        mower_status="wait_to_mow",
-    ) == "wait_for_rain"
+    assert (
+        lawn_status(
+            growth="active_growth",
+            watering_status="water_soon",
+            fertilizing_due=False,
+            mower_status="wait_to_mow",
+        )
+        == "water_soon"
+    )
+    assert (
+        lawn_status(
+            growth="active_growth",
+            watering_status="wait_for_rain",
+            fertilizing_due=False,
+            mower_status="wait_to_mow",
+        )
+        == "wait_for_rain"
+    )
 
 
 def test_hourly_forecast_uses_timestamp_window() -> None:
@@ -331,30 +356,52 @@ def test_hourly_forecast_uses_timestamp_window() -> None:
         }
         for hour in range(0, 24, 3)
     ]
-    assert sum_hourly_forecast_rain(
-        forecast, 6, datetime(2026, 7, 20, tzinfo=timezone.utc)
-    ) == 2
+    assert (
+        sum_hourly_forecast_rain(
+            forecast, 6, datetime(2026, 7, 20, tzinfo=timezone.utc)
+        )
+        == 2
+    )
     assert forecast_coverage_hours(forecast, [], 72) == 24
+
+
+def test_three_hour_forecast_coverage_uses_time_not_entry_count() -> None:
+    """Eight three-hour entries provide 24 hours of future coverage."""
+    now = datetime(2026, 7, 20, tzinfo=timezone.utc)
+    forecast = [
+        {
+            "datetime": (now + timedelta(hours=hour)).isoformat(),
+            "precipitation": 0,
+        }
+        for hour in range(0, 24, 3)
+    ]
+    assert forecast_coverage_hours(forecast, [], 72, now) == 24
 
 
 def test_growth_hysteresis_prevents_threshold_flapping() -> None:
     """An established state uses a small exit margin."""
-    assert growth_state(
-        today=date(2026, 6, 1),
-        gts=400,
-        growth_temperature=7.5,
-        soil_moisture_percent=60,
-        mower_started_year=2026,
-        previous_state="active_growth",
-    ) == "active_growth"
-    assert growth_state(
-        today=date(2026, 7, 1),
-        gts=700,
-        growth_temperature=20,
-        soil_moisture_percent=22,
-        mower_started_year=2026,
-        previous_state="heat_drought_stress",
-    ) == "heat_drought_stress"
+    assert (
+        growth_state(
+            today=date(2026, 6, 1),
+            gts=400,
+            growth_temperature=7.5,
+            soil_moisture_percent=60,
+            mower_started_year=2026,
+            previous_state="active_growth",
+        )
+        == "active_growth"
+    )
+    assert (
+        growth_state(
+            today=date(2026, 7, 1),
+            gts=700,
+            growth_temperature=20,
+            soil_moisture_percent=22,
+            mower_started_year=2026,
+            previous_state="heat_drought_stress",
+        )
+        == "heat_drought_stress"
+    )
 
 
 def test_warm_march_is_not_forced_into_watering_pause() -> None:
@@ -448,3 +495,25 @@ def test_incremental_evapotranspiration_reduces_soil_water() -> None:
     )
     assert water < 28
     assert actual_et > 0
+
+
+def test_precipitation_rate_requires_a_valid_baseline() -> None:
+    """A restored rate sensor must not backfill an unavailable interval."""
+    now = datetime(2026, 7, 20, 12, tzinfo=timezone.utc)
+    assert precipitation_rate_amounts(
+        rate_mm_per_hour=4,
+        now=now,
+        last_sample=None,
+    ) == (0.0, 0.0)
+
+
+def test_precipitation_rate_splits_an_interval_at_midnight() -> None:
+    """Only the part after midnight contributes to the new daily total."""
+    now = datetime(2026, 7, 21, 0, 15, tzinfo=timezone.utc)
+    total, current_day = precipitation_rate_amounts(
+        rate_mm_per_hour=4,
+        now=now,
+        last_sample=datetime(2026, 7, 20, 23, 45, tzinfo=timezone.utc),
+    )
+    assert total == 2.0
+    assert current_day == 1.0

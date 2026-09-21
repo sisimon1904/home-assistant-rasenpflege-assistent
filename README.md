@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.0.0
+Version 3.0.1
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -301,6 +301,19 @@ Düngermenge bezeichnet die ungefähre Produktmenge und nicht die reine
 Nährstoffmenge. Maßgeblich bleiben die Herstellerdosierung, eine Bodenanalyse
 und örtliche Vorschriften. Nicht auf gefrorenem, ausgetrocknetem oder
 wassergesättigtem Rasen düngen.
+
+## Änderungen in Version 3.0.1
+
+- Vergangene Vorhersagewerte werden nicht mehr als zukünftiger Regen gezählt.
+- Stündliche und tägliche Vorhersagen werden getrennt auf Aktualität geprüft.
+- Nach einem Ausfall sowie beim Wechsel von Niederschlagsquelle oder Messmodus
+  wird eine sichere neue Messbasis gesetzt.
+- Regenmengen über Mitternacht werden dem richtigen Tag zugeordnet.
+- Datumsfelder können in den Optionen zuverlässig geleert und Rasen
+  vollständig umbenannt werden.
+- Manuelle Pflege-Schaltflächen bleiben auch bei konfigurierten
+  Eingangs-Binärsensoren erhalten.
+- Diagnose, Einheiten und Statistikdefinitionen wurden korrigiert.
 
 ## Änderungen in Version 3.0.0
 

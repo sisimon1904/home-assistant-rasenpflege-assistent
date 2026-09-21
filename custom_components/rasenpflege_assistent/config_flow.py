@@ -36,8 +36,8 @@ from .const import (
     DEFAULT_INITIAL_GTS,
     DEFAULT_INITIAL_SOIL_MOISTURE,
     DEFAULT_LAWN_TYPE,
-    DEFAULT_PRECIPITATION_MODE,
     DEFAULT_NAME,
+    DEFAULT_PRECIPITATION_MODE,
     DEFAULT_SOIL_TYPE,
     DEFAULT_SUN_EXPOSURE,
     DEFAULT_WATERING_AMOUNT,
@@ -191,14 +191,17 @@ class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial setup step."""
         if user_input is not None:
             errors = _validate_openweathermap_entities(self.hass, user_input)
+            name = user_input[CONF_NAME].strip()
+            if not name:
+                errors[CONF_NAME] = "name_required"
             if errors:
                 return self.async_show_form(
                     step_id="user", data_schema=_schema(), errors=errors
                 )
-            await self.async_set_unique_id(user_input[CONF_NAME].strip().lower())
+            await self.async_set_unique_id(name.lower())
             self._abort_if_unique_id_configured()
             return self.async_create_entry(
-                title=user_input[CONF_NAME].strip(), data=user_input
+                title=name, data={**user_input, CONF_NAME: name}
             )
 
         return self.async_show_form(step_id="user", data_schema=_schema())
@@ -221,6 +224,16 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
         """Manage integration options."""
         if user_input is not None:
             errors = _validate_openweathermap_entities(self.hass, user_input)
+            new_name = user_input[CONF_NAME].strip()
+            new_unique_id = new_name.lower()
+            if not new_name:
+                errors[CONF_NAME] = "name_required"
+            if any(
+                other.entry_id != self.config_entry.entry_id
+                and other.unique_id == new_unique_id
+                for other in self.hass.config_entries.async_entries(DOMAIN)
+            ):
+                errors[CONF_NAME] = "name_already_configured"
             if errors:
                 current = {**self.config_entry.data, **user_input}
                 return self.async_show_form(
@@ -229,12 +242,20 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
                     errors=errors,
                 )
             options = dict(user_input)
+            options[CONF_NAME] = new_name
             options.setdefault(CONF_TEMPERATURE_ENTITY, None)
             options.setdefault(CONF_MOWED_ENTITY, None)
             options.setdefault(CONF_WATERED_ENTITY, None)
             options.setdefault(CONF_PRECIPITATION_ENTITY, None)
             options.setdefault(CONF_SOIL_MOISTURE_ENTITY, None)
             options.setdefault(CONF_SOIL_TEMPERATURE_ENTITY, None)
+            options.setdefault(CONF_LAST_WATERING, None)
+            options.setdefault(CONF_LAST_FERTILIZING, None)
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                title=new_name,
+                unique_id=new_unique_id,
+            )
             return self.async_create_entry(data=options)
 
         current = {**self.config_entry.data, **self.config_entry.options}

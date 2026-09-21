@@ -41,7 +41,9 @@
     },
     "error": {
       "not_openweathermap": "Die ausgewählte Entität stammt nicht aus der OpenWeatherMap-Integration.",
-      "weather_data_unavailable": "Die OpenWeatherMap-Entität liefert keine aktuelle Temperatur. Verwende möglichst den Modus v3.0 und prüfe, ob die Entität verfügbar ist."
+      "weather_data_unavailable": "Die OpenWeatherMap-Entität liefert keine aktuelle Temperatur. Verwende möglichst den Modus v3.0 und prüfe, ob die Entität verfügbar ist.",
+      "name_already_configured": "Ein anderer Rasen verwendet bereits diesen Namen.",
+      "name_required": "Gib einen Namen für den Rasen ein."
     },
     "abort": {
       "already_configured": "Ein Rasen mit diesem Namen ist bereits eingerichtet."
@@ -76,7 +78,9 @@
     },
     "error": {
       "not_openweathermap": "Die ausgewählte Entität stammt nicht aus der OpenWeatherMap-Integration.",
-      "weather_data_unavailable": "Die OpenWeatherMap-Entität liefert keine aktuelle Temperatur. Verwende möglichst den Modus v3.0 und prüfe, ob die Entität verfügbar ist."
+      "weather_data_unavailable": "Die OpenWeatherMap-Entität liefert keine aktuelle Temperatur. Verwende möglichst den Modus v3.0 und prüfe, ob die Entität verfügbar ist.",
+      "name_already_configured": "Ein anderer Rasen verwendet bereits diesen Namen.",
+      "name_required": "Gib einen Namen für den Rasen ein."
     }
   },
   "selector": {
@@ -208,6 +212,10 @@
     "forecast_stale": {
       "title": "Wettervorhersage ist veraltet",
       "description": "Die letzte erfolgreiche Aktualisierung der Vorhersage liegt mehr als drei Stunden zurück. Prüfe OpenWeatherMap und die API-Verfügbarkeit."
+    },
+    "observed_precipitation_unavailable": {
+      "title": "Beobachteter Niederschlag nicht verfügbar",
+      "description": "Es wurde kein verwendbarer Sensor für gefallenen Niederschlag gefunden. Aktiviere den OpenWeatherMap-Regensensor oder wähle in den Optionen der Integration einen Niederschlagssensor aus."
     }
   },
   "services": {

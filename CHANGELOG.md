@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.0.1
+
+### Fixed
+
+- Exclude past hourly forecast entries from future rain totals and next-rain
+  timestamps.
+- Detect stale hourly or daily forecast data independently and use the weather
+  entity update time instead of only the local fetch time.
+- Reset precipitation sampling safely after unavailable states, source changes,
+  and interpretation-mode changes.
+- Avoid assigning an entire precipitation interval crossing midnight to the new
+  day.
+- Preserve the configured precipitation mode while its sensor is unavailable.
+- Allow configured last-watering and last-fertilizing dates to be cleared.
+- Keep the config-entry title and unique name in sync when a lawn is renamed.
+- Preserve manual maintenance buttons and their entity-registry customizations.
+- Correct the grassland-temperature-sum unit and remove misleading measurement
+  statistics from accumulating daily diagnostic values.
+
 ## 3.0.0
 
 ### Breaking changes
