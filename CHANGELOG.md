@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.1.0
+
+### Added
+
+- Hourly forecast evaluation for 24, 48, and 72 hours plus the next expected
+  rain timestamp.
+- Optional physical soil-moisture sensor with gradual model calibration.
+- A translated `Next action` enum sensor.
+- Diagnostic entities for data quality, confidence, forecast age, rain,
+  sources, soil water, and evapotranspiration.
+- Home Assistant repair issues for unavailable weather and configured inputs.
+
+### Changed
+
+- Watering confidence is raised when an hourly forecast is available.
+- Config entries migrate automatically to version 5.
+
 ## 2.0.1
 
 ### Changed

@@ -19,6 +19,10 @@ class LawnData:
     watering_liters: float = 0.0
     watering_reasons: list[str] = field(default_factory=list)
     forecast_rain_mm: float | None = None
+    forecast_rain_24h_mm: float | None = None
+    forecast_rain_48h_mm: float | None = None
+    forecast_rain_72h_mm: float | None = None
+    next_rain_at: str | None = None
     forecast_updated_at: str | None = None
     observed_rain_today_mm: float = 0.0
     precipitation_source: str = "forecast_estimate"
@@ -46,10 +50,18 @@ class LawnData:
     next_mowing_date: date | None = None
     growth_temperature_7d: float | None = None
     soil_moisture_percent: float = 70.0
+    measured_soil_moisture_percent: float | None = None
+    soil_moisture_source: str = "model"
     soil_water_mm: float = 0.0
     soil_capacity_mm: float = 0.0
     daily_evapotranspiration_mm: float = 0.0
     soil_model_confidence: str = "low"
+    next_action: str = "collecting_data"
+    data_quality: str = "insufficient"
+    data_warnings: list[str] = field(default_factory=list)
+    forecast_age_minutes: int | None = None
+    temperature_history_days: int = 0
+    last_calculation_at: str | None = None
 
 
 @dataclass(slots=True)
@@ -79,6 +91,7 @@ class RuntimeState:
     configured_initial_soil_moisture: float = 70.0
     precipitation_last_value: float | None = None
     precipitation_last_sample_at: str | None = None
+    soil_sensor_last_calibrated_at: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable representation."""
@@ -106,4 +119,5 @@ class RuntimeState:
             "configured_initial_soil_moisture": self.configured_initial_soil_moisture,
             "precipitation_last_value": self.precipitation_last_value,
             "precipitation_last_sample_at": self.precipitation_last_sample_at,
+            "soil_sensor_last_calibrated_at": self.soil_sensor_last_calibrated_at,
         }

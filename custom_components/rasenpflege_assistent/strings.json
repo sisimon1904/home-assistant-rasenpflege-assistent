@@ -12,6 +12,7 @@
           "mowed_entity": "Lawn was mowed binary sensor (optional)",
           "watered_entity": "Lawn was watered binary sensor (optional)",
           "precipitation_entity": "Observed precipitation sensor (optional)",
+          "soil_moisture_entity": "Physical soil moisture sensor (optional)",
           "default_watering_amount": "Default recorded watering amount",
           "area": "Lawn area",
           "sun_exposure": "Sun exposure",
@@ -28,6 +29,7 @@
           "mowed_entity": "An off-to-on transition records mowing and acknowledges the mowing season. Without a selection, use the manual button.",
           "watered_entity": "An off-to-on transition records watering and updates the soil model. Without a selection, use the manual button.",
           "precipitation_entity": "Accepts precipitation depth or precipitation intensity. Without a sensor, the OpenWeatherMap daily forecast is used as an explicitly marked estimate.",
+          "soil_moisture_entity": "Gently calibrates the modeled soil reservoir toward the measured percentage every six hours. Without a sensor, the model continues independently.",
           "default_watering_amount": "Amount added to the soil model when watering is recorded and no calculated recommendation is available.",
           "initial_soil_moisture": "Starting value of the virtual soil reservoir. For normal loamy soil, 70% is a reasonable initial estimate."
         }
@@ -53,6 +55,7 @@
           "mowed_entity": "Lawn was mowed binary sensor (optional)",
           "watered_entity": "Lawn was watered binary sensor (optional)",
           "precipitation_entity": "Observed precipitation sensor (optional)",
+          "soil_moisture_entity": "Physical soil moisture sensor (optional)",
           "default_watering_amount": "Default recorded watering amount",
           "area": "Lawn area",
           "sun_exposure": "Sun exposure",
@@ -87,6 +90,19 @@
           "good_condition": "Good condition"
         }
       },
+      "next_action": {
+        "name": "Next action",
+        "state": {
+          "collecting_data": "Collecting data",
+          "water_lawn": "Water lawn",
+          "wait_for_rain": "Wait for rain",
+          "fertilize_lawn": "Fertilize lawn",
+          "start_mower": "Start mower",
+          "mow_lawn": "Mow lawn",
+          "winterize_mower": "Switch mower off for winter",
+          "no_action": "No action required"
+        }
+      },
       "growth_status": {
         "name": "Growth status",
         "state": {
@@ -110,8 +126,8 @@
           "mow_regularly": "Mow regularly – lawn is growing",
           "mow_less": "Mow less frequently",
           "reduce_mowing": "Reduce mowing for autumn",
-          "pause_drought": "Pause due to drought stress"
-          ,"wait_to_mow": "Wait until the next mowing date"
+          "pause_drought": "Pause due to drought stress",
+          "wait_to_mow": "Wait until the next mowing date"
         }
       },
       "soil_moisture": {"name": "Modeled soil moisture"},
@@ -126,7 +142,28 @@
         }
       },
       "watering_amount": {"name": "Recommended water amount"},
-      "fertilizer_amount": {"name": "Recommended fertilizer amount"}
+      "fertilizer_amount": {"name": "Recommended fertilizer amount"},
+      "data_quality": {
+        "name": "Data quality",
+        "state": {"good": "Good", "limited": "Limited", "insufficient": "Insufficient"}
+      },
+      "soil_model_confidence": {
+        "name": "Soil model confidence",
+        "state": {"high": "High", "medium": "Medium", "low": "Low"}
+      },
+      "watering_confidence": {
+        "name": "Watering confidence",
+        "state": {"high": "High", "medium": "Medium", "low": "Low"}
+      },
+      "forecast_age": {"name": "Forecast age"},
+      "forecast_rain_24h": {"name": "Forecast rain 24 hours"},
+      "forecast_rain_72h": {"name": "Forecast rain 72 hours"},
+      "observed_rain_today": {"name": "Observed rain today"},
+      "temperature_source": {"name": "Temperature source"},
+      "precipitation_source": {"name": "Precipitation source"},
+      "soil_water": {"name": "Modeled soil water"},
+      "daily_evapotranspiration": {"name": "Daily evapotranspiration"},
+      "last_calculation": {"name": "Last calculation"}
     },
     "binary_sensor": {
       "watering_due": {"name": "Watering due"},
@@ -136,6 +173,20 @@
       "mark_mowing_started": {"name": "Record mowing"},
       "mark_watered": {"name": "Record watering"},
       "mark_fertilized": {"name": "Record fertilizing"}
+    }
+  },
+  "issues": {
+    "temperature_unavailable": {
+      "title": "Outdoor temperature unavailable",
+      "description": "Neither the selected outdoor sensor nor the OpenWeatherMap weather entity currently provides a valid temperature. Check both entities."
+    },
+    "forecast_unavailable": {
+      "title": "Weather forecast unavailable",
+      "description": "No daily or hourly forecast is currently available. Check the selected OpenWeatherMap entity and its configured mode."
+    },
+    "configured_entity_unavailable": {
+      "title": "Configured input entity unavailable",
+      "description": "The configured entity `{entity_id}` is missing, unknown, or unavailable. Correct the entity under Configure or restore it."
     }
   }
 }

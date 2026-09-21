@@ -9,7 +9,10 @@ from custom_components.rasenpflege_assistent.calculations import (
     hargreaves_evapotranspiration,
     mower_recommendation,
     mower_state,
+    next_forecast_rain_at,
+    next_lawn_action,
     sum_forecast_rain,
+    sum_hourly_forecast_rain,
     update_soil_water,
     watering_recommendation,
 )
@@ -86,6 +89,56 @@ def test_daily_forecast_sum_uses_three_entries() -> None:
             3,
         )
         == 6
+    )
+
+
+def test_hourly_forecast_windows_and_next_rain() -> None:
+    """Hourly forecasts provide fixed rain windows and the next rain time."""
+    forecast = [
+        {"datetime": "2026-07-20T10:00:00+00:00", "precipitation": 0},
+        {"datetime": "2026-07-20T11:00:00+00:00", "precipitation": 1.2},
+        {"datetime": "2026-07-20T12:00:00+00:00", "precipitation": 2.3},
+    ]
+    assert sum_hourly_forecast_rain(forecast, 2) == 1.2
+    assert sum_hourly_forecast_rain(forecast, 3) == 3.5
+    assert next_forecast_rain_at(forecast) == "2026-07-20T11:00:00+00:00"
+
+
+def test_hourly_forecast_improves_watering_confidence() -> None:
+    """An hourly forecast is preferred for rain totals and confidence."""
+    result = watering_recommendation(
+        today=date(2026, 7, 20),
+        area_m2=100,
+        sun_exposure="sunny",
+        soil_type="loamy",
+        current_temperature=25,
+        forecast=[{"precipitation": 20}],
+        hourly_forecast=[{"precipitation": 0} for _ in range(72)],
+        last_watering=date(2026, 7, 1),
+    )
+    assert result["recommended"] is True
+    assert result["rain_24h"] == 0
+    assert result["rain_72h"] == 0
+    assert result["confidence"] == "high"
+
+
+def test_next_action_priorities() -> None:
+    """Urgent watering takes priority over other lawn-care work."""
+    assert (
+        next_lawn_action(
+            watering_status="water_now",
+            fertilizing_recommended=True,
+            mower_status="mow_regularly",
+        )
+        == "water_lawn"
+    )
+    assert (
+        next_lawn_action(
+            watering_status="not_due",
+            fertilizing_recommended=True,
+            mower_status="wait_to_mow",
+        )
+        == "fertilize_lawn"
     )
 
 

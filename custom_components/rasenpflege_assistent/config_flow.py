@@ -24,6 +24,7 @@ from .const import (
     CONF_MOWED_ENTITY,
     CONF_NAME,
     CONF_PRECIPITATION_ENTITY,
+    CONF_SOIL_MOISTURE_ENTITY,
     CONF_SOIL_TYPE,
     CONF_SUN_EXPOSURE,
     CONF_TEMPERATURE_ENTITY,
@@ -78,6 +79,11 @@ def _schema() -> vol.Schema:
                         SensorDeviceClass.PRECIPITATION,
                         SensorDeviceClass.PRECIPITATION_INTENSITY,
                     ],
+                )
+            ),
+            vol.Optional(CONF_SOIL_MOISTURE_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="sensor", device_class=SensorDeviceClass.MOISTURE
                 )
             ),
             vol.Required(
@@ -161,7 +167,7 @@ def _validate_openweathermap_entities(
 class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Lawn Care Assistant."""
 
-    VERSION = 4
+    VERSION = 5
     MINOR_VERSION = 0
 
     async def async_step_user(
@@ -212,6 +218,7 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
             options.setdefault(CONF_MOWED_ENTITY, None)
             options.setdefault(CONF_WATERED_ENTITY, None)
             options.setdefault(CONF_PRECIPITATION_ENTITY, None)
+            options.setdefault(CONF_SOIL_MOISTURE_ENTITY, None)
             return self.async_create_entry(data=options)
 
         current = {**self.config_entry.data, **self.config_entry.options}

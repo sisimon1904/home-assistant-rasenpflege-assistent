@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 2.0.1
+Version 2.1.0
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -30,7 +30,9 @@ entities already available in Home Assistant and requests forecasts through
 - freely selectable outdoor temperature sensor with automatic OpenWeatherMap
   fallback
 - optional observed precipitation depth or intensity sensor
+- optional physical soil-moisture sensor for gentle model calibration
 - OpenWeatherMap daily forecast as an automatically identified fallback
+- hourly rain evaluation for the next 24, 48, and 72 hours
 - optional binary sensors for “lawn was mowed” and “lawn was watered”
 - grassland temperature sum weighted by January 0.5, February 0.75, and 1.0
   from March onward
@@ -49,6 +51,9 @@ entities already available in Home Assistant and requests forecasts through
 - watering recommendation with target amount in millimeters and liters
 - seasonal NPK recommendation and product quantity
 - downloadable diagnostics through Home Assistant
+- diagnostic entities for data quality, confidence, and data sources
+- a “Next action” sensor with one concise recommendation
+- Home Assistant repair issues for missing weather or configured input data
 - automatic migration of configurations from version 1.0.0
 - HACS-compatible repository structure and release workflow
 
@@ -143,7 +148,7 @@ growth and mower status.
 1. Replace the existing
    `/config/custom_components/rasenpflege_assistent` directory.
 2. Restart Home Assistant.
-3. Home Assistant automatically migrates the config entry to version 4 during
+3. Home Assistant automatically migrates the config entry to version 5 during
    the next startup.
 4. Open **Settings → Devices & services → Lawn Care Assistant → Configure** and
    verify the initial soil moisture. A local outdoor temperature sensor can
@@ -237,6 +242,19 @@ Home Assistant user.
 - Outdated references to the config version and fixed irrigation amount were
   corrected.
 - The Mushroom example now uses the translated state.
+
+## Changes in version 2.1.0
+
+- Hourly OpenWeatherMap forecasts are evaluated for the next 24, 48, and
+  72 hours without calling OpenWeatherMap directly.
+- An optional physical soil-moisture sensor moves the modeled reservoir 25%
+  toward the measured value at most once every six hours.
+- The new **Next action** sensor summarizes the most important upcoming task.
+- Diagnostic entities report data quality, model confidence, forecast age,
+  rain, input sources, soil water, and evapotranspiration.
+- Home Assistant creates repair issues when temperature, forecasts, or
+  configured input entities are unavailable.
+- Existing config entries migrate automatically to config-entry version 5.
 
 ## Limitations
 

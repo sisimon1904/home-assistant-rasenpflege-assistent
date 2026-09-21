@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 2.0.1
+Version 2.1.0
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -29,7 +29,9 @@ Vorhersagen über `weather.get_forecasts` ab.
 - Auswahl und Prüfung einer OpenWeatherMap-Wetterentität
 - frei wählbarer Außentemperatursensor mit automatischem OpenWeatherMap-Fallback
 - optionaler Sensor für gemessene Niederschlagsmenge oder -intensität
+- optionaler physischer Bodenfeuchtesensor zur sanften Modellkalibrierung
 - OpenWeatherMap-Tagesvorhersage als automatisch gekennzeichneter Fallback
+- stündliche Regenauswertung für 24, 48 und 72 Stunden
 - optionale Binärsensoren für „Rasen wurde gemäht“ und „Rasen wurde bewässert“
 - Grünlandtemperatursumme mit der Gewichtung Januar 0,5, Februar 0,75 und ab
   März 1,0
@@ -48,6 +50,9 @@ Vorhersagen über `weather.get_forecasts` ab.
 - Bewässerungsempfehlung mit Zielmenge in mm und Litern
 - saisonale NPK-Empfehlung und Produktmenge
 - Diagnose-Download über Home Assistant
+- eigener Diagnosebereich mit Datenqualität, Modellvertrauen und Datenquellen
+- Sensor „Nächste Aktion“ als kompakte Handlungsempfehlung
+- Reparaturhinweise bei fehlenden Wetter- oder konfigurierten Eingangsdaten
 - automatische Migration einer Konfiguration aus Version 1.0.0
 - HACS-kompatible Repository-Struktur und Release-Workflow
 
@@ -149,7 +154,7 @@ Attribut `temperature_source` am Wachstums- und Mähroboterstatus.
    `/config/custom_components/rasenpflege_assistent` ersetzen.
 2. Home Assistant neu starten.
 3. Beim nächsten Start migriert Home Assistant den Konfigurationseintrag
-   automatisch auf Version 4.
+   automatisch auf Version 5.
 4. Danach unter **Einstellungen → Geräte & Dienste → Rasenpflege-Assistent →
    Konfigurieren** die anfängliche Bodenfeuchte prüfen. Ab Version 1.2.0 kann
    dort zusätzlich ein lokaler Außentemperatursensor ausgewählt werden.
@@ -243,6 +248,21 @@ Home-Assistant-Benutzers passenden Zustand an.
 - Veraltete Angaben zur Konfigurationsversion und Standard-Bewässerungsmenge
   wurden korrigiert.
 - Das Mushroom-Beispiel verwendet den übersetzten Zustand.
+
+## Änderungen in Version 2.1.0
+
+- Stündliche OpenWeatherMap-Vorhersagen werden für die kommenden 24, 48 und
+  72 Stunden ausgewertet, ohne OpenWeatherMap direkt abzufragen.
+- Ein optionaler physischer Bodenfeuchtesensor gleicht das Bodenmodell höchstens
+  alle sechs Stunden mit 25 % Annäherung an den Messwert an.
+- Der neue Sensor **Nächste Aktion** fasst die wichtigste anstehende Maßnahme
+  zusammen.
+- Diagnose-Entitäten zeigen Datenqualität, Modellvertrauen, Forecast-Alter,
+  Niederschlag, Datenquellen, Bodenwasservorrat und Verdunstung.
+- Home Assistant erzeugt Reparaturhinweise, wenn Temperatur, Vorhersagen oder
+  konfigurierte Eingangssensoren nicht verfügbar sind.
+- Bestehende Konfigurationen werden automatisch auf Konfigurationsversion 5
+  migriert.
 
 ## Grenzen
 

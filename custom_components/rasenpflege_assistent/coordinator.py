@@ -11,6 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
@@ -24,8 +25,10 @@ from .calculations import (
     hargreaves_evapotranspiration,
     lawn_status,
     mower_recommendation,
+    next_lawn_action,
     soil_capacity,
     sum_forecast_rain,
+    sum_hourly_forecast_rain,
     update_soil_water,
     watering_recommendation,
 )
@@ -38,6 +41,7 @@ from .const import (
     CONF_LAST_WATERING,
     CONF_LAWN_TYPE,
     CONF_PRECIPITATION_ENTITY,
+    CONF_SOIL_MOISTURE_ENTITY,
     CONF_SOIL_TYPE,
     CONF_SUN_EXPOSURE,
     CONF_TEMPERATURE_ENTITY,
@@ -51,6 +55,8 @@ from .const import (
     DEFAULT_WATERING_AMOUNT,
     DOMAIN,
     FORECAST_CACHE_INTERVAL,
+    SOIL_SENSOR_BLEND_FACTOR,
+    SOIL_SENSOR_CALIBRATION_INTERVAL,
     STORE_KEY_PREFIX,
     STORE_VERSION,
     UPDATE_INTERVAL,
@@ -93,6 +99,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         self._state: RuntimeState | None = None
         self._forecast_cache: list[dict[str, Any]] = []
         self._forecast_updated_at = None
+        self._hourly_forecast_cache: list[dict[str, Any]] = []
+        self._hourly_forecast_updated_at = None
 
     @property
     def settings(self) -> dict[str, Any]:
@@ -144,6 +152,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 ),
                 precipitation_last_value=stored.get("precipitation_last_value"),
                 precipitation_last_sample_at=stored.get("precipitation_last_sample_at"),
+                soil_sensor_last_calibrated_at=stored.get(
+                    "soil_sensor_last_calibrated_at"
+                ),
             )
         else:
             initial_watering = settings.get(CONF_LAST_WATERING)
@@ -214,37 +225,136 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 pass
         return None, "unavailable"
 
-    async def _async_forecast(self) -> list[dict[str, Any]]:
-        """Return a cached daily forecast from Home Assistant."""
+    async def _async_forecast(self, forecast_type: str) -> list[dict[str, Any]]:
+        """Return a cached daily or hourly forecast from Home Assistant."""
         now = dt_util.now()
-        if (
-            self._forecast_updated_at is not None
-            and now - self._forecast_updated_at < FORECAST_CACHE_INTERVAL
-        ):
-            return self._forecast_cache
+        if forecast_type == "hourly":
+            cached = self._hourly_forecast_cache
+            updated_at = self._hourly_forecast_updated_at
+        else:
+            cached = self._forecast_cache
+            updated_at = self._forecast_updated_at
+        if updated_at is not None and now - updated_at < FORECAST_CACHE_INTERVAL:
+            return cached
         weather_entity = self.settings[CONF_WEATHER_ENTITY]
         try:
             response = await self.hass.services.async_call(
                 "weather",
                 "get_forecasts",
-                {"type": "daily"},
+                {"type": forecast_type},
                 target={"entity_id": weather_entity},
                 blocking=True,
                 return_response=True,
             )
         except HomeAssistantError as err:
-            _LOGGER.debug("Daily OpenWeatherMap forecast unavailable: %s", err)
-            return self._forecast_cache
+            _LOGGER.debug(
+                "%s OpenWeatherMap forecast unavailable: %s", forecast_type, err
+            )
+            return cached
         if not isinstance(response, dict):
-            return self._forecast_cache
+            return cached
         entity_data = response.get(weather_entity, {})
         forecast = (
             entity_data.get("forecast", []) if isinstance(entity_data, dict) else []
         )
         if isinstance(forecast, list):
-            self._forecast_cache = forecast
-            self._forecast_updated_at = now
-        return self._forecast_cache
+            if forecast_type == "hourly":
+                self._hourly_forecast_cache = forecast
+                self._hourly_forecast_updated_at = now
+            else:
+                self._forecast_cache = forecast
+                self._forecast_updated_at = now
+            return forecast
+        return cached
+
+    def _read_soil_moisture(self) -> tuple[float | None, str]:
+        """Read and validate an optional physical soil-moisture sensor."""
+        entity_id = self.settings.get(CONF_SOIL_MOISTURE_ENTITY)
+        if not entity_id:
+            return None, "model"
+        state = self.hass.states.get(entity_id)
+        if state is None or state.state in ("unknown", "unavailable"):
+            return None, "model"
+        try:
+            value = float(state.state)
+        except (TypeError, ValueError):
+            return None, "model"
+        if not 0 <= value <= 100:
+            return None, "model"
+        return round(value, 1), entity_id
+
+    def _calibrate_soil_model(
+        self, now, capacity: float, measured_percent: float | None
+    ) -> None:
+        """Gently move the modeled reservoir toward a physical sensor value."""
+        assert self._state is not None
+        if measured_percent is None:
+            return
+        last_calibrated = dt_util.parse_datetime(
+            self._state.soil_sensor_last_calibrated_at or ""
+        )
+        if (
+            last_calibrated is not None
+            and now - last_calibrated < SOIL_SENSOR_CALIBRATION_INTERVAL
+        ):
+            return
+        current = float(self._state.soil_water_mm or 0.0)
+        measured_water = capacity * measured_percent / 100
+        self._state.soil_water_mm = round(
+            current * (1 - SOIL_SENSOR_BLEND_FACTOR)
+            + measured_water * SOIL_SENSOR_BLEND_FACTOR,
+            2,
+        )
+        self._state.soil_sensor_last_calibrated_at = now.isoformat()
+
+    def _update_repairs(
+        self,
+        *,
+        temperature_available: bool,
+        forecast_available: bool,
+    ) -> None:
+        """Create and clear actionable Home Assistant repair issues."""
+        checks = {
+            "temperature_unavailable": temperature_available,
+            "forecast_unavailable": forecast_available,
+        }
+        for issue_key, available in checks.items():
+            issue_id = f"{self.config_entry.entry_id}_{issue_key}"
+            if available:
+                ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+            else:
+                ir.async_create_issue(
+                    self.hass,
+                    DOMAIN,
+                    issue_id,
+                    is_fixable=False,
+                    severity=ir.IssueSeverity.WARNING,
+                    translation_key=issue_key,
+                )
+
+        for config_key in (
+            CONF_TEMPERATURE_ENTITY,
+            CONF_PRECIPITATION_ENTITY,
+            CONF_SOIL_MOISTURE_ENTITY,
+        ):
+            entity_id = self.settings.get(config_key)
+            state = self.hass.states.get(entity_id) if entity_id else None
+            available = not entity_id or (
+                state is not None and state.state not in ("unknown", "unavailable")
+            )
+            issue_id = f"{self.config_entry.entry_id}_{config_key}_unavailable"
+            if available:
+                ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+            else:
+                ir.async_create_issue(
+                    self.hass,
+                    DOMAIN,
+                    issue_id,
+                    is_fixable=False,
+                    severity=ir.IssueSeverity.WARNING,
+                    translation_key="configured_entity_unavailable",
+                    translation_placeholders={"entity_id": str(entity_id)},
+                )
 
     def _sample_precipitation(self, now) -> str:
         """Accumulate an optional precipitation depth or intensity sensor."""
@@ -377,14 +487,21 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         temperature, temperature_source = self._read_temperature()
         self._roll_day_and_sample(today, temperature)
         precipitation_source = self._sample_precipitation(now)
-        forecast = await self._async_forecast()
-        self._state.forecast_today_rain_mm = sum_forecast_rain(forecast, 1)
+        forecast = await self._async_forecast("daily")
+        hourly_forecast = await self._async_forecast("hourly")
+        self._state.forecast_today_rain_mm = (
+            sum_hourly_forecast_rain(hourly_forecast, 24)
+            if hourly_forecast
+            else sum_forecast_rain(forecast, 1)
+        )
 
         last_watering = _parse_date(self._state.last_watering)
         last_fertilizing = _parse_date(self._state.last_fertilizing)
         last_mowing = _parse_date(self._state.last_mowing)
         area = float(settings.get(CONF_AREA, DEFAULT_AREA))
         capacity = soil_capacity(settings.get(CONF_SOIL_TYPE, DEFAULT_SOIL_TYPE))
+        measured_soil_moisture, soil_moisture_source = self._read_soil_moisture()
+        self._calibrate_soil_model(now, capacity, measured_soil_moisture)
         soil_water = max(0.0, min(capacity, float(self._state.soil_water_mm or 0.0)))
         soil_moisture = round(soil_water / capacity * 100, 1)
         history = self._state.daily_temperature_history[-7:]
@@ -411,6 +528,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             soil_type=settings.get(CONF_SOIL_TYPE, DEFAULT_SOIL_TYPE),
             current_temperature=temperature,
             forecast=forecast,
+            hourly_forecast=hourly_forecast,
             last_watering=last_watering,
             soil_moisture_percent=soil_moisture,
             soil_water_mm=soil_water,
@@ -440,6 +558,46 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             )
             fertilizing["reasons"].insert(0, "postpone_fertilizing_above_28c")
 
+        data_warnings: list[str] = []
+        if temperature is None:
+            data_warnings.append("temperature_unavailable")
+        if not forecast and not hourly_forecast:
+            data_warnings.append("forecast_unavailable")
+        if (
+            settings.get(CONF_PRECIPITATION_ENTITY)
+            and precipitation_source == "forecast_estimate"
+        ):
+            data_warnings.append("precipitation_sensor_unavailable")
+        if settings.get(CONF_SOIL_MOISTURE_ENTITY) and measured_soil_moisture is None:
+            data_warnings.append("soil_moisture_sensor_unavailable")
+        if len(history) < 7:
+            data_warnings.append("temperature_history_incomplete")
+        if temperature is None or (not forecast and not hourly_forecast):
+            data_quality = "insufficient"
+        elif data_warnings:
+            data_quality = "limited"
+        else:
+            data_quality = "good"
+
+        forecast_updated_at = (
+            self._hourly_forecast_updated_at or self._forecast_updated_at
+        )
+        forecast_age_minutes = (
+            max(0, int((now - forecast_updated_at).total_seconds() / 60))
+            if forecast_updated_at is not None
+            else None
+        )
+        action = next_lawn_action(
+            watering_status=watering["status"],
+            fertilizing_recommended=fertilizing["recommended"],
+            mower_status=mower["status"],
+        )
+
+        self._update_repairs(
+            temperature_available=temperature is not None,
+            forecast_available=bool(forecast or hourly_forecast),
+        )
+
         data = LawnData(
             gts=round(self._state.gts, 1),
             lawn_status=lawn_status(
@@ -454,9 +612,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             watering_liters=watering["liters"],
             watering_reasons=watering["reasons"],
             forecast_rain_mm=watering["rain"],
+            forecast_rain_24h_mm=watering["rain_24h"],
+            forecast_rain_48h_mm=watering["rain_48h"],
+            forecast_rain_72h_mm=watering["rain_72h"],
+            next_rain_at=watering["next_rain_at"],
             forecast_updated_at=(
-                self._forecast_updated_at.isoformat()
-                if self._forecast_updated_at is not None
+                forecast_updated_at.isoformat()
+                if forecast_updated_at is not None
                 else None
             ),
             observed_rain_today_mm=round(self._state.daily_rain_mm, 1),
@@ -485,16 +647,25 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             next_mowing_date=mower["next_date"],
             growth_temperature_7d=growth_temperature,
             soil_moisture_percent=soil_moisture,
+            measured_soil_moisture_percent=measured_soil_moisture,
+            soil_moisture_source=soil_moisture_source,
             soil_water_mm=round(soil_water, 1),
             soil_capacity_mm=capacity,
             daily_evapotranspiration_mm=self._state.last_evapotranspiration_mm,
             soil_model_confidence=(
                 "high"
-                if precipitation_source != "forecast_estimate"
+                if measured_soil_moisture is not None
+                or precipitation_source != "forecast_estimate"
                 else "medium"
-                if forecast
+                if forecast or hourly_forecast
                 else "low"
             ),
+            next_action=action,
+            data_quality=data_quality,
+            data_warnings=data_warnings,
+            forecast_age_minutes=forecast_age_minutes,
+            temperature_history_days=len(history),
+            last_calculation_at=now.isoformat(),
         )
         await self._store.async_save(self._state.as_dict())
         return data

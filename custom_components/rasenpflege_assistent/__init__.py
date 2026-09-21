@@ -12,6 +12,7 @@ from .const import (
     CONF_INITIAL_SOIL_MOISTURE,
     CONF_MOWED_ENTITY,
     CONF_PRECIPITATION_ENTITY,
+    CONF_SOIL_MOISTURE_ENTITY,
     CONF_WATERED_ENTITY,
     DEFAULT_INITIAL_SOIL_MOISTURE,
     DEFAULT_WATERING_AMOUNT,
@@ -103,5 +104,13 @@ async def async_migrate_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bo
         }
         hass.config_entries.async_update_entry(
             entry, data=data, version=4, minor_version=0
+        )
+    if entry.version == 4:
+        data = {
+            **entry.data,
+            CONF_SOIL_MOISTURE_ENTITY: None,
+        }
+        hass.config_entries.async_update_entry(
+            entry, data=data, version=5, minor_version=0
         )
     return True

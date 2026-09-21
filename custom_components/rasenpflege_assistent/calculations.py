@@ -35,6 +35,26 @@ def sum_forecast_rain(forecast: list[dict[str, Any]], days: int = 3) -> float | 
     return round(sum(values), 1) if values else None
 
 
+def sum_hourly_forecast_rain(
+    forecast: list[dict[str, Any]], hours: int
+) -> float | None:
+    """Sum precipitation from the first number of hourly forecast entries."""
+    return sum_forecast_rain(forecast, hours)
+
+
+def next_forecast_rain_at(forecast: list[dict[str, Any]]) -> str | None:
+    """Return the timestamp of the next meaningful hourly precipitation."""
+    for item in forecast:
+        value = item.get("precipitation", item.get("native_precipitation"))
+        try:
+            if float(value) >= 0.1:
+                timestamp = item.get("datetime")
+                return str(timestamp) if timestamp else None
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
 def days_since(value: date | None, today: date) -> int | None:
     """Return full days since a date."""
     if value is None:
@@ -197,12 +217,24 @@ def watering_recommendation(
     current_temperature: float | None,
     forecast: list[dict[str, Any]],
     last_watering: date | None,
+    hourly_forecast: list[dict[str, Any]] | None = None,
     soil_moisture_percent: float | None = None,
     soil_water_mm: float | None = None,
     soil_capacity_mm: float | None = None,
 ) -> dict[str, Any]:
     """Calculate a conservative weather-based watering recommendation."""
-    rain = sum_forecast_rain(forecast, 3)
+    hourly_forecast = hourly_forecast or []
+    daily_rain = sum_forecast_rain(forecast, 3)
+    rain_24h = sum_hourly_forecast_rain(hourly_forecast, 24)
+    rain_48h = sum_hourly_forecast_rain(hourly_forecast, 48)
+    rain_72h = sum_hourly_forecast_rain(hourly_forecast, 72)
+    if rain_24h is None:
+        rain_24h = sum_forecast_rain(forecast, 1)
+    if rain_48h is None:
+        rain_48h = sum_forecast_rain(forecast, 2)
+    if rain_72h is None:
+        rain_72h = daily_rain
+    rain = rain_72h
     elapsed = days_since(last_watering, today)
     month = today.month
 
@@ -214,7 +246,13 @@ def watering_recommendation(
             "liters": 0.0,
             "reasons": ["outside_watering_season"],
             "rain": rain,
-            "confidence": "medium" if rain is not None else "low",
+            "rain_24h": rain_24h,
+            "rain_48h": rain_48h,
+            "rain_72h": rain_72h,
+            "next_rain_at": next_forecast_rain_at(hourly_forecast),
+            "confidence": (
+                "high" if hourly_forecast else "medium" if rain is not None else "low"
+            ),
         }
 
     interval = 7
@@ -244,7 +282,6 @@ def watering_recommendation(
         target_water = soil_capacity_mm * 0.8
         deficit = max(0.0, target_water - soil_water_mm)
         target_mm = min(20.0, max(5.0, round(deficit))) if deficit > 0 else 0.0
-    rain_24h = sum_forecast_rain(forecast, 1)
     enough_rain = (
         rain_24h is not None and rain_24h >= min(8.0, max(3.0, deficit))
     ) or (
@@ -287,8 +324,42 @@ def watering_recommendation(
         "liters": round(mm * area_m2),
         "reasons": reasons,
         "rain": rain,
-        "confidence": "medium" if rain is not None and elapsed is not None else "low",
+        "rain_24h": rain_24h,
+        "rain_48h": rain_48h,
+        "rain_72h": rain_72h,
+        "next_rain_at": next_forecast_rain_at(hourly_forecast),
+        "confidence": (
+            "high"
+            if hourly_forecast and elapsed is not None
+            else "medium"
+            if rain is not None and elapsed is not None
+            else "low"
+        ),
     }
+
+
+def next_lawn_action(
+    *,
+    watering_status: str,
+    fertilizing_recommended: bool,
+    mower_status: str,
+) -> str:
+    """Return the single most useful next lawn-care action."""
+    if watering_status == "water_now":
+        return "water_lawn"
+    if watering_status == "wait_for_rain":
+        return "wait_for_rain"
+    if mower_status == "start_mower":
+        return "start_mower"
+    if mower_status == "winter_off":
+        return "winterize_mower"
+    if fertilizing_recommended:
+        return "fertilize_lawn"
+    if mower_status in {"mow_regularly", "mow_less", "reduce_mowing"}:
+        return "mow_lawn"
+    if mower_status == "collecting_data":
+        return "collecting_data"
+    return "no_action"
 
 
 def _window(

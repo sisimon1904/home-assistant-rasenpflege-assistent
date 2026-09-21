@@ -12,6 +12,7 @@
           "mowed_entity": "Binärsensor „Rasen wurde gemäht“ (optional)",
           "watered_entity": "Binärsensor „Rasen wurde bewässert“ (optional)",
           "precipitation_entity": "Sensor für gefallenen Niederschlag (optional)",
+          "soil_moisture_entity": "Physischer Bodenfeuchtesensor (optional)",
           "default_watering_amount": "Standardmenge einer protokollierten Bewässerung",
           "area": "Rasenfläche",
           "sun_exposure": "Sonnenlage",
@@ -28,6 +29,7 @@
           "mowed_entity": "Eine Aus→Ein-Flanke protokolliert das Mähen und bestätigt den Saisonstart. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
           "watered_entity": "Eine Aus→Ein-Flanke protokolliert die Bewässerung und aktualisiert das Bodenmodell. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
           "precipitation_entity": "Akzeptiert Niederschlagsmenge oder Niederschlagsintensität. Ohne Sensor wird die OpenWeatherMap-Tagesvorhersage ausdrücklich als Schätzung verwendet.",
+          "soil_moisture_entity": "Gleicht den modellierten Bodenspeicher höchstens alle sechs Stunden sanft mit dem gemessenen Prozentwert ab. Ohne Sensor arbeitet das Modell unverändert weiter.",
           "default_watering_amount": "Diese Menge wird dem Bodenmodell hinzugefügt, wenn eine Bewässerung ohne berechnete Empfehlung protokolliert wird.",
           "initial_soil_moisture": "Startwert des virtuellen Bodenspeichers. Für normalen lehmigen Boden sind 70 % ein sinnvoller Anfangswert."
         }
@@ -53,6 +55,7 @@
           "mowed_entity": "Binärsensor „Rasen wurde gemäht“ (optional)",
           "watered_entity": "Binärsensor „Rasen wurde bewässert“ (optional)",
           "precipitation_entity": "Sensor für gefallenen Niederschlag (optional)",
+          "soil_moisture_entity": "Physischer Bodenfeuchtesensor (optional)",
           "default_watering_amount": "Standardmenge einer protokollierten Bewässerung",
           "area": "Rasenfläche",
           "sun_exposure": "Sonnenlage",
@@ -87,6 +90,19 @@
           "good_condition": "Guter Zustand"
         }
       },
+      "next_action": {
+        "name": "Nächste Aktion",
+        "state": {
+          "collecting_data": "Daten werden gesammelt",
+          "water_lawn": "Rasen wässern",
+          "wait_for_rain": "Auf Regen warten",
+          "fertilize_lawn": "Rasen düngen",
+          "start_mower": "Mähroboter starten",
+          "mow_lawn": "Rasen mähen",
+          "winterize_mower": "Mähroboter für den Winter abschalten",
+          "no_action": "Keine Aktion erforderlich"
+        }
+      },
       "growth_status": {
         "name": "Wachstumsstatus",
         "state": {
@@ -110,8 +126,8 @@
           "mow_regularly": "Regelmäßig mähen – Rasen wächst",
           "mow_less": "Seltener mähen",
           "reduce_mowing": "Mähhäufigkeit im Herbst reduzieren",
-          "pause_drought": "Wegen Trockenstress pausieren"
-          ,"wait_to_mow": "Bis zum nächsten Mähtermin warten"
+          "pause_drought": "Wegen Trockenstress pausieren",
+          "wait_to_mow": "Bis zum nächsten Mähtermin warten"
         }
       },
       "soil_moisture": {"name": "Modellierte Bodenfeuchte"},
@@ -126,7 +142,28 @@
         }
       },
       "watering_amount": {"name": "Empfohlene Wassermenge"},
-      "fertilizer_amount": {"name": "Empfohlene Düngermenge"}
+      "fertilizer_amount": {"name": "Empfohlene Düngermenge"},
+      "data_quality": {
+        "name": "Datenqualität",
+        "state": {"good": "Gut", "limited": "Eingeschränkt", "insufficient": "Unzureichend"}
+      },
+      "soil_model_confidence": {
+        "name": "Vertrauen in das Bodenmodell",
+        "state": {"high": "Hoch", "medium": "Mittel", "low": "Niedrig"}
+      },
+      "watering_confidence": {
+        "name": "Vertrauen in die Bewässerungsempfehlung",
+        "state": {"high": "Hoch", "medium": "Mittel", "low": "Niedrig"}
+      },
+      "forecast_age": {"name": "Alter der Wettervorhersage"},
+      "forecast_rain_24h": {"name": "Vorhergesagter Regen 24 Stunden"},
+      "forecast_rain_72h": {"name": "Vorhergesagter Regen 72 Stunden"},
+      "observed_rain_today": {"name": "Beobachteter Regen heute"},
+      "temperature_source": {"name": "Temperaturquelle"},
+      "precipitation_source": {"name": "Niederschlagsquelle"},
+      "soil_water": {"name": "Modellierter Bodenwasservorrat"},
+      "daily_evapotranspiration": {"name": "Tägliche Verdunstung"},
+      "last_calculation": {"name": "Letzte Berechnung"}
     },
     "binary_sensor": {
       "watering_due": {"name": "Bewässerung fällig"},
@@ -136,6 +173,20 @@
       "mark_mowing_started": {"name": "Mähen protokollieren"},
       "mark_watered": {"name": "Bewässerung protokollieren"},
       "mark_fertilized": {"name": "Düngung protokollieren"}
+    }
+  },
+  "issues": {
+    "temperature_unavailable": {
+      "title": "Außentemperatur nicht verfügbar",
+      "description": "Weder der ausgewählte Außensensor noch die OpenWeatherMap-Wetterentität liefert aktuell eine gültige Temperatur. Prüfe beide Entitäten."
+    },
+    "forecast_unavailable": {
+      "title": "Wettervorhersage nicht verfügbar",
+      "description": "Aktuell ist weder eine tägliche noch eine stündliche Vorhersage verfügbar. Prüfe die ausgewählte OpenWeatherMap-Entität und deren Modus."
+    },
+    "configured_entity_unavailable": {
+      "title": "Konfigurierte Eingangs-Entität nicht verfügbar",
+      "description": "Die konfigurierte Entität `{entity_id}` fehlt oder ist nicht verfügbar. Korrigiere sie unter Konfigurieren oder stelle sie wieder her."
     }
   }
 }
