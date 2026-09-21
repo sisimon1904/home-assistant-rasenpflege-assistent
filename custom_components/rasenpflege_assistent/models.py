@@ -61,10 +61,14 @@ class LawnData:
     data_warnings: list[str] = field(default_factory=list)
     forecast_age_minutes: int | None = None
     forecast_coverage_hours: int = 0
+    forecast_stale: bool = False
     temperature_history_days: int = 0
     last_calculation_at: str | None = None
     last_soil_update_at: str | None = None
     soil_model_gap_hours: float = 0.0
+    precipitation_mode: str = "auto"
+    soil_temperature: float | None = None
+    last_maintenance_event: dict[str, Any] | None = None
 
 
 @dataclass(slots=True)
@@ -96,6 +100,8 @@ class RuntimeState:
     last_soil_update_at: str | None = None
     last_soil_model_gap_at: str | None = None
     last_soil_model_gap_hours: float = 0.0
+    last_growth_state: str | None = None
+    maintenance_history: list[dict[str, Any]] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable representation."""
@@ -127,4 +133,6 @@ class RuntimeState:
             "last_soil_update_at": self.last_soil_update_at,
             "last_soil_model_gap_at": self.last_soil_model_gap_at,
             "last_soil_model_gap_hours": self.last_soil_model_gap_hours,
+            "last_growth_state": self.last_growth_state,
+            "maintenance_history": self.maintenance_history[-20:],
         }

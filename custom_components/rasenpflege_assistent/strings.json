@@ -12,7 +12,9 @@
           "mowed_entity": "Lawn was mowed binary sensor (optional)",
           "watered_entity": "Lawn was watered binary sensor (optional)",
           "precipitation_entity": "Observed precipitation sensor (optional)",
+          "precipitation_mode": "Precipitation sensor type",
           "soil_moisture_entity": "Physical soil moisture sensor (optional)",
+          "soil_temperature_entity": "Soil temperature sensor (optional)",
           "default_watering_amount": "Default recorded watering amount",
           "area": "Lawn area",
           "sun_exposure": "Sun exposure",
@@ -29,7 +31,9 @@
           "mowed_entity": "An off-to-on transition records mowing and acknowledges the mowing season. Without a selection, use the manual button.",
           "watered_entity": "An off-to-on transition records watering and updates the soil model. Without a selection, use the manual button.",
           "precipitation_entity": "Accepts precipitation depth or precipitation intensity. Without a sensor, no rain is added to the soil model; forecasts are used only for recommendations.",
+          "precipitation_mode": "Automatic uses the unit and state class. Select a fixed type if your sensor reports an ambiguous value in mm.",
           "soil_moisture_entity": "Gently calibrates the modeled soil reservoir toward the measured percentage every six hours. Without a sensor, the model continues independently.",
+          "soil_temperature_entity": "When selected, soil temperature takes priority for vegetation-state decisions.",
           "default_watering_amount": "Amount added to the soil model when watering is recorded and no calculated recommendation is available.",
           "initial_soil_moisture": "Starting value of the virtual soil reservoir. For normal loamy soil, 70% is a reasonable initial estimate."
         }
@@ -55,7 +59,9 @@
           "mowed_entity": "Lawn was mowed binary sensor (optional)",
           "watered_entity": "Lawn was watered binary sensor (optional)",
           "precipitation_entity": "Observed precipitation sensor (optional)",
+          "precipitation_mode": "Precipitation sensor type",
           "soil_moisture_entity": "Physical soil moisture sensor (optional)",
+          "soil_temperature_entity": "Soil temperature sensor (optional)",
           "default_watering_amount": "Default recorded watering amount",
           "area": "Lawn area",
           "sun_exposure": "Sun exposure",
@@ -76,17 +82,23 @@
   "selector": {
     "sun_exposure": {"options": {"sunny": "Sunny", "partial_shade": "Partial shade", "shade": "Shade"}},
     "lawn_type": {"options": {"family": "Family lawn", "play": "Heavily used play lawn", "ornamental": "Ornamental lawn", "shade": "Shade lawn"}},
-    "soil_type": {"options": {"sandy": "Sandy", "loamy": "Balanced loam", "clayey": "Clayey"}}
+    "soil_type": {"options": {"sandy": "Sandy", "loamy": "Balanced loam", "clayey": "Clayey"}},
+    "precipitation_mode": {"options": {"auto": "Automatic", "rate": "Rate (for example mm/h)", "cumulative": "Cumulative total", "increment": "Amount per state update"}}
   },
   "entity": {
     "sensor": {
       "status": {
         "name": "Care status",
         "state": {
+          "collecting_data": "Collecting data",
           "winter_dormancy": "Winter dormancy",
           "early_spring": "Early spring",
-          "watering_recommended": "Watering recommended",
+          "drought_stress": "Drought stress",
+          "water_now": "Water now",
+          "water_soon": "Water soon",
+          "wait_for_rain": "Wait for rain",
           "fertilizing_recommended": "Fertilizing recommended",
+          "mowing_recommended": "Mowing recommended",
           "good_condition": "Good condition"
         }
       },
@@ -176,7 +188,8 @@
     "button": {
       "mark_mowing_started": {"name": "Record mowing"},
       "mark_watered": {"name": "Record watering"},
-      "mark_fertilized": {"name": "Record fertilizing"}
+      "mark_fertilized": {"name": "Record fertilizing"},
+      "undo_last_action": {"name": "Undo last maintenance action"}
     }
   },
   "issues": {
@@ -191,6 +204,39 @@
     "configured_entity_unavailable": {
       "title": "Configured input entity unavailable",
       "description": "The configured entity `{entity_id}` is missing, unknown, or unavailable. Correct the entity under Configure or restore it."
+    },
+    "forecast_stale": {
+      "title": "Weather forecast is stale",
+      "description": "The last successful forecast update is more than three hours old. Check OpenWeatherMap and its API availability."
+    }
+  },
+  "services": {
+    "record_watering": {
+      "name": "Record watering",
+      "description": "Record watering with an optional actual water depth.",
+      "fields": {
+        "config_entry_id": {"name": "Lawn", "description": "Lawn configuration to update."},
+        "amount_mm": {"name": "Water depth", "description": "Actual applied water depth in millimeters."}
+      }
+    },
+    "record_fertilizing": {
+      "name": "Record fertilizing",
+      "description": "Record a fertilizer application with optional product details.",
+      "fields": {
+        "config_entry_id": {"name": "Lawn", "description": "Lawn configuration to update."},
+        "product_npk": {"name": "Product NPK", "description": "NPK declaration of the applied product."},
+        "amount_kg": {"name": "Product amount", "description": "Applied product amount in kilograms."}
+      }
+    },
+    "record_mowing": {
+      "name": "Record mowing",
+      "description": "Record that the lawn was mowed.",
+      "fields": {"config_entry_id": {"name": "Lawn", "description": "Lawn configuration to update."}}
+    },
+    "undo_last_action": {
+      "name": "Undo last maintenance action",
+      "description": "Undo the most recently recorded watering, fertilizing, or mowing event.",
+      "fields": {"config_entry_id": {"name": "Lawn", "description": "Lawn configuration to update."}}
     }
   }
 }

@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON
-from homeassistant.core import Event, HomeAssistant
+from homeassistant.core import Event, HomeAssistant, ServiceCall
+from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import (
@@ -13,9 +17,11 @@ from .const import (
     CONF_MOWED_ENTITY,
     CONF_PRECIPITATION_ENTITY,
     CONF_SOIL_MOISTURE_ENTITY,
+    CONF_SOIL_TEMPERATURE_ENTITY,
     CONF_WATERED_ENTITY,
     DEFAULT_INITIAL_SOIL_MOISTURE,
     DEFAULT_WATERING_AMOUNT,
+    DOMAIN,
     PLATFORMS,
 )
 from .coordinator import LawnCoordinator
@@ -23,11 +29,87 @@ from .coordinator import LawnCoordinator
 type LawnConfigEntry = ConfigEntry[LawnCoordinator]
 
 
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Register maintenance actions once for all lawn entries."""
+
+    def _coordinator(call: ServiceCall) -> LawnCoordinator:
+        entry_id = call.data["config_entry_id"]
+        entry = hass.config_entries.async_get_entry(entry_id)
+        if entry is None or entry.domain != DOMAIN or entry.runtime_data is None:
+            raise ServiceValidationError(
+                f"Unknown Lawn Care Assistant entry: {entry_id}"
+            )
+        return entry.runtime_data
+
+    async def _record_watering(call: ServiceCall) -> None:
+        await _coordinator(call).async_mark_watered(call.data.get("amount_mm"))
+
+    async def _record_fertilizing(call: ServiceCall) -> None:
+        await _coordinator(call).async_mark_fertilized(
+            call.data.get("product_npk"), call.data.get("amount_kg")
+        )
+
+    async def _record_mowing(call: ServiceCall) -> None:
+        await _coordinator(call).async_mark_mowed()
+
+    async def _undo(call: ServiceCall) -> None:
+        await _coordinator(call).async_undo_last_action()
+
+    entry_schema = {vol.Required("config_entry_id"): cv.string}
+    hass.services.async_register(
+        DOMAIN,
+        "record_watering",
+        _record_watering,
+        schema=vol.Schema(
+            {
+                **entry_schema,
+                vol.Optional("amount_mm"): vol.All(
+                    vol.Coerce(float), vol.Range(min=0, max=50)
+                ),
+            }
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "record_fertilizing",
+        _record_fertilizing,
+        schema=vol.Schema(
+            {
+                **entry_schema,
+                vol.Optional("product_npk"): cv.string,
+                vol.Optional("amount_kg"): vol.All(
+                    vol.Coerce(float), vol.Range(min=0, max=100)
+                ),
+            }
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN, "record_mowing", _record_mowing, schema=vol.Schema(entry_schema)
+    )
+    hass.services.async_register(
+        DOMAIN, "undo_last_action", _undo, schema=vol.Schema(entry_schema)
+    )
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool:
     """Set up Lawn Care Assistant from a config entry."""
     coordinator = LawnCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
+
+    registry = er.async_get(hass)
+    for key in (
+        "watering_due",
+        "fertilizing_due",
+        "mower_can_be_switched_off",
+        "mower_start_recommended",
+    ):
+        entity_id = registry.async_get_entity_id(
+            "binary_sensor", DOMAIN, f"{entry.entry_id}_{key}"
+        )
+        if entity_id:
+            registry.async_remove(entity_id)
 
     async def _async_record_event(event: Event, action: str) -> None:
         """Record a maintenance event only for a real off-to-on transition."""
@@ -112,5 +194,14 @@ async def async_migrate_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bo
         }
         hass.config_entries.async_update_entry(
             entry, data=data, version=5, minor_version=0
+        )
+    if entry.version == 5:
+        data = {
+            **entry.data,
+            "precipitation_mode": "auto",
+            CONF_SOIL_TEMPERATURE_ENTITY: None,
+        }
+        hass.config_entries.async_update_entry(
+            entry, data=data, version=6, minor_version=0
         )
     return True

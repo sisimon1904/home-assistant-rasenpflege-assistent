@@ -44,6 +44,13 @@ BUTTONS: tuple[LawnButtonDescription, ...] = (
         icon="mdi:leaf",
         press_fn=lambda coordinator: coordinator.async_mark_fertilized(),
     ),
+    LawnButtonDescription(
+        key="undo_last_action",
+        translation_key="undo_last_action",
+        icon="mdi:undo-variant",
+        press_fn=lambda coordinator: coordinator.async_undo_last_action(),
+        entity_registry_enabled_default=False,
+    ),
 )
 
 

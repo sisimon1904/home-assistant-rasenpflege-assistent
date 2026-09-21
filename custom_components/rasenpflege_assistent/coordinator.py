@@ -12,6 +12,7 @@ from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
@@ -39,7 +40,9 @@ from .const import (
     CONF_LAST_WATERING,
     CONF_LAWN_TYPE,
     CONF_PRECIPITATION_ENTITY,
+    CONF_PRECIPITATION_MODE,
     CONF_SOIL_MOISTURE_ENTITY,
+    CONF_SOIL_TEMPERATURE_ENTITY,
     CONF_SOIL_TYPE,
     CONF_SUN_EXPOSURE,
     CONF_TEMPERATURE_ENTITY,
@@ -48,11 +51,13 @@ from .const import (
     DEFAULT_INITIAL_GTS,
     DEFAULT_INITIAL_SOIL_MOISTURE,
     DEFAULT_LAWN_TYPE,
+    DEFAULT_PRECIPITATION_MODE,
     DEFAULT_SOIL_TYPE,
     DEFAULT_SUN_EXPOSURE,
     DEFAULT_WATERING_AMOUNT,
     DOMAIN,
     FORECAST_CACHE_INTERVAL,
+    FORECAST_STALE_AFTER,
     MAX_SOIL_MODEL_INTERVAL,
     SOIL_SENSOR_BLEND_FACTOR,
     SOIL_SENSOR_CALIBRATION_INTERVAL,
@@ -157,6 +162,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 last_soil_model_gap_hours=float(
                     stored.get("last_soil_model_gap_hours", 0.0)
                 ),
+                last_growth_state=stored.get("last_growth_state"),
+                maintenance_history=list(stored.get("maintenance_history", []))[-20:],
             )
         else:
             initial_watering = settings.get(CONF_LAST_WATERING)
@@ -314,11 +321,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         *,
         temperature_available: bool,
         forecast_available: bool,
+        forecast_stale: bool,
     ) -> None:
         """Create and clear actionable Home Assistant repair issues."""
         checks = {
             "temperature_unavailable": temperature_available,
             "forecast_unavailable": forecast_available,
+            "forecast_stale": not forecast_stale,
         }
         for issue_key, available in checks.items():
             issue_id = f"{self.config_entry.entry_id}_{issue_key}"
@@ -338,6 +347,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             CONF_TEMPERATURE_ENTITY,
             CONF_PRECIPITATION_ENTITY,
             CONF_SOIL_MOISTURE_ENTITY,
+            CONF_SOIL_TEMPERATURE_ENTITY,
         ):
             entity_id = self.settings.get(config_key)
             state = self.hass.states.get(entity_id) if entity_id else None
@@ -358,41 +368,105 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                     translation_placeholders={"entity_id": str(entity_id)},
                 )
 
-    def _sample_precipitation(self, now) -> tuple[str, float]:
+    def _find_openweathermap_precipitation_entity(self) -> str | None:
+        """Find an enabled rain entity belonging to the selected weather entry."""
+        registry = er.async_get(self.hass)
+        weather_id = self.settings.get(CONF_WEATHER_ENTITY)
+        weather_entry = registry.async_get(weather_id) if weather_id else None
+        if weather_entry is None or weather_entry.config_entry_id is None:
+            return None
+        for entry in registry.entities.values():
+            device_class = entry.device_class or entry.original_device_class
+            identity = " ".join(
+                str(value or "")
+                for value in (
+                    entry.entity_id,
+                    entry.unique_id,
+                    entry.original_name,
+                    entry.translation_key,
+                )
+            ).lower()
+            if (
+                entry.config_entry_id == weather_entry.config_entry_id
+                and entry.domain == "sensor"
+                and entry.platform == "openweathermap"
+                and device_class in {"precipitation", "precipitation_intensity"}
+                and ("rain" in identity or "regen" in identity)
+                and self.hass.states.get(entry.entity_id) is not None
+            ):
+                return entry.entity_id
+        return None
+
+    def _read_soil_temperature(self) -> float | None:
+        """Read an optional soil-temperature sensor in Celsius."""
+        entity_id = self.settings.get(CONF_SOIL_TEMPERATURE_ENTITY)
+        state = self.hass.states.get(entity_id) if entity_id else None
+        if state is None or state.state in ("unknown", "unavailable"):
+            return None
+        try:
+            value = float(state.state)
+            unit = state.attributes.get("unit_of_measurement")
+            if unit and unit != UnitOfTemperature.CELSIUS:
+                value = TemperatureConverter.convert(
+                    value, unit, UnitOfTemperature.CELSIUS
+                )
+            return round(value, 1)
+        except (TypeError, ValueError, HomeAssistantError):
+            return None
+
+    def _sample_precipitation(self, now) -> tuple[str, float, str]:
         """Accumulate measured precipitation and return its latest increment."""
         assert self._state is not None
-        entity_id = self.settings.get(CONF_PRECIPITATION_ENTITY)
+        entity_id = self.settings.get(
+            CONF_PRECIPITATION_ENTITY
+        ) or self._find_openweathermap_precipitation_entity()
         if not entity_id:
-            return "not_measured", 0.0
+            return "not_measured", 0.0, DEFAULT_PRECIPITATION_MODE
         state = self.hass.states.get(entity_id)
         if state is None or state.state in ("unknown", "unavailable"):
-            return "unavailable", 0.0
+            return "unavailable", 0.0, DEFAULT_PRECIPITATION_MODE
         try:
             value = max(0.0, float(state.state))
         except (TypeError, ValueError):
-            return "unavailable", 0.0
+            return "unavailable", 0.0, DEFAULT_PRECIPITATION_MODE
         unit = str(state.attributes.get("unit_of_measurement", "mm"))
         if unit.startswith("in"):
             value *= 25.4
+        configured_mode = self.settings.get(
+            CONF_PRECIPITATION_MODE, DEFAULT_PRECIPITATION_MODE
+        )
+        mode = configured_mode
+        if mode == "auto":
+            state_class = state.attributes.get("state_class")
+            if "/h" in unit:
+                mode = "rate"
+            elif state_class in {"total", "total_increasing"}:
+                mode = "cumulative"
+            else:
+                mode = "increment"
         last_value = self._state.precipitation_last_value
         last_sample = dt_util.parse_datetime(
             self._state.precipitation_last_sample_at or ""
         )
         increment = 0.0
-        if "/h" in unit:
+        if mode == "rate":
             elapsed_hours = 0.0
             if last_sample is not None:
                 elapsed_hours = min(
                     2.0, max(0.0, (now - last_sample).total_seconds() / 3600)
                 )
             increment = value * elapsed_hours
-        elif last_value is not None:
+        elif mode == "cumulative" and last_value is not None:
             increment = value - last_value if value >= last_value else value
+        elif mode == "increment":
+            changed_at = state.last_changed
+            if last_sample is None or changed_at > last_sample:
+                increment = value
         increment = max(0.0, increment)
         self._state.daily_rain_mm += increment
         self._state.precipitation_last_value = value
         self._state.precipitation_last_sample_at = now.isoformat()
-        return entity_id, increment
+        return entity_id, increment, mode
 
     def _finalize_previous_day(self, previous_day: date) -> None:
         """Finalize temperature history and GTS for one completed day."""
@@ -525,9 +599,11 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         settings = self.settings
         temperature, temperature_source = self._read_temperature()
         self._roll_day_and_sample(today, temperature)
-        precipitation_source, precipitation_increment = self._sample_precipitation(
-            now
-        )
+        (
+            precipitation_source,
+            precipitation_increment,
+            precipitation_mode,
+        ) = self._sample_precipitation(now)
         self._update_soil_model(
             now=now,
             temperature=temperature,
@@ -542,18 +618,24 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         area = float(settings.get(CONF_AREA, DEFAULT_AREA))
         capacity = soil_capacity(settings.get(CONF_SOIL_TYPE, DEFAULT_SOIL_TYPE))
         measured_soil_moisture, soil_moisture_source = self._read_soil_moisture()
+        soil_temperature = self._read_soil_temperature()
         self._calibrate_soil_model(now, capacity, measured_soil_moisture)
         soil_water = max(0.0, min(capacity, float(self._state.soil_water_mm or 0.0)))
         soil_moisture = round(soil_water / capacity * 100, 1)
         history = self._state.daily_temperature_history[-7:]
         growth_temperature = round(fmean(history), 1) if history else temperature
+        effective_growth_temperature = (
+            soil_temperature if soil_temperature is not None else growth_temperature
+        )
         growth = growth_state(
             today=today,
             gts=self._state.gts,
-            growth_temperature=growth_temperature,
+            growth_temperature=effective_growth_temperature,
             soil_moisture_percent=soil_moisture,
             mower_started_year=self._state.mower_started_year,
+            previous_state=self._state.last_growth_state,
         )
+        self._state.last_growth_state = growth
         mower = mower_recommendation(
             growth=growth,
             mower_started_year=self._state.mower_started_year,
@@ -574,7 +656,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             soil_moisture_percent=soil_moisture,
             soil_water_mm=soil_water,
             soil_capacity_mm=capacity,
+            growth=growth,
         )
+        if precipitation_source in {"not_measured", "unavailable"}:
+            watering["confidence"] = (
+                "medium" if watering["confidence"] == "high" else "low"
+            )
         fertilizing = fertilizing_recommendation(
             today=today,
             gts=self._state.gts,
@@ -607,28 +694,6 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         data_warnings: list[str] = []
         if temperature is None:
             data_warnings.append("temperature_unavailable")
-        if not forecast and not hourly_forecast:
-            data_warnings.append("forecast_unavailable")
-        elif watering["forecast_coverage_hours"] < 24:
-            data_warnings.append("forecast_coverage_incomplete")
-        if (
-            settings.get(CONF_PRECIPITATION_ENTITY)
-            and precipitation_source == "unavailable"
-        ):
-            data_warnings.append("precipitation_sensor_unavailable")
-        if settings.get(CONF_SOIL_MOISTURE_ENTITY) and measured_soil_moisture is None:
-            data_warnings.append("soil_moisture_sensor_unavailable")
-        if len(history) < 7:
-            data_warnings.append("temperature_history_incomplete")
-        if self._state.last_soil_model_gap_hours > 0:
-            data_warnings.append("soil_model_time_gap")
-        if temperature is None or (not forecast and not hourly_forecast):
-            data_quality = "insufficient"
-        elif data_warnings:
-            data_quality = "limited"
-        else:
-            data_quality = "good"
-
         forecast_updates = [
             value
             for value in (
@@ -643,6 +708,42 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             if forecast_updated_at is not None
             else None
         )
+        forecast_stale = (
+            forecast_updated_at is None
+            or now - forecast_updated_at > FORECAST_STALE_AFTER
+        )
+        if not forecast and not hourly_forecast:
+            data_warnings.append("forecast_unavailable")
+        elif forecast_stale:
+            data_warnings.append("forecast_stale")
+        elif watering["forecast_coverage_hours"] < 24:
+            data_warnings.append("forecast_coverage_incomplete")
+        if (
+            settings.get(CONF_PRECIPITATION_ENTITY)
+            and precipitation_source == "unavailable"
+        ):
+            data_warnings.append("precipitation_sensor_unavailable")
+        if settings.get(CONF_SOIL_MOISTURE_ENTITY) and measured_soil_moisture is None:
+            data_warnings.append("soil_moisture_sensor_unavailable")
+        if settings.get(CONF_SOIL_TEMPERATURE_ENTITY) and soil_temperature is None:
+            data_warnings.append("soil_temperature_sensor_unavailable")
+        if precipitation_source == "not_measured":
+            data_warnings.append("observed_precipitation_unavailable")
+        if len(history) < 7:
+            data_warnings.append("temperature_history_incomplete")
+        if self._state.last_soil_model_gap_hours > 0:
+            data_warnings.append("soil_model_time_gap")
+        if (
+            temperature is None
+            or (not forecast and not hourly_forecast)
+            or forecast_stale
+        ):
+            data_quality = "insufficient"
+        elif data_warnings:
+            data_quality = "limited"
+        else:
+            data_quality = "good"
+
         action = next_lawn_action(
             watering_status=watering["status"],
             fertilizing_recommended=fertilizing["recommended"],
@@ -652,14 +753,16 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         self._update_repairs(
             temperature_available=temperature is not None,
             forecast_available=bool(forecast or hourly_forecast),
+            forecast_stale=forecast_stale and bool(forecast or hourly_forecast),
         )
 
         data = LawnData(
             gts=round(self._state.gts, 1),
             lawn_status=lawn_status(
                 growth=growth,
-                watering_due=watering_attention,
+                watering_status=watering["status"],
                 fertilizing_due=fertilizing["recommended"],
+                mower_status=mower["status"],
             ),
             watering_recommended=watering["recommended"],
             watering_status=watering["status"],
@@ -725,36 +828,78 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             data_warnings=data_warnings,
             forecast_age_minutes=forecast_age_minutes,
             forecast_coverage_hours=watering["forecast_coverage_hours"],
+            forecast_stale=forecast_stale,
             temperature_history_days=len(history),
             last_calculation_at=now.isoformat(),
             last_soil_update_at=self._state.last_soil_update_at,
             soil_model_gap_hours=self._state.last_soil_model_gap_hours,
+            precipitation_mode=precipitation_mode,
+            soil_temperature=soil_temperature,
+            last_maintenance_event=(
+                self._state.maintenance_history[-1]
+                if self._state.maintenance_history
+                else None
+            ),
         )
         await self._store.async_save(self._state.as_dict())
         return data
 
-    async def async_mark_watered(self) -> None:
+    def _append_maintenance_event(
+        self, action: str, previous: dict[str, Any], **details: Any
+    ) -> None:
+        """Append a reversible maintenance event to the local history."""
+        assert self._state is not None
+        self._state.maintenance_history.append(
+            {
+                "action": action,
+                "timestamp": dt_util.now().isoformat(),
+                "details": details,
+                "previous": previous,
+            }
+        )
+        self._state.maintenance_history = self._state.maintenance_history[-20:]
+
+    async def async_mark_watered(self, amount_mm: float | None = None) -> None:
         """Record watering and add the calculated or configured amount."""
         assert self._state is not None
+        previous = {
+            "last_watering": self._state.last_watering,
+            "soil_water_mm": self._state.soil_water_mm,
+        }
         self._state.last_watering = dt_util.now().date().isoformat()
         capacity = soil_capacity(self.settings.get(CONF_SOIL_TYPE, DEFAULT_SOIL_TYPE))
-        assumed_mm = (
-            self.data.watering_mm
-            if self.data.watering_mm > 0
-            else float(
-                self.settings.get(CONF_DEFAULT_WATERING_AMOUNT, DEFAULT_WATERING_AMOUNT)
+        assumed_mm = amount_mm
+        if assumed_mm is None:
+            assumed_mm = (
+                self.data.watering_mm
+                if self.data.watering_mm > 0
+                else float(
+                    self.settings.get(
+                        CONF_DEFAULT_WATERING_AMOUNT, DEFAULT_WATERING_AMOUNT
+                    )
+                )
             )
-        )
+        assumed_mm = max(0.0, float(assumed_mm))
         self._state.soil_water_mm = min(
             capacity, float(self._state.soil_water_mm or 0.0) + assumed_mm
         )
+        self._append_maintenance_event("watering", previous, amount_mm=assumed_mm)
         await self._store.async_save(self._state.as_dict())
         await self.async_request_refresh()
 
-    async def async_mark_fertilized(self) -> None:
+    async def async_mark_fertilized(
+        self, product_npk: str | None = None, amount_kg: float | None = None
+    ) -> None:
         """Record fertilizing as completed today."""
         assert self._state is not None
+        previous = {"last_fertilizing": self._state.last_fertilizing}
         self._state.last_fertilizing = dt_util.now().date().isoformat()
+        self._append_maintenance_event(
+            "fertilizing",
+            previous,
+            product_npk=product_npk,
+            amount_kg=amount_kg,
+        )
         await self._store.async_save(self._state.as_dict())
         await self.async_request_refresh()
 
@@ -762,8 +907,25 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         """Record mowing and acknowledge the mowing season for this year."""
         assert self._state is not None
         now = dt_util.now()
+        previous = {
+            "last_mowing": self._state.last_mowing,
+            "mower_started_year": self._state.mower_started_year,
+        }
         self._state.last_mowing = now.date().isoformat()
         self._state.mower_started_year = now.year
+        self._append_maintenance_event("mowing", previous)
+        await self._store.async_save(self._state.as_dict())
+        await self.async_request_refresh()
+
+    async def async_undo_last_action(self) -> None:
+        """Undo the latest maintenance event recorded by the integration."""
+        assert self._state is not None
+        if not self._state.maintenance_history:
+            return
+        event = self._state.maintenance_history.pop()
+        for key, value in event.get("previous", {}).items():
+            if hasattr(self._state, key):
+                setattr(self._state, key, value)
         await self._store.async_save(self._state.as_dict())
         await self.async_request_refresh()
 

@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 2.1.1
+Version 3.0.0
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -29,11 +29,15 @@ entities already available in Home Assistant and requests forecasts through
 - selection and validation of an OpenWeatherMap weather entity
 - freely selectable outdoor temperature sensor with automatic OpenWeatherMap
   fallback
-- optional observed precipitation depth or intensity sensor
+- automatic use of an active OpenWeatherMap rain sensor or an optional selected
+  precipitation sensor
+- selectable precipitation interpretation as rate, cumulative total, or increment
 - optional physical soil-moisture sensor for gentle model calibration
+- optional soil-temperature sensor for vegetation decisions
 - OpenWeatherMap forecasts for watering decisions, kept separate from observed
   rainfall
-- hourly rain evaluation for the next 24, 48, and 72 hours
+- timestamp-based rain windows; OpenWeatherMap v3.0 supplies 48 hourly hours and
+  daily data is used to extend the 72-hour view
 - optional binary sensors for “lawn was mowed” and “lawn was watered”
 - grassland temperature sum weighted by January 0.5, February 0.75, and 1.0
   from March onward
@@ -55,6 +59,8 @@ entities already available in Home Assistant and requests forecasts through
 - diagnostic entities for data quality, confidence, and data sources
 - a “Next action” sensor with one concise recommendation
 - Home Assistant repair issues for missing weather or configured input data
+- stale-forecast detection after three hours
+- maintenance actions with actual watering/fertilizer amounts and reversible history
 - automatic migration of configurations from version 1.0.0
 - HACS-compatible repository structure and release workflow
 
@@ -75,8 +81,10 @@ latitude using the Hargreaves-Samani method. The model subtracts it
 incrementally on every update. A lawn coefficient reduces evapotranspiration
 during winter.
 
-When an optional precipitation sensor is configured, the model immediately
-uses measured rainfall. Without that sensor, no assumed rain is added to the
+The model first uses an explicitly selected precipitation sensor. Otherwise it
+automatically searches for an active OpenWeatherMap rain sensor belonging to
+the selected weather configuration. Without an available measurement source,
+no assumed rain is added to the
 soil reservoir. Home Assistant's cached OpenWeatherMap forecast is used only
 for the watering recommendation. Model confidence is reported as `high`,
 `medium`, or `low` depending on the available data source. When the optional
@@ -86,7 +94,8 @@ or the configured default amount is added to the virtual reservoir.
 `forecast_rain_mm` is the sum of the first three daily forecast periods. The
 integration does not call OpenWeatherMap directly: `weather.get_forecasts`
 reads the official Home Assistant integration's cache. Lawn Care Assistant
-also caches the forecast for one hour.
+also caches the forecast for one hour. A forecast is marked stale after three
+hours without a successful update and data quality becomes insufficient.
 
 Modeled soil moisture is not a replacement for a physical sensor. Shade,
 slope, soil compaction, roof overhangs, and localized showers can cause
@@ -151,7 +160,7 @@ growth and mower status.
 1. Replace the existing
    `/config/custom_components/rasenpflege_assistent` directory.
 2. Restart Home Assistant.
-3. Home Assistant automatically migrates the config entry to version 5 during
+3. Home Assistant automatically migrates the config entry to version 6 during
    the next startup.
 4. Open **Settings → Devices & services → Lawn Care Assistant → Configure** and
    verify the initial soil moisture. A local outdoor temperature sensor can
@@ -191,13 +200,14 @@ manually into `custom_components` cannot update itself from the internet.
 - Modeled soil moisture
 - Grassland temperature sum
 - Watering recommendation
+- Next action
+- Data quality and model confidence
 - Recommended water amount
 - Recommended fertilizer amount
-- Watering due (legacy binary sensor, disabled by default)
-- Fertilizing due (legacy binary sensor, disabled by default)
 - Record mowing, when no automatic binary sensor is configured
 - Record watering, when no automatic binary sensor is configured
 - Record fertilizing
+- Undo last maintenance action (disabled by default)
 
 ## Changes in version 2.0.0
 
@@ -272,6 +282,22 @@ Home Assistant user.
 - Care and growth status now use a consistent vegetation phase.
 - Legacy watering and fertilizing binary sensors are disabled by default for
   new installations; their boolean values remain available as attributes.
+
+## Changes in version 3.0.0
+
+- Catch up as much as 24 hours of modeled evapotranspiration after downtime.
+- Automatically use an active OpenWeatherMap rain sensor when no explicit
+  precipitation sensor is configured.
+- Interpret precipitation automatically or explicitly as a rate, cumulative
+  total, or amount per update.
+- Calculate forecast windows from timestamps and detect stale data after three
+  hours.
+- Distinguish water soon, water now, wait for rain, drought, fertilizing, and
+  mowing in the primary care status.
+- Stabilize growth and drought states with threshold hysteresis.
+- Use an optional soil-temperature sensor for vegetation decisions.
+- Add Home Assistant actions for recording and undoing maintenance events.
+- Remove legacy duplicate binary sensors and migrate config entries to version 6.
 
 ## Limitations
 

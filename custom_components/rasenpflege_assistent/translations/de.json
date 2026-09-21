@@ -12,7 +12,9 @@
           "mowed_entity": "Binärsensor „Rasen wurde gemäht“ (optional)",
           "watered_entity": "Binärsensor „Rasen wurde bewässert“ (optional)",
           "precipitation_entity": "Sensor für gefallenen Niederschlag (optional)",
+          "precipitation_mode": "Art des Niederschlagssensors",
           "soil_moisture_entity": "Physischer Bodenfeuchtesensor (optional)",
+          "soil_temperature_entity": "Bodentemperatursensor (optional)",
           "default_watering_amount": "Standardmenge einer protokollierten Bewässerung",
           "area": "Rasenfläche",
           "sun_exposure": "Sonnenlage",
@@ -29,7 +31,9 @@
           "mowed_entity": "Eine Aus→Ein-Flanke protokolliert das Mähen und bestätigt den Saisonstart. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
           "watered_entity": "Eine Aus→Ein-Flanke protokolliert die Bewässerung und aktualisiert das Bodenmodell. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
           "precipitation_entity": "Akzeptiert Niederschlagsmenge oder Niederschlagsintensität. Ohne Sensor wird kein Regen in das Bodenmodell eingetragen; Vorhersagen dienen nur der Empfehlung.",
+          "precipitation_mode": "Automatisch verwendet Einheit und Zustandsklasse. Bei einem mehrdeutigen Sensorwert in mm kann die Art fest vorgegeben werden.",
           "soil_moisture_entity": "Gleicht den modellierten Bodenspeicher höchstens alle sechs Stunden sanft mit dem gemessenen Prozentwert ab. Ohne Sensor arbeitet das Modell unverändert weiter.",
+          "soil_temperature_entity": "Wenn ausgewählt, hat die Bodentemperatur bei der Bestimmung des Vegetationszustands Vorrang.",
           "default_watering_amount": "Diese Menge wird dem Bodenmodell hinzugefügt, wenn eine Bewässerung ohne berechnete Empfehlung protokolliert wird.",
           "initial_soil_moisture": "Startwert des virtuellen Bodenspeichers. Für normalen lehmigen Boden sind 70 % ein sinnvoller Anfangswert."
         }
@@ -55,7 +59,9 @@
           "mowed_entity": "Binärsensor „Rasen wurde gemäht“ (optional)",
           "watered_entity": "Binärsensor „Rasen wurde bewässert“ (optional)",
           "precipitation_entity": "Sensor für gefallenen Niederschlag (optional)",
+          "precipitation_mode": "Art des Niederschlagssensors",
           "soil_moisture_entity": "Physischer Bodenfeuchtesensor (optional)",
+          "soil_temperature_entity": "Bodentemperatursensor (optional)",
           "default_watering_amount": "Standardmenge einer protokollierten Bewässerung",
           "area": "Rasenfläche",
           "sun_exposure": "Sonnenlage",
@@ -76,17 +82,23 @@
   "selector": {
     "sun_exposure": {"options": {"sunny": "Sonnig", "partial_shade": "Halbschatten", "shade": "Schatten"}},
     "lawn_type": {"options": {"family": "Familienrasen", "play": "Stark beanspruchter Spielrasen", "ornamental": "Zierrasen", "shade": "Schattenrasen"}},
-    "soil_type": {"options": {"sandy": "Sandig", "loamy": "Lehmig und ausgewogen", "clayey": "Tonig"}}
+    "soil_type": {"options": {"sandy": "Sandig", "loamy": "Lehmig und ausgewogen", "clayey": "Tonig"}},
+    "precipitation_mode": {"options": {"auto": "Automatisch", "rate": "Rate (zum Beispiel mm/h)", "cumulative": "Kumulativer Gesamtwert", "increment": "Menge je Zustandsänderung"}}
   },
   "entity": {
     "sensor": {
       "status": {
         "name": "Pflegestatus",
         "state": {
+          "collecting_data": "Daten werden gesammelt",
           "winter_dormancy": "Winterruhe",
           "early_spring": "Vorfrühling",
-          "watering_recommended": "Bewässerung empfohlen",
+          "drought_stress": "Trockenstress",
+          "water_now": "Jetzt wässern",
+          "water_soon": "Bald wässern",
+          "wait_for_rain": "Auf Regen warten",
           "fertilizing_recommended": "Düngung empfohlen",
+          "mowing_recommended": "Mähen empfohlen",
           "good_condition": "Guter Zustand"
         }
       },
@@ -176,7 +188,8 @@
     "button": {
       "mark_mowing_started": {"name": "Mähen protokollieren"},
       "mark_watered": {"name": "Bewässerung protokollieren"},
-      "mark_fertilized": {"name": "Düngung protokollieren"}
+      "mark_fertilized": {"name": "Düngung protokollieren"},
+      "undo_last_action": {"name": "Letzte Pflegemaßnahme rückgängig machen"}
     }
   },
   "issues": {
@@ -191,6 +204,39 @@
     "configured_entity_unavailable": {
       "title": "Konfigurierte Eingangs-Entität nicht verfügbar",
       "description": "Die konfigurierte Entität `{entity_id}` fehlt oder ist nicht verfügbar. Korrigiere sie unter Konfigurieren oder stelle sie wieder her."
+    },
+    "forecast_stale": {
+      "title": "Wettervorhersage ist veraltet",
+      "description": "Die letzte erfolgreiche Aktualisierung der Vorhersage liegt mehr als drei Stunden zurück. Prüfe OpenWeatherMap und die API-Verfügbarkeit."
+    }
+  },
+  "services": {
+    "record_watering": {
+      "name": "Bewässerung protokollieren",
+      "description": "Protokolliert eine Bewässerung mit optionaler tatsächlicher Wassermenge.",
+      "fields": {
+        "config_entry_id": {"name": "Rasen", "description": "Zu aktualisierende Rasenkonfiguration."},
+        "amount_mm": {"name": "Wassermenge", "description": "Tatsächlich ausgebrachte Wassermenge in Millimetern."}
+      }
+    },
+    "record_fertilizing": {
+      "name": "Düngung protokollieren",
+      "description": "Protokolliert eine Düngung mit optionalen Produktangaben.",
+      "fields": {
+        "config_entry_id": {"name": "Rasen", "description": "Zu aktualisierende Rasenkonfiguration."},
+        "product_npk": {"name": "Produkt-NPK", "description": "NPK-Deklaration des verwendeten Produkts."},
+        "amount_kg": {"name": "Produktmenge", "description": "Ausgebrachte Produktmenge in Kilogramm."}
+      }
+    },
+    "record_mowing": {
+      "name": "Mähen protokollieren",
+      "description": "Protokolliert, dass der Rasen gemäht wurde.",
+      "fields": {"config_entry_id": {"name": "Rasen", "description": "Zu aktualisierende Rasenkonfiguration."}}
+    },
+    "undo_last_action": {
+      "name": "Letzte Pflegemaßnahme rückgängig machen",
+      "description": "Macht die zuletzt protokollierte Bewässerung, Düngung oder Mahd rückgängig.",
+      "fields": {"config_entry_id": {"name": "Rasen", "description": "Zu aktualisierende Rasenkonfiguration."}}
     }
   }
 }

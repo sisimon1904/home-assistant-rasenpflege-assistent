@@ -1,5 +1,37 @@
 # Changelog
 
+## 3.0.0
+
+### Breaking changes
+
+- Remove the legacy watering and fertilizing binary sensors. Their information
+  remains available on the primary recommendation and care-status sensors.
+- Replace the ambiguous overall `watering_recommended` care state with explicit
+  `water_soon`, `water_now`, and `wait_for_rain` states.
+
+### Added
+
+- Automatic discovery of an active OpenWeatherMap precipitation entity from the
+  selected weather configuration without direct API requests.
+- Configurable precipitation interpretation for rate, cumulative, and increment
+  sensors.
+- Optional soil-temperature input.
+- Stale-forecast detection, diagnostics, and a Home Assistant repair issue.
+- Reversible maintenance history and actions for watering, fertilizing, mowing,
+  and undoing the latest event.
+- A disabled-by-default undo button and automated calculation test workflow.
+
+### Changed
+
+- Catch up as much as 24 hours of modeled evapotranspiration after downtime.
+- Calculate hourly forecast windows from timestamps and use daily data beyond
+  OpenWeatherMap's 48-hour hourly range.
+- Let calculated vegetation state determine the watering season.
+- Add hysteresis to growth and drought-state thresholds.
+- Downgrade data quality and recommendation confidence when measured rain is
+  unavailable or a forecast is stale.
+- Migrate config entries to version 6 and remove obsolete registry entities.
+
 ## 2.1.1
 
 ### Fixed

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from calendar import monthrange
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import Any
 
 
@@ -36,10 +36,29 @@ def sum_forecast_rain(forecast: list[dict[str, Any]], days: int = 3) -> float | 
 
 
 def sum_hourly_forecast_rain(
-    forecast: list[dict[str, Any]], hours: int
+    forecast: list[dict[str, Any]], hours: int, now: datetime | None = None
 ) -> float | None:
-    """Sum precipitation from the first number of hourly forecast entries."""
-    return sum_forecast_rain(forecast, hours)
+    """Sum precipitation inside a real timestamp window."""
+    dated: list[tuple[datetime, dict[str, Any]]] = []
+    for item in forecast:
+        raw = item.get("datetime")
+        if not raw:
+            continue
+        try:
+            value = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        dated.append((value, item))
+    if not dated:
+        return sum_forecast_rain(forecast, hours)
+    start = now or dated[0][0]
+    if start.tzinfo is None and dated[0][0].tzinfo is not None:
+        start = start.replace(tzinfo=dated[0][0].tzinfo)
+    end = start + timedelta(hours=hours)
+    return sum_forecast_rain(
+        [item for timestamp, item in dated if start <= timestamp < end],
+        len(dated),
+    )
 
 
 def forecast_coverage_hours(
@@ -48,7 +67,25 @@ def forecast_coverage_hours(
     maximum_hours: int = 72,
 ) -> int:
     """Return the approximate future period covered by available forecasts."""
-    hourly_coverage = min(maximum_hours, len(hourly_forecast))
+    timestamps: list[datetime] = []
+    for item in hourly_forecast:
+        try:
+            timestamps.append(
+                datetime.fromisoformat(
+                    str(item["datetime"]).replace("Z", "+00:00")
+                )
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+    if len(timestamps) >= 2:
+        timestamps.sort()
+        step = max(1.0, (timestamps[1] - timestamps[0]).total_seconds() / 3600)
+        hourly_coverage = min(
+            maximum_hours,
+            round((timestamps[-1] - timestamps[0]).total_seconds() / 3600 + step),
+        )
+    else:
+        hourly_coverage = min(maximum_hours, len(hourly_forecast))
     daily_coverage = min(maximum_hours, len(daily_forecast) * 24)
     return max(hourly_coverage, daily_coverage)
 
@@ -142,13 +179,16 @@ def growth_state(
     growth_temperature: float | None,
     soil_moisture_percent: float,
     mower_started_year: int | None,
+    previous_state: str | None = None,
 ) -> str:
     """Classify the vegetation phase of the lawn."""
     if growth_temperature is None:
         return "collecting_data"
-    if soil_moisture_percent < 20 and growth_temperature >= 5:
+    drought_limit = 25 if previous_state == "heat_drought_stress" else 20
+    if soil_moisture_percent < drought_limit and growth_temperature >= 5:
         return "heat_drought_stress"
-    if growth_temperature < 5 or (
+    winter_limit = 6 if previous_state == "winter_dormancy" else 5
+    if growth_temperature < winter_limit or (
         today.month in (11, 12, 1, 2) and growth_temperature < 7
     ):
         return "winter_dormancy"
@@ -165,7 +205,8 @@ def growth_state(
         and mower_started_year != today.year
     ):
         return "sustained_growth_start"
-    if growth_temperature >= 8:
+    active_limit = 7 if previous_state == "active_growth" else 8
+    if growth_temperature >= active_limit:
         return "active_growth"
     return "slow_growth"
 
@@ -232,6 +273,7 @@ def watering_recommendation(
     soil_moisture_percent: float | None = None,
     soil_water_mm: float | None = None,
     soil_capacity_mm: float | None = None,
+    growth: str | None = None,
 ) -> dict[str, Any]:
     """Calculate a conservative weather-based watering recommendation."""
     hourly_forecast = hourly_forecast or []
@@ -267,7 +309,9 @@ def watering_recommendation(
     elapsed = days_since(last_watering, today)
     month = today.month
 
-    if month not in (4, 5, 6, 7, 8, 9, 10):
+    if growth == "winter_dormancy" or (
+        growth is None and month not in (4, 5, 6, 7, 8, 9, 10)
+    ):
         return {
             "recommended": False,
             "status": "season_pause",
@@ -512,14 +556,25 @@ def fertilizing_recommendation(
 def lawn_status(
     *,
     growth: str,
-    watering_due: bool,
+    watering_status: str,
     fertilizing_due: bool,
+    mower_status: str,
 ) -> str:
     """Return a concise overall lawn status."""
-    if watering_due:
-        return "watering_recommended"
+    if growth == "collecting_data":
+        return "collecting_data"
+    if growth == "heat_drought_stress":
+        return "drought_stress"
+    if watering_status == "water_now":
+        return "water_now"
+    if watering_status == "water_soon":
+        return "water_soon"
+    if watering_status == "wait_for_rain":
+        return "wait_for_rain"
     if fertilizing_due:
         return "fertilizing_recommended"
+    if mower_status in {"start_mower", "mow_regularly", "mow_less", "reduce_mowing"}:
+        return "mowing_recommended"
     if growth == "winter_dormancy":
         return "winter_dormancy"
     if growth in {"first_awakening", "sustained_growth_start"}:

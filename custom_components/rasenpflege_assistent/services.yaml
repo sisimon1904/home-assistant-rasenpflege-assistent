@@ -1,0 +1,51 @@
+record_watering:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: rasenpflege_assistent
+    amount_mm:
+      example: 12.5
+      selector:
+        number:
+          min: 0
+          max: 50
+          step: 0.5
+          unit_of_measurement: mm
+
+record_fertilizing:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: rasenpflege_assistent
+    product_npk:
+      example: "20-5-8"
+      selector:
+        text:
+    amount_kg:
+      example: 3.0
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.1
+          unit_of_measurement: kg
+
+record_mowing:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: rasenpflege_assistent
+
+undo_last_action:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: rasenpflege_assistent

@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 2.1.1
+Version 3.0.0
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -28,11 +28,15 @@ Vorhersagen über `weather.get_forecasts` ab.
 - GUI-Einrichtung und GUI-Optionen
 - Auswahl und Prüfung einer OpenWeatherMap-Wetterentität
 - frei wählbarer Außentemperatursensor mit automatischem OpenWeatherMap-Fallback
-- optionaler Sensor für gemessene Niederschlagsmenge oder -intensität
+- automatische Nutzung eines aktiven OpenWeatherMap-Regensensors oder eines
+  optional ausgewählten Niederschlagssensors
+- auswählbare Auswertung als Rate, kumulativer Wert oder Einzelmenge
 - optionaler physischer Bodenfeuchtesensor zur sanften Modellkalibrierung
+- optionaler Bodentemperatursensor für die Vegetationsbestimmung
 - OpenWeatherMap-Vorhersage für Bewässerungsentscheidungen, getrennt von
   tatsächlich gemessenem Regen
-- stündliche Regenauswertung für 24, 48 und 72 Stunden
+- zeitstempelbasierte Regenauswertung; OpenWeatherMap v3.0 liefert 48 Stunden
+  stündlich, für 72 Stunden werden ergänzend Tagesdaten verwendet
 - optionale Binärsensoren für „Rasen wurde gemäht“ und „Rasen wurde bewässert“
 - Grünlandtemperatursumme mit der Gewichtung Januar 0,5, Februar 0,75 und ab
   März 1,0
@@ -54,6 +58,9 @@ Vorhersagen über `weather.get_forecasts` ab.
 - eigener Diagnosebereich mit Datenqualität, Modellvertrauen und Datenquellen
 - Sensor „Nächste Aktion“ als kompakte Handlungsempfehlung
 - Reparaturhinweise bei fehlenden Wetter- oder konfigurierten Eingangsdaten
+- Erkennung veralteter Vorhersagen nach drei Stunden
+- protokollierbare Pflegemaßnahmen mit tatsächlicher Wasser- oder Düngermenge
+  und rückgängig machbarer Ereignishistorie
 - automatische Migration einer Konfiguration aus Version 1.0.0
 - HACS-kompatible Repository-Struktur und Release-Workflow
 
@@ -74,9 +81,10 @@ der Hargreaves-Samani-Methode aus Minimum, Maximum, Datum und geografischer
 Breite geschätzt. Das Modell zieht sie anteilig bei jeder Aktualisierung ab;
 ein Rasenfaktor reduziert die Verdunstung im Winter.
 
-Mit einem optionalen Niederschlagssensor verwendet das Modell tatsächlich
-gemessene Niederschlagswerte und rechnet sie unmittelbar ein. Ohne Sensor wird
-kein vermeintlicher Regen in den Bodenwasserspeicher eingetragen. Die bereits
+Zuerst verwendet das Modell einen ausdrücklich ausgewählten Niederschlagssensor.
+Ohne Auswahl sucht es automatisch nach einem aktiven OpenWeatherMap-Regensensor
+derselben Wetterkonfiguration. Ohne verfügbare Messquelle wird kein vermeintlicher
+Regen in den Bodenwasserspeicher eingetragen. Die bereits
 von Home Assistant zwischengespeicherte OpenWeatherMap-Vorhersage wird nur für
 die Bewässerungsempfehlung verwendet. Die Modellqualität wird abhängig von der
 verfügbaren Datenquelle als `high`, `medium` oder `low` gekennzeichnet. Wird der optionale
@@ -88,7 +96,9 @@ Der Wert `forecast_rain_mm` bezeichnet die Summe der ersten drei täglichen
 Vorhersagezeiträume. Die Integration ruft OpenWeatherMap nicht selbst auf:
 `weather.get_forecasts` liest den Cache der offiziellen Home-Assistant-
 Integration. Der Forecast wird im Rasenpflege-Assistenten zusätzlich eine
-Stunde lang zwischengespeichert.
+Stunde lang zwischengespeichert. Nach drei Stunden ohne erfolgreiche
+Aktualisierung gilt die Vorhersage als veraltet und die Datenqualität wird als
+unzureichend bewertet.
 
 Die modellierte Bodenfeuchte ist kein Ersatz für einen Bodensensor. Schatten,
 Gefälle, Bodenverdichtung, Dachüberstände und lokale Schauer können zu
@@ -156,7 +166,7 @@ Attribut `temperature_source` am Wachstums- und Mähroboterstatus.
    `/config/custom_components/rasenpflege_assistent` ersetzen.
 2. Home Assistant neu starten.
 3. Beim nächsten Start migriert Home Assistant den Konfigurationseintrag
-   automatisch auf Version 5.
+  automatisch auf Version 6.
 4. Danach unter **Einstellungen → Geräte & Dienste → Rasenpflege-Assistent →
    Konfigurieren** die anfängliche Bodenfeuchte prüfen. Ab Version 1.2.0 kann
    dort zusätzlich ein lokaler Außentemperatursensor ausgewählt werden.
@@ -196,13 +206,14 @@ nicht selbst aus dem Internet aktualisieren.
 - Modellierte Bodenfeuchte
 - Grünlandtemperatursumme
 - Bewässerungsempfehlung
+- Nächste Aktion
+- Datenqualität und Modellvertrauen
 - empfohlene Wassermenge
 - empfohlene Düngermenge
-- Bewässerung fällig (veralteter, standardmäßig deaktivierter Binärsensor)
-- Düngung fällig (veralteter, standardmäßig deaktivierter Binärsensor)
 - Mähen protokollieren (wenn kein automatischer Binärsensor gewählt ist)
 - Bewässerung protokollieren (wenn kein automatischer Binärsensor gewählt ist)
 - Düngung protokollieren
+- Letzte Pflegemaßnahme rückgängig machen (standardmäßig deaktiviert)
 
 ## Änderungen in Version 2.0.0
 
@@ -290,3 +301,21 @@ Düngermenge bezeichnet die ungefähre Produktmenge und nicht die reine
 Nährstoffmenge. Maßgeblich bleiben die Herstellerdosierung, eine Bodenanalyse
 und örtliche Vorschriften. Nicht auf gefrorenem, ausgetrocknetem oder
 wassergesättigtem Rasen düngen.
+
+## Änderungen in Version 3.0.0
+
+- Das Bodenmodell berechnet nach Neustarts bis zu 24 Stunden Verdunstung nach.
+- Ein aktiver OpenWeatherMap-Regensensor wird automatisch gefunden, sofern kein
+  eigener Niederschlagssensor ausgewählt wurde.
+- Die Art des Niederschlagssensors kann automatisch erkannt oder fest als Rate,
+  kumulativer Wert beziehungsweise Einzelmenge vorgegeben werden.
+- Forecast-Zeitfenster werden aus Zeitstempeln berechnet und veraltete Daten
+  nach drei Stunden erkannt.
+- Pflegestatus unterscheiden eindeutig zwischen „Bald wässern“, „Jetzt
+  wässern“, „Auf Regen warten“, Trockenstress, Düngung und Mähen.
+- Hysterese stabilisiert Wachstums- und Trockenstresszustände.
+- Ein optionaler Bodentemperatursensor verbessert die Vegetationsbestimmung.
+- Neue Home-Assistant-Aktionen protokollieren Bewässerung, Düngung und Mähen;
+  die letzte Pflegemaßnahme kann rückgängig gemacht werden.
+- Die alten doppelten Binärsensoren werden bei der Migration entfernt.
+- Konfigurationseinträge werden automatisch auf Version 6 migriert.

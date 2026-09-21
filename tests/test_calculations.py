@@ -1,6 +1,6 @@
 """Tests for the pure lawn-care calculations."""
 
-from datetime import date
+from datetime import date, datetime, timezone
 
 from custom_components.rasenpflege_assistent.calculations import (
     fertilizing_recommendation,
@@ -287,11 +287,81 @@ def test_overall_status_follows_growth_in_mild_winter() -> None:
     assert (
         lawn_status(
             growth="first_awakening",
-            watering_due=False,
+            watering_status="not_due",
             fertilizing_due=False,
+            mower_status="keep_off",
         )
         == "early_spring"
     )
+
+
+def test_overall_status_distinguishes_watering_states() -> None:
+    """The care status must not call every watering state immediately due."""
+    assert lawn_status(
+        growth="active_growth",
+        watering_status="water_soon",
+        fertilizing_due=False,
+        mower_status="wait_to_mow",
+    ) == "water_soon"
+    assert lawn_status(
+        growth="active_growth",
+        watering_status="wait_for_rain",
+        fertilizing_due=False,
+        mower_status="wait_to_mow",
+    ) == "wait_for_rain"
+
+
+def test_hourly_forecast_uses_timestamp_window() -> None:
+    """Three-hour forecast entries are not mistaken for one-hour entries."""
+    forecast = [
+        {
+            "datetime": f"2026-07-20T{hour:02d}:00:00+00:00",
+            "precipitation": 1,
+        }
+        for hour in range(0, 24, 3)
+    ]
+    assert sum_hourly_forecast_rain(
+        forecast, 6, datetime(2026, 7, 20, tzinfo=timezone.utc)
+    ) == 2
+    assert forecast_coverage_hours(forecast, [], 72) == 24
+
+
+def test_growth_hysteresis_prevents_threshold_flapping() -> None:
+    """An established state uses a small exit margin."""
+    assert growth_state(
+        today=date(2026, 6, 1),
+        gts=400,
+        growth_temperature=7.5,
+        soil_moisture_percent=60,
+        mower_started_year=2026,
+        previous_state="active_growth",
+    ) == "active_growth"
+    assert growth_state(
+        today=date(2026, 7, 1),
+        gts=700,
+        growth_temperature=20,
+        soil_moisture_percent=22,
+        mower_started_year=2026,
+        previous_state="heat_drought_stress",
+    ) == "heat_drought_stress"
+
+
+def test_warm_march_is_not_forced_into_watering_pause() -> None:
+    """Vegetation state controls the watering season in version 3."""
+    result = watering_recommendation(
+        today=date(2026, 3, 25),
+        area_m2=100,
+        sun_exposure="sunny",
+        soil_type="loamy",
+        current_temperature=18,
+        forecast=[{"precipitation": 0}],
+        last_watering=date(2026, 3, 1),
+        soil_moisture_percent=30,
+        soil_water_mm=12,
+        soil_capacity_mm=40,
+        growth="active_growth",
+    )
+    assert result["status"] == "water_now"
 
 
 def test_mower_status_is_actionable() -> None:

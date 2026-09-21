@@ -1,0 +1,8 @@
+{
+  "services": {
+    "record_watering": {"service": "mdi:watering-can"},
+    "record_fertilizing": {"service": "mdi:leaf"},
+    "record_mowing": {"service": "mdi:robot-mower"},
+    "undo_last_action": {"service": "mdi:undo-variant"}
+  }
+}

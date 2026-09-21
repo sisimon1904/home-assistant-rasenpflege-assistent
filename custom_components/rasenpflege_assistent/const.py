@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import timedelta
 
 DOMAIN = "rasenpflege_assistent"
-INTEGRATION_VERSION = "2.1.1"
-PLATFORMS = ["sensor", "binary_sensor", "button"]
+INTEGRATION_VERSION = "3.0.0"
+PLATFORMS = ["sensor", "button"]
 
 CONF_NAME = "name"
 CONF_TEMPERATURE_ENTITY = "temperature_entity"
@@ -15,6 +15,8 @@ CONF_MOWED_ENTITY = "mowed_entity"
 CONF_WATERED_ENTITY = "watered_entity"
 CONF_PRECIPITATION_ENTITY = "precipitation_entity"
 CONF_SOIL_MOISTURE_ENTITY = "soil_moisture_entity"
+CONF_SOIL_TEMPERATURE_ENTITY = "soil_temperature_entity"
+CONF_PRECIPITATION_MODE = "precipitation_mode"
 CONF_DEFAULT_WATERING_AMOUNT = "default_watering_amount"
 CONF_AREA = "area"
 CONF_SUN_EXPOSURE = "sun_exposure"
@@ -33,18 +35,21 @@ DEFAULT_SOIL_TYPE = "loamy"
 DEFAULT_INITIAL_GTS = 0.0
 DEFAULT_INITIAL_SOIL_MOISTURE = 70.0
 DEFAULT_WATERING_AMOUNT = 15.0
+DEFAULT_PRECIPITATION_MODE = "auto"
 
 UPDATE_INTERVAL = timedelta(minutes=30)
 FORECAST_CACHE_INTERVAL = timedelta(hours=1)
+FORECAST_STALE_AFTER = timedelta(hours=3)
 SOIL_SENSOR_CALIBRATION_INTERVAL = timedelta(hours=6)
 SOIL_SENSOR_BLEND_FACTOR = 0.25
-MAX_SOIL_MODEL_INTERVAL = timedelta(hours=2)
+MAX_SOIL_MODEL_INTERVAL = timedelta(hours=24)
 STORE_VERSION = 1
 STORE_KEY_PREFIX = f"{DOMAIN}."
 
 SUN_EXPOSURES = ["sunny", "partial_shade", "shade"]
 LAWN_TYPES = ["family", "play", "ornamental", "shade"]
 SOIL_TYPES = ["sandy", "loamy", "clayey"]
+PRECIPITATION_MODES = ["auto", "rate", "cumulative", "increment"]
 
 ATTR_REASONS = "reasons"
 ATTR_CONFIDENCE = "confidence"
@@ -91,3 +96,7 @@ ATTR_FORECAST_COVERAGE_HOURS = "forecast_coverage_hours"
 ATTR_LAST_SOIL_UPDATE = "last_soil_update"
 ATTR_SOIL_MODEL_GAP_HOURS = "soil_model_gap_hours"
 ATTR_SOIL_MOISTURE_PERCENT = "soil_moisture_percent"
+ATTR_FORECAST_STALE = "forecast_stale"
+ATTR_PRECIPITATION_MODE = "precipitation_mode"
+ATTR_SOIL_TEMPERATURE = "soil_temperature"
+ATTR_LAST_MAINTENANCE_EVENT = "last_maintenance_event"
