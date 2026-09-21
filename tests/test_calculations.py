@@ -1,23 +1,34 @@
 """Tests for the pure lawn-care calculations."""
 
+import importlib.util
 from datetime import date, datetime, timezone
+from pathlib import Path
 
-from custom_components.rasenpflege_assistent.calculations import (
-    fertilizing_recommendation,
-    forecast_coverage_hours,
-    grassland_temperature_increment,
-    growth_state,
-    hargreaves_evapotranspiration,
-    lawn_status,
-    mower_recommendation,
-    mower_state,
-    next_forecast_rain_at,
-    next_lawn_action,
-    sum_forecast_rain,
-    sum_hourly_forecast_rain,
-    update_soil_water,
-    watering_recommendation,
+_SPEC = importlib.util.spec_from_file_location(
+    "lawn_calculations",
+    Path(__file__).parents[1]
+    / "custom_components"
+    / "rasenpflege_assistent"
+    / "calculations.py",
 )
+assert _SPEC is not None and _SPEC.loader is not None
+_CALCULATIONS = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(_CALCULATIONS)
+
+fertilizing_recommendation = _CALCULATIONS.fertilizing_recommendation
+forecast_coverage_hours = _CALCULATIONS.forecast_coverage_hours
+grassland_temperature_increment = _CALCULATIONS.grassland_temperature_increment
+growth_state = _CALCULATIONS.growth_state
+hargreaves_evapotranspiration = _CALCULATIONS.hargreaves_evapotranspiration
+lawn_status = _CALCULATIONS.lawn_status
+mower_recommendation = _CALCULATIONS.mower_recommendation
+mower_state = _CALCULATIONS.mower_state
+next_forecast_rain_at = _CALCULATIONS.next_forecast_rain_at
+next_lawn_action = _CALCULATIONS.next_lawn_action
+sum_forecast_rain = _CALCULATIONS.sum_forecast_rain
+sum_hourly_forecast_rain = _CALCULATIONS.sum_hourly_forecast_rain
+update_soil_water = _CALCULATIONS.update_soil_water
+watering_recommendation = _CALCULATIONS.watering_recommendation
 
 
 def test_gts_monthly_weighting() -> None:
