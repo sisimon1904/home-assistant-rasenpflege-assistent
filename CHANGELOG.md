@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.1
+
+### Changed
+
+- Keep German as the default GitHub and HACS README and add a complete English
+  `README.en.md` with language links in both files.
+- Use the English static integration name `Lawn Care Assistant`; Home Assistant
+  still displays the localized German title from `translations/de.json`.
+- Correct the documented config-entry migration version from 3 to 4.
+- Update the Mushroom example to use `state_translated(entity)`.
+- Remove an outdated fixed 15 mm reference from the source documentation.
+
 ## 2.0.0
 
 ### Breaking change

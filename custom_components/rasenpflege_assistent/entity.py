@@ -1,4 +1,4 @@
-"""Base entity for Rasenpflege-Assistent."""
+"""Base entity for Lawn Care Assistant."""
 
 from __future__ import annotations
 
@@ -25,6 +25,6 @@ class LawnEntity(CoordinatorEntity[LawnCoordinator]):
             name=name,
             entry_type=DeviceEntryType.SERVICE,
             manufacturer="Custom Integration",
-            model="Rasenpflege-Assistent",
+            model="Lawn Care Assistant",
             sw_version=INTEGRATION_VERSION,
         )

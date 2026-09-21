@@ -1,4 +1,4 @@
-"""Coordinator for Rasenpflege-Assistent."""
+"""Coordinator for Lawn Care Assistant."""
 
 from __future__ import annotations
 
@@ -500,7 +500,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         return data
 
     async def async_mark_watered(self) -> None:
-        """Record watering and add an assumed 15 mm to the soil model."""
+        """Record watering and add the calculated or configured amount."""
         assert self._state is not None
         self._state.last_watering = dt_util.now().date().isoformat()
         capacity = soil_capacity(self.settings.get(CONF_SOIL_TYPE, DEFAULT_SOIL_TYPE))

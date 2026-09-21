@@ -1,4 +1,4 @@
-"""Data models for the Rasenpflege-Assistent integration."""
+"""Data models for the Lawn Care Assistant integration."""
 
 from __future__ import annotations
 

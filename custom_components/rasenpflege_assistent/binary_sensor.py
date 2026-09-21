@@ -1,4 +1,4 @@
-"""Binary sensor platform for Rasenpflege-Assistent."""
+"""Binary sensor platform for Lawn Care Assistant."""
 
 from __future__ import annotations
 

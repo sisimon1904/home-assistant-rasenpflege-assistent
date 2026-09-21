@@ -1,4 +1,4 @@
-"""The Rasenpflege-Assistent integration."""
+"""The Lawn Care Assistant integration."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ type LawnConfigEntry = ConfigEntry[LawnCoordinator]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool:
-    """Set up Rasenpflege-Assistent from a config entry."""
+    """Set up Lawn Care Assistant from a config entry."""
     coordinator = LawnCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator

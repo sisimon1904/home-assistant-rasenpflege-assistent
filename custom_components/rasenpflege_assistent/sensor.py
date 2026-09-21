@@ -1,4 +1,4 @@
-"""Sensor platform for Rasenpflege-Assistent."""
+"""Sensor platform for Lawn Care Assistant."""
 
 from __future__ import annotations
 

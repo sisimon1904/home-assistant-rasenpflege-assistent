@@ -1,6 +1,8 @@
 # Rasenpflege-Assistent für Home Assistant
 
-Version 2.0.0
+**Deutsch** | [English](README.en.md)
+
+Version 2.0.1
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -147,7 +149,7 @@ Attribut `temperature_source` am Wachstums- und Mähroboterstatus.
    `/config/custom_components/rasenpflege_assistent` ersetzen.
 2. Home Assistant neu starten.
 3. Beim nächsten Start migriert Home Assistant den Konfigurationseintrag
-   automatisch auf Version 3.
+   automatisch auf Version 4.
 4. Danach unter **Einstellungen → Geräte & Dienste → Rasenpflege-Assistent →
    Konfigurieren** die anfängliche Bodenfeuchte prüfen. Ab Version 1.2.0 kann
    dort zusätzlich ein lokaler Außentemperatursensor ausgewählt werden.
@@ -220,12 +222,27 @@ Die Attribute `icon_color` können beispielsweise so verwendet werden:
 type: custom:mushroom-template-card
 entity: sensor.rasen_wachstumsstatus
 primary: "{{ state_attr(entity, 'friendly_name') }}"
-secondary: "{{ states(entity) }}"
+secondary: "{{ state_translated(entity) }}"
 icon: mdi:grass
 icon_color: "{{ state_attr(entity, 'icon_color') }}"
 tap_action:
   action: more-info
 ```
+
+`states(entity)` liefert bei übersetzbaren Enum-Sensoren den stabilen englischen
+Rohzustand. `state_translated(entity)` zeigt dagegen den zur Sprache des
+Home-Assistant-Benutzers passenden Zustand an.
+
+## Änderungen in Version 2.0.1
+
+- Deutsche README bleibt die Standardansicht auf GitHub und in HACS.
+- Eine vollständige englische README ist über die Sprachauswahl erreichbar.
+- Statische Metadaten verwenden den englischen Namen `Lawn Care Assistant`;
+  Home Assistant zeigt über seine Übersetzungen weiterhin
+  **Rasenpflege-Assistent** an.
+- Veraltete Angaben zur Konfigurationsversion und Standard-Bewässerungsmenge
+  wurden korrigiert.
+- Das Mushroom-Beispiel verwendet den übersetzten Zustand.
 
 ## Grenzen
 

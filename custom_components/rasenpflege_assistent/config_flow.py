@@ -1,4 +1,4 @@
-"""Config flow for Rasenpflege-Assistent."""
+"""Config flow for Lawn Care Assistant."""
 
 from __future__ import annotations
 
@@ -159,7 +159,7 @@ def _validate_openweathermap_entities(
 
 
 class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Rasenpflege-Assistent."""
+    """Handle a config flow for Lawn Care Assistant."""
 
     VERSION = 4
     MINOR_VERSION = 0
@@ -192,7 +192,7 @@ class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class LawnCareOptionsFlow(OptionsFlowWithReload):
-    """Handle editable Rasenpflege-Assistent settings."""
+    """Handle editable Lawn Care Assistant settings."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None

@@ -1,11 +1,11 @@
-"""Constants for the Rasenpflege-Assistent integration."""
+"""Constants for the Lawn Care Assistant integration."""
 
 from __future__ import annotations
 
 from datetime import timedelta
 
 DOMAIN = "rasenpflege_assistent"
-INTEGRATION_VERSION = "2.0.0"
+INTEGRATION_VERSION = "2.0.1"
 PLATFORMS = ["sensor", "binary_sensor", "button"]
 
 CONF_NAME = "name"

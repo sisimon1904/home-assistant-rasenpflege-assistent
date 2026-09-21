@@ -1,4 +1,4 @@
-"""Diagnostics support for Rasenpflege-Assistent."""
+"""Diagnostics support for Lawn Care Assistant."""
 
 from __future__ import annotations
 

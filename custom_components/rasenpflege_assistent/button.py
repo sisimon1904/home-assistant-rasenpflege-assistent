@@ -1,4 +1,4 @@
-"""Button platform for Rasenpflege-Assistent."""
+"""Button platform for Lawn Care Assistant."""
 
 from __future__ import annotations
 
