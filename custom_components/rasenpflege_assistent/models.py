@@ -24,7 +24,7 @@ class LawnData:
     forecast_rain_72h_mm: float | None = None
     next_rain_at: str | None = None
     forecast_updated_at: str | None = None
-    observed_rain_today_mm: float = 0.0
+    observed_rain_today_mm: float | None = None
     precipitation_source: str = "not_measured"
     watering_confidence: str = "low"
     fertilizing_recommended: bool = False
@@ -113,6 +113,8 @@ class RuntimeState:
     temperature_min: float | None = None
     temperature_max: float | None = None
     daily_rain_mm: float = 0.0
+    daily_rain_unknown: bool = True
+    local_day_model: bool = True
     soil_water_mm: float | None = None
     current_day_evapotranspiration_mm: float = 0.0
     daily_temperature_history: list[float] = field(default_factory=list)
@@ -157,6 +159,8 @@ class RuntimeState:
             "temperature_min": self.temperature_min,
             "temperature_max": self.temperature_max,
             "daily_rain_mm": self.daily_rain_mm,
+            "daily_rain_unknown": self.daily_rain_unknown,
+            "local_day_model": self.local_day_model,
             "soil_water_mm": self.soil_water_mm,
             "current_day_evapotranspiration_mm": (
                 self.current_day_evapotranspiration_mm

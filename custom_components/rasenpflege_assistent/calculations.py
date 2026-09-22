@@ -517,6 +517,7 @@ def precipitation_rate_amounts(
     now: datetime,
     last_sample: datetime | None,
     maximum_hours: float = 2.0,
+    day_start: datetime | None = None,
 ) -> tuple[float, float]:
     """Return total and current-day rain represented by a rate sample."""
     if last_sample is None:
@@ -526,7 +527,7 @@ def precipitation_rate_amounts(
         max(0.0, (now - last_sample).total_seconds() / 3600),
     )
     amount = max(0.0, rate_mm_per_hour) * elapsed_hours
-    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    midnight = day_start or now.replace(hour=0, minute=0, second=0, microsecond=0)
     current_day_hours = min(
         elapsed_hours,
         max(0.0, (now - midnight).total_seconds() / 3600),

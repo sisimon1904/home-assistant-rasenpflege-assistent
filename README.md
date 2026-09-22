@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.2.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.2.1 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -74,12 +74,20 @@ Abfluss und Wasserstress. Die Verdunstung stammt aus Penman-Monteith mit
 geschätzter Strahlung oder bei fehlenden Eingangswerten aus Hargreaves-Samani.
 Die Regenwahrscheinlichkeit beeinflusst nur die Empfehlung; vorhergesagter
 Regen wird niemals als tatsächlich gefallener Regen verbucht.
+Fehlt die Außentemperatur vorübergehend, verwendet das Modell eine vorsichtige
+saisonale Verdunstungsschätzung und kennzeichnet die Modellgüte als niedrig.
+Tageswerte beziehen sich auf die lokale Zeitzone von Home Assistant.
 
 Ohne Messwert für gefallenen Regen bleibt dessen Anteil in der Bodenbilanz
 unbekannt. Lokale Schauer, Bodenunterschiede und Schatten können vom Modell
 abweichen. Bei Bedarf die Bodenfeuchte über **Konfigurieren → Modellierte
 Bodenfeuchte neu kalibrieren** korrigieren. NPK und Produktmenge sind
 Richtwerte; Herstellerdosierung und Bodenanalyse haben Vorrang.
+Der Diagnosewert **Beobachteter Regen heute** bleibt unbekannt, wenn kein
+Messwert vorliegt oder die Messreihe für den Tag unterbrochen war. Nach einer
+Neuinstallation während des Jahres zeigt die Grünlandtemperatursumme fehlende
+frühere Tage an, bis die Jahresgrenze erreicht ist oder ein Ausgangswert
+manuell gesetzt wird.
 
 ## Anzeige auf dem Dashboard
 

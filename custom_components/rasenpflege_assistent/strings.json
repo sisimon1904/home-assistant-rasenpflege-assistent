@@ -212,6 +212,7 @@
         "state": {
           "penman_monteith_estimated_radiation": "Penman-Monteith with estimated radiation",
           "hargreaves_samani": "Hargreaves-Samani fallback",
+          "estimated_fallback": "Seasonal estimate (temperature unavailable)",
           "unavailable": "Unavailable"
         }
       },

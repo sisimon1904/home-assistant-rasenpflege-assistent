@@ -212,6 +212,7 @@
         "state": {
           "penman_monteith_estimated_radiation": "Penman-Monteith mit geschätzter Strahlung",
           "hargreaves_samani": "Hargreaves-Samani als Rückfallverfahren",
+          "estimated_fallback": "Saisonale Schätzung (Temperatur fehlt)",
           "unavailable": "Nicht verfügbar"
         }
       },

@@ -1,5 +1,20 @@
 # Changelog
 
+## 3.2.1
+
+### Fixed
+
+- Report observed rain today as unknown when measurements are absent or the
+  day's rain readings are incomplete, instead of showing a misleading zero.
+- Continue estimated evapotranspiration during outdoor temperature outages;
+  indicate reduced water-model confidence.
+- Apply the configured rain correction to rainfall intensity as well as its
+  volume for consistent infiltration and runoff calculations.
+- Use Home Assistant's local day for rain, evaporation, grassland temperature
+  sums, and maintenance timestamps, including midnight and DST transitions.
+- Mark days with no temperature samples and earlier days before a midyear
+  installation as gaps in the grassland temperature sum.
+
 ## 3.2.0
 
 ### Added

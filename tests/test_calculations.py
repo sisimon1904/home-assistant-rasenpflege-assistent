@@ -524,6 +524,31 @@ def test_precipitation_rate_splits_an_interval_at_midnight() -> None:
     assert current_day == 1.0
 
 
+def test_precipitation_rate_splits_at_local_midnight_on_dst_day() -> None:
+    """The spring DST switch must not change the real elapsed rain interval."""
+    now = datetime(2026, 3, 29, 1, 30, tzinfo=timezone.utc)
+    total, current_day = precipitation_rate_amounts(
+        rate_mm_per_hour=4,
+        now=now,
+        last_sample=datetime(2026, 3, 28, 22, 30, tzinfo=timezone.utc),
+        day_start=datetime(2026, 3, 28, 23, tzinfo=timezone.utc),
+    )
+    assert total == 8.0  # capped after a three-hour reporting gap
+    assert current_day == 8.0
+
+
+def test_precipitation_rate_splits_before_utc_midnight() -> None:
+    """A Berlin day changes at 22:00 UTC during summer time."""
+    total, current_day = precipitation_rate_amounts(
+        rate_mm_per_hour=4,
+        now=datetime(2026, 7, 20, 22, 15, tzinfo=timezone.utc),
+        last_sample=datetime(2026, 7, 20, 21, 45, tzinfo=timezone.utc),
+        day_start=datetime(2026, 7, 20, 22, tzinfo=timezone.utc),
+    )
+    assert total == 2.0
+    assert current_day == 1.0
+
+
 def test_penman_monteith_uses_cached_weather_inputs() -> None:
     """Humidity, wind and estimated radiation produce plausible daily ET."""
     et0 = penman_monteith_evapotranspiration(

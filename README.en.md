@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.2.0 · [Changelog](CHANGELOG.md)
+Version 3.2.1 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -73,11 +73,18 @@ affect the result. Evapotranspiration uses Penman-Monteith with estimated
 radiation, or Hargreaves-Samani when inputs are unavailable. Rain probability
 affects the recommendation only: forecast rain is never recorded as observed
 rainfall.
+During outdoor temperature outages, a conservative seasonal evaporation
+estimate keeps the soil model running at low confidence. Daily totals use
+Home Assistant's local time zone.
 
 Without a measured rain source, actual rainfall remains unknown to the model.
 Local showers, shade, and soil differences can cause deviations. Use
 **Configure → Recalibrate modeled soil moisture** when needed. NPK and product
 amounts are estimates; follow the manufacturer's dose and a soil analysis.
+The diagnostic **Observed rain today** remains unknown when measurements are
+missing or the day's readings were interrupted. A midyear installation marks
+earlier days as missing from the grassland temperature sum until the next year
+or a manual starting value is provided.
 
 ## Dashboard example
 

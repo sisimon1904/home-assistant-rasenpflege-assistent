@@ -140,7 +140,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
 
     async def _async_setup(self) -> None:
         """Load persisted running totals once."""
-        today = dt_util.now().date()
+        today = dt_util.as_local(dt_util.now()).date()
         stored = await self._store.async_load()
         settings = self.settings
         initial_gts = float(settings.get(CONF_INITIAL_GTS, DEFAULT_INITIAL_GTS))
@@ -169,6 +169,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 temperature_min=stored.get("temperature_min"),
                 temperature_max=stored.get("temperature_max"),
                 daily_rain_mm=float(stored.get("daily_rain_mm", 0.0)),
+                daily_rain_unknown=bool(stored.get("daily_rain_unknown", True)),
                 soil_water_mm=stored.get("soil_water_mm"),
                 current_day_evapotranspiration_mm=float(
                     stored.get("current_day_evapotranspiration_mm", 0.0)
@@ -211,6 +212,27 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 ),
                 missing_temperature_days=int(stored.get("missing_temperature_days", 0)),
             )
+            if not stored.get("local_day_model", False):
+                # Earlier releases stored UTC-based partial days. They cannot be
+                # safely attributed to a local calendar day after migration.
+                self._state.sample_date = today.isoformat()
+                self._state.temperature_sum = 0.0
+                self._state.temperature_samples = 0
+                self._state.temperature_min = None
+                self._state.temperature_max = None
+                self._state.daily_rain_mm = 0.0
+                self._state.daily_rain_unknown = True
+                self._state.current_day_evapotranspiration_mm = 0.0
+                self._state.daily_effective_rain_mm = 0.0
+                self._state.daily_runoff_mm = 0.0
+                self._state.daily_drainage_mm = 0.0
+                self._state.daily_interception_mm = 0.0
+                if initial_gts == 0:
+                    self._state.missing_temperature_days = max(
+                        self._state.missing_temperature_days,
+                        (today - date(today.year, 1, 1)).days,
+                    )
+                self._state.local_day_model = True
         else:
             initial_watering = settings.get(CONF_LAST_WATERING)
             initial_fertilizing = settings.get(CONF_LAST_FERTILIZING)
@@ -228,6 +250,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 water_model_version=3,
                 configured_soil_type=soil_type,
                 configured_root_depth_cm=root_depth,
+                missing_temperature_days=(
+                    (today - date(today.year, 1, 1)).days if initial_gts == 0 else 0
+                ),
             )
 
         if self._state.configured_soil_type is None:
@@ -583,15 +608,18 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             or self._find_openweathermap_precipitation_entity()
         )
         if not entity_id:
+            self._state.daily_rain_unknown = True
             self._reset_precipitation_sample()
             return "not_measured", 0.0, configured_mode, 0.0
         state = self.hass.states.get(entity_id)
         if state is None or state.state in ("unknown", "unavailable"):
+            self._state.daily_rain_unknown = True
             self._reset_precipitation_sample(source=entity_id, mode=configured_mode)
             return "unavailable", 0.0, configured_mode, 0.0
         try:
             value = max(0.0, float(state.state))
         except (TypeError, ValueError):
+            self._state.daily_rain_unknown = True
             self._reset_precipitation_sample(source=entity_id, mode=configured_mode)
             return "unavailable", 0.0, configured_mode, 0.0
         unit = str(state.attributes.get("unit_of_measurement", "mm"))
@@ -617,14 +645,26 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         )
         reported_at = min(now, self._reported_at(state))
         if now - reported_at > PRECIPITATION_RATE_STALE_AFTER:
+            self._state.daily_rain_unknown = True
             self._reset_precipitation_sample(source=entity_id, mode=mode)
             return "unavailable", 0.0, mode, 0.0
+        if dt_util.as_local(reported_at).date() != dt_util.as_local(now).date():
+            self._state.daily_rain_unknown = True
         if last_sample is not None and reported_at <= last_sample:
             return entity_id, 0.0, mode, value if mode == "rate" else 0.0
+        if last_sample is None:
+            self._state.daily_rain_unknown = True
+        local_midnight = dt_util.as_utc(
+            dt_util.start_of_local_day(dt_util.as_local(reported_at))
+        )
         increment = 0.0
         daily_increment = 0.0
         intensity = 0.0
         if mode == "rate":
+            if last_sample is not None and reported_at - last_sample > timedelta(
+                hours=2
+            ):
+                self._state.daily_rain_unknown = True
             average_rate = (
                 (max(0.0, float(last_value)) + value) / 2
                 if last_value is not None
@@ -634,6 +674,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 rate_mm_per_hour=average_rate,
                 now=reported_at,
                 last_sample=last_sample,
+                day_start=local_midnight,
             )
             intensity = value
         elif mode == "cumulative" and last_value is not None:
@@ -644,21 +685,27 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                     1 / 60, (reported_at - last_sample).total_seconds() / 3600
                 )
                 intensity = increment / elapsed_hours
-            if last_sample is not None and last_sample.date() != reported_at.date():
+            if (
+                last_sample is not None
+                and dt_util.as_local(last_sample).date()
+                != dt_util.as_local(reported_at).date()
+            ):
                 elapsed_seconds = max(0.0, (reported_at - last_sample).total_seconds())
                 current_day_seconds = max(
                     0.0,
-                    (
-                        reported_at
-                        - reported_at.replace(hour=0, minute=0, second=0, microsecond=0)
-                    ).total_seconds(),
+                    (reported_at - local_midnight).total_seconds(),
                 )
                 if elapsed_seconds > 0:
                     daily_increment *= min(1.0, current_day_seconds / elapsed_seconds)
         elif mode == "increment":
             if last_sample is not None:
                 increment = value
-                daily_increment = value if reported_at.date() == now.date() else 0.0
+                daily_increment = (
+                    value
+                    if dt_util.as_local(reported_at).date()
+                    == dt_util.as_local(now).date()
+                    else 0.0
+                )
                 elapsed_hours = max(
                     1 / 60, (reported_at - last_sample).total_seconds() / 3600
                 )
@@ -686,6 +733,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         """Finalize temperature history and GTS for one completed day."""
         assert self._state is not None
         if not self._state.temperature_samples:
+            self._state.missing_temperature_days += 1
             return
         mean = self._state.temperature_sum / self._state.temperature_samples
         self._state.gts += grassland_temperature_increment(previous_day, mean)
@@ -741,6 +789,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         reference_et = 0.0
         daily_reference_et = 0.0
         method = "unavailable"
+        local_day = dt_util.as_local(now).date()
         if temperature is not None:
             minimum = self._state.temperature_min
             maximum = self._state.temperature_max
@@ -756,7 +805,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 and weather.get("cloud_coverage") is not None
             ):
                 daily_reference_et = penman_monteith_evapotranspiration(
-                    day=now.date(),
+                    day=local_day,
                     latitude=self.hass.config.latitude,
                     elevation=float(self.hass.config.elevation or 0.0),
                     temperature_min=minimum,
@@ -770,24 +819,48 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 method = "penman_monteith_estimated_radiation"
             else:
                 daily_reference_et = hargreaves_evapotranspiration(
-                    day=now.date(),
+                    day=local_day,
                     latitude=self.hass.config.latitude,
                     temperature_min=minimum,
                     temperature_max=maximum,
                 )
                 method = "hargreaves_samani"
-            reference_et = interval_evapotranspiration(
-                daily_et_mm=daily_reference_et,
-                end=dt_util.as_local(now),
-                interval_hours=elapsed_hours,
-                latitude=self.hass.config.latitude,
-            )
+        else:
+            # Keep the bucket moving during temperature outages, using the
+            # latest valid estimate for at most one day, then a seasonal prior.
+            for sample in reversed(self._state.weather_samples):
+                sampled_at = dt_util.parse_datetime(sample.get("timestamp", ""))
+                if sampled_at is None or now - sampled_at > timedelta(hours=24):
+                    break
+                if sample.get("et_method") in {
+                    "penman_monteith_estimated_radiation",
+                    "hargreaves_samani",
+                }:
+                    daily_reference_et = float(sample["reference_et_daily_mm"])
+                    break
+            if not daily_reference_et:
+                daily_reference_et = (
+                    0.8
+                    if local_day.month in {11, 12, 1, 2}
+                    else 3.2
+                    if local_day.month in {6, 7, 8}
+                    else 1.8
+                )
+            method = "estimated_fallback"
+        reference_et = interval_evapotranspiration(
+            daily_et_mm=daily_reference_et,
+            end=dt_util.as_local(now),
+            interval_hours=elapsed_hours,
+            latitude=self.hass.config.latitude,
+        )
 
         soil_type = self.settings.get(CONF_SOIL_TYPE, DEFAULT_SOIL_TYPE)
         root_depth = float(self.settings.get(CONF_ROOT_DEPTH, DEFAULT_ROOT_DEPTH))
         capacity = soil_capacity(soil_type, root_depth)
         crop_coefficient = 0.35
-        if temperature is not None and temperature >= 5 and now.month in range(3, 11):
+        if local_day.month in range(3, 11) and (
+            temperature is None or temperature >= 5
+        ):
             crop_coefficient = 0.8
         crop_coefficient *= {
             "sunny": 1.1,
@@ -801,14 +874,17 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         interception_available = max(
             0.0, profile["interception_mm"] - self._state.canopy_storage_mm
         )
-        corrected_precipitation = precipitation_increment_mm * float(
+        rain_correction = float(
             self.settings.get(CONF_RAIN_CORRECTION, DEFAULT_RAIN_CORRECTION)
         )
+        corrected_precipitation = precipitation_increment_mm * rain_correction
         balance = update_soil_water_balance(
             water_mm=float(self._state.soil_water_mm or 0.0),
             soil_type=soil_type,
             precipitation_mm=corrected_precipitation,
-            precipitation_intensity_mm_h=precipitation_intensity_mm_h,
+            precipitation_intensity_mm_h=(
+                precipitation_intensity_mm_h * rain_correction
+            ),
             interval_hours=elapsed_hours,
             reference_et_mm=reference_et,
             crop_coefficient=crop_coefficient,
@@ -824,14 +900,14 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             )
             self._state.last_rain_at = now.isoformat()
         self._state.soil_water_mm = balance["water_mm"]
+        local_midnight = dt_util.as_utc(
+            dt_util.start_of_local_day(dt_util.as_local(now))
+        )
         current_day_hours = min(
             elapsed_hours,
             max(
                 0.0,
-                (
-                    now - now.replace(hour=0, minute=0, second=0, microsecond=0)
-                ).total_seconds()
-                / 3600,
+                (now - local_midnight).total_seconds() / 3600,
             ),
         )
         day_fraction = current_day_hours / elapsed_hours if elapsed_hours else 0.0
@@ -895,6 +971,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             self._state.temperature_min = None
             self._state.temperature_max = None
             self._state.daily_rain_mm = 0.0
+            self._state.daily_rain_unknown = False
             self._state.current_day_evapotranspiration_mm = 0.0
             self._state.daily_effective_rain_mm = 0.0
             self._state.daily_runoff_mm = 0.0
@@ -927,7 +1004,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         """Calculate all current recommendations."""
         assert self._state is not None
         now = dt_util.now()
-        today = now.date()
+        today = dt_util.as_local(now).date()
         settings = self.settings
         temperature, temperature_source, temperature_age_minutes = (
             self._read_temperature(now)
@@ -1106,7 +1183,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             data_warnings.append("temperature_unavailable")
         if weather_conditions.get("stale", True):
             data_warnings.append("current_weather_stale")
-        if soil_update["method"] == "hargreaves_samani":
+        if soil_update["method"] in {"hargreaves_samani", "estimated_fallback"}:
             data_warnings.append("evapotranspiration_fallback")
         if not forecast and not hourly_forecast:
             data_warnings.append("forecast_unavailable")
@@ -1123,7 +1200,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             data_warnings.append("soil_moisture_sensor_unavailable")
         if settings.get(CONF_SOIL_TEMPERATURE_ENTITY) and soil_temperature is None:
             data_warnings.append("soil_temperature_sensor_unavailable")
-        if precipitation_source == "not_measured":
+        if self._state.daily_rain_unknown:
             data_warnings.append("observed_precipitation_unavailable")
         if len(history) < 7:
             data_warnings.append("temperature_history_incomplete")
@@ -1185,7 +1262,11 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 if forecast_updated_at is not None
                 else None
             ),
-            observed_rain_today_mm=round(self._state.daily_rain_mm, 1),
+            observed_rain_today_mm=(
+                None
+                if self._state.daily_rain_unknown
+                else round(self._state.daily_rain_mm, 1)
+            ),
             precipitation_source=precipitation_source,
             watering_confidence=watering["confidence"],
             fertilizing_recommended=fertilizing["recommended"],
@@ -1245,6 +1326,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 if measured_soil_moisture is not None
                 else "low"
                 if self._state.last_soil_model_gap_hours > 0
+                or self._state.daily_rain_unknown
+                or soil_update["method"] == "estimated_fallback"
                 or weather_conditions.get("stale", True)
                 else "high"
                 if precipitation_source not in {"not_measured", "unavailable"}
@@ -1314,7 +1397,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             "last_watering": self._state.last_watering,
             "soil_water_mm": self._state.soil_water_mm,
         }
-        self._state.last_watering = dt_util.now().date().isoformat()
+        self._state.last_watering = dt_util.as_local(dt_util.now()).date().isoformat()
         capacity = soil_capacity(
             self.settings.get(CONF_SOIL_TYPE, DEFAULT_SOIL_TYPE),
             float(self.settings.get(CONF_ROOT_DEPTH, DEFAULT_ROOT_DEPTH)),
@@ -1353,7 +1436,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         """Record fertilizing as completed today."""
         assert self._state is not None
         previous = {"last_fertilizing": self._state.last_fertilizing}
-        self._state.last_fertilizing = dt_util.now().date().isoformat()
+        self._state.last_fertilizing = (
+            dt_util.as_local(dt_util.now()).date().isoformat()
+        )
         self._append_maintenance_event(
             "fertilizing",
             previous,
@@ -1375,8 +1460,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             "last_mowing": self._state.last_mowing,
             "mower_started_year": self._state.mower_started_year,
         }
-        self._state.last_mowing = now.date().isoformat()
-        self._state.mower_started_year = now.year
+        self._state.last_mowing = dt_util.as_local(now).date().isoformat()
+        self._state.mower_started_year = dt_util.as_local(now).year
         self._append_maintenance_event("mowing", previous)
         await self._store.async_save(self._state.as_dict())
         await self.async_request_refresh()
