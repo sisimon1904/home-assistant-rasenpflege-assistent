@@ -1,5 +1,36 @@
 # Changelog
 
+## 3.2.0
+
+### Added
+
+- Configurable root depth, slope, compaction, irrigation efficiency, and rain
+  correction for the soil-water model.
+- Dry/wet reference calibration for an optional physical soil-moisture sensor.
+- Probability-aware forecast rain, explainable watering windows, and additional
+  grassland-temperature completeness diagnostics.
+- Canopy interception storage and daylight-weighted evapotranspiration.
+- Config-flow, migration, and Home Assistant compatibility tests.
+- Shorter German and English installation guides with detailed history in this
+  changelog.
+
+### Changed
+
+- Migrate existing configuration entries to model version 3 while preserving
+  fractional soil-water state.
+- Scale soil capacity and infiltration according to root depth, slope, and
+  compaction.
+- Prefer fresh measured weather values and avoid phantom rain after outages.
+
+### Fixed
+
+- Correct watering decisions when forecast rain has only a low probability.
+- Prevent stale precipitation baselines from creating false rain increments.
+- Keep the integration compatible with Home Assistant runtimes that still
+  expose `OptionsFlow` instead of `OptionsFlowWithReload`.
+- Calculate the suggested irrigation window and daylight evaporation using
+  local time.
+
 ## 3.1.0
 
 ### Added

@@ -23,7 +23,14 @@
           "last_watering": "Letzte Bewässerung (optional)",
           "last_fertilizing": "Letzte Düngung (optional)",
           "initial_gts": "Aktuelle Grünlandtemperatursumme (0 für automatischen Start)",
-          "initial_soil_moisture": "Geschätzte Bodenfeuchte beim Start"
+          "initial_soil_moisture": "Geschätzte Bodenfeuchte beim Start",
+          "root_depth_cm": "Wirksame Wurzeltiefe",
+          "slope": "Oberflächengefälle",
+          "compaction": "Bodenverdichtung",
+          "irrigation_efficiency": "Bewässerungseffizienz",
+          "rain_correction": "Korrekturfaktor für gemessenen Regen",
+          "soil_sensor_dry": "Trockenreferenz des Bodensensors",
+          "soil_sensor_wet": "Nassreferenz des Bodensensors"
         },
         "data_description": {
           "initial_gts": "Bei einer Installation mitten im Jahr kann hier ein bekannter Startwert eingetragen werden. Ab dem nächsten 1. Januar zählt die Integration automatisch ab 0.",
@@ -35,7 +42,14 @@
           "soil_moisture_entity": "Gleicht den modellierten Bodenspeicher höchstens alle sechs Stunden sanft mit dem gemessenen Prozentwert ab. Ohne Sensor arbeitet das Modell unverändert weiter.",
           "soil_temperature_entity": "Wenn ausgewählt, hat die Bodentemperatur bei der Bestimmung des Vegetationszustands Vorrang.",
           "default_watering_amount": "Diese Menge wird dem Bodenmodell hinzugefügt, wenn eine Bewässerung ohne berechnete Empfehlung protokolliert wird.",
-          "initial_soil_moisture": "Startwert des virtuellen Bodenspeichers. Für normalen lehmigen Boden sind 70 % ein sinnvoller Anfangswert."
+          "initial_soil_moisture": "Startwert des virtuellen Bodenspeichers. Für normalen lehmigen Boden sind 70 % ein sinnvoller Anfangswert.",
+          "root_depth_cm": "Wirksame Tiefe der aktiven Rasenwurzeln. Zehn Zentimeter erhalten das bisherige Modellverhalten.",
+          "slope": "Ein stärkeres Gefälle verringert bei intensivem Regen die Versickerung.",
+          "compaction": "Verdichteter Boden nimmt Wasser langsamer auf und erzeugt mehr Oberflächenabfluss.",
+          "irrigation_efficiency": "Anteil der ausgebrachten Bewässerung, der den modellierten Wurzelraum erreicht.",
+          "rain_correction": "Korrigiert eine systematische Über- oder Unterschätzung der Regenquelle. 1,0 verändert den Wert nicht.",
+          "soil_sensor_dry": "Rohwert des physischen Sensors bei trockenem Boden.",
+          "soil_sensor_wet": "Rohwert des physischen Sensors nahe der Feldkapazität. Er muss größer als die Trockenreferenz sein."
         }
       }
     },
@@ -43,7 +57,8 @@
       "not_openweathermap": "Die ausgewählte Entität stammt nicht aus der OpenWeatherMap-Integration.",
       "weather_data_unavailable": "Die OpenWeatherMap-Entität liefert keine aktuelle Temperatur. Verwende möglichst den Modus v3.0 und prüfe, ob die Entität verfügbar ist.",
       "name_already_configured": "Ein anderer Rasen verwendet bereits diesen Namen.",
-      "name_required": "Gib einen Namen für den Rasen ein."
+      "name_required": "Gib einen Namen für den Rasen ein.",
+      "soil_sensor_range_invalid": "Die Nassreferenz muss größer als die Trockenreferenz sein."
     },
     "abort": {
       "already_configured": "Ein Rasen mit diesem Namen ist bereits eingerichtet."
@@ -72,7 +87,14 @@
           "last_watering": "Datum der letzten Bewässerung korrigieren",
           "last_fertilizing": "Datum der letzten Düngung korrigieren",
           "initial_gts": "Aktuelle Grünlandtemperatursumme korrigieren",
-          "initial_soil_moisture": "Modellierte Bodenfeuchte neu kalibrieren"
+          "initial_soil_moisture": "Modellierte Bodenfeuchte neu kalibrieren",
+          "root_depth_cm": "Wirksame Wurzeltiefe",
+          "slope": "Oberflächengefälle",
+          "compaction": "Bodenverdichtung",
+          "irrigation_efficiency": "Bewässerungseffizienz",
+          "rain_correction": "Korrekturfaktor für gemessenen Regen",
+          "soil_sensor_dry": "Trockenreferenz des Bodensensors",
+          "soil_sensor_wet": "Nassreferenz des Bodensensors"
         }
       }
     },
@@ -80,14 +102,17 @@
       "not_openweathermap": "Die ausgewählte Entität stammt nicht aus der OpenWeatherMap-Integration.",
       "weather_data_unavailable": "Die OpenWeatherMap-Entität liefert keine aktuelle Temperatur. Verwende möglichst den Modus v3.0 und prüfe, ob die Entität verfügbar ist.",
       "name_already_configured": "Ein anderer Rasen verwendet bereits diesen Namen.",
-      "name_required": "Gib einen Namen für den Rasen ein."
+      "name_required": "Gib einen Namen für den Rasen ein.",
+      "soil_sensor_range_invalid": "Die Nassreferenz muss größer als die Trockenreferenz sein."
     }
   },
   "selector": {
     "sun_exposure": {"options": {"sunny": "Sonnig", "partial_shade": "Halbschatten", "shade": "Schatten"}},
     "lawn_type": {"options": {"family": "Familienrasen", "play": "Stark beanspruchter Spielrasen", "ornamental": "Zierrasen", "shade": "Schattenrasen"}},
     "soil_type": {"options": {"sandy": "Sandig", "loamy": "Lehmig und ausgewogen", "clayey": "Tonig"}},
-    "precipitation_mode": {"options": {"auto": "Automatisch", "rate": "Rate (zum Beispiel mm/h)", "cumulative": "Kumulativer Gesamtwert", "increment": "Menge je Zustandsänderung"}}
+    "precipitation_mode": {"options": {"auto": "Automatisch", "rate": "Rate (zum Beispiel mm/h)", "cumulative": "Kumulativer Gesamtwert", "increment": "Menge je Zustandsänderung"}},
+    "slope": {"options": {"flat": "Eben", "gentle": "Leichtes Gefälle", "steep": "Starkes Gefälle"}},
+    "compaction": {"options": {"normal": "Normal", "compacted": "Verdichtet"}}
   },
   "entity": {
     "sensor": {

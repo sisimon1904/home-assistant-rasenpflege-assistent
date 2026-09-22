@@ -12,14 +12,28 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import (
+    CONF_COMPACTION,
     CONF_DEFAULT_WATERING_AMOUNT,
     CONF_INITIAL_SOIL_MOISTURE,
+    CONF_IRRIGATION_EFFICIENCY,
     CONF_MOWED_ENTITY,
     CONF_PRECIPITATION_ENTITY,
+    CONF_RAIN_CORRECTION,
+    CONF_ROOT_DEPTH,
+    CONF_SLOPE,
     CONF_SOIL_MOISTURE_ENTITY,
+    CONF_SOIL_SENSOR_DRY,
+    CONF_SOIL_SENSOR_WET,
     CONF_SOIL_TEMPERATURE_ENTITY,
     CONF_WATERED_ENTITY,
+    DEFAULT_COMPACTION,
     DEFAULT_INITIAL_SOIL_MOISTURE,
+    DEFAULT_IRRIGATION_EFFICIENCY,
+    DEFAULT_RAIN_CORRECTION,
+    DEFAULT_ROOT_DEPTH,
+    DEFAULT_SLOPE,
+    DEFAULT_SOIL_SENSOR_DRY,
+    DEFAULT_SOIL_SENSOR_WET,
     DEFAULT_WATERING_AMOUNT,
     DOMAIN,
     PLATFORMS,
@@ -203,5 +217,31 @@ async def async_migrate_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bo
         }
         hass.config_entries.async_update_entry(
             entry, data=data, version=6, minor_version=0
+        )
+    if entry.version == 6:
+        defaults = {
+            CONF_ROOT_DEPTH: DEFAULT_ROOT_DEPTH,
+            CONF_SLOPE: DEFAULT_SLOPE,
+            CONF_COMPACTION: DEFAULT_COMPACTION,
+            CONF_IRRIGATION_EFFICIENCY: DEFAULT_IRRIGATION_EFFICIENCY,
+            CONF_RAIN_CORRECTION: DEFAULT_RAIN_CORRECTION,
+            CONF_SOIL_SENSOR_DRY: DEFAULT_SOIL_SENSOR_DRY,
+            CONF_SOIL_SENSOR_WET: DEFAULT_SOIL_SENSOR_WET,
+        }
+        data = {
+            **entry.data,
+            **{key: entry.data.get(key, value) for key, value in defaults.items()},
+        }
+        options = {
+            **entry.options,
+            **{key: entry.options.get(key, value) for key, value in defaults.items()},
+        }
+        hass.config_entries.async_update_entry(
+            entry,
+            data=data,
+            options=options,
+            version=7,
+            minor_version=0,
+            unique_id=entry.entry_id,
         )
     return True

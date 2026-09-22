@@ -22,7 +22,12 @@ def grassland_temperature_increment(day: date, mean_temperature: float) -> float
     return mean_temperature * factor
 
 
-def sum_forecast_rain(forecast: list[dict[str, Any]], days: int = 3) -> float | None:
+def sum_forecast_rain(
+    forecast: list[dict[str, Any]],
+    days: int = 3,
+    *,
+    probability_adjusted: bool = False,
+) -> float | None:
     """Sum forecast precipitation for the next number of daily entries."""
     values: list[float] = []
     for item in forecast[:days]:
@@ -30,14 +35,25 @@ def sum_forecast_rain(forecast: list[dict[str, Any]], days: int = 3) -> float | 
         if value is None:
             value = item.get("native_precipitation")
         try:
-            values.append(max(0.0, float(value)))
+            amount = max(0.0, float(value))
+            if probability_adjusted:
+                try:
+                    probability = float(item.get("precipitation_probability", 100))
+                except (TypeError, ValueError):
+                    probability = 100.0
+                amount *= max(0.0, min(100.0, probability)) / 100
+            values.append(amount)
         except (TypeError, ValueError):
             continue
     return round(sum(values), 1) if values else None
 
 
 def sum_hourly_forecast_rain(
-    forecast: list[dict[str, Any]], hours: int, now: datetime | None = None
+    forecast: list[dict[str, Any]],
+    hours: int,
+    now: datetime | None = None,
+    *,
+    probability_adjusted: bool = False,
 ) -> float | None:
     """Sum precipitation inside a real timestamp window."""
     dated: list[tuple[datetime, dict[str, Any]]] = []
@@ -51,7 +67,9 @@ def sum_hourly_forecast_rain(
             continue
         dated.append((value, item))
     if not dated:
-        return sum_forecast_rain(forecast, hours)
+        return sum_forecast_rain(
+            forecast, hours, probability_adjusted=probability_adjusted
+        )
     dated.sort(key=lambda value: value[0])
     start = now or dated[0][0]
     if start.tzinfo is None and dated[0][0].tzinfo is not None:
@@ -64,6 +82,7 @@ def sum_hourly_forecast_rain(
     return sum_forecast_rain(
         [item for timestamp, item in dated if start <= timestamp < end],
         len(dated),
+        probability_adjusted=probability_adjusted,
     )
 
 
@@ -195,9 +214,10 @@ SOIL_PROFILES = {
 }
 
 
-def soil_capacity(soil_type: str) -> float:
+def soil_capacity(soil_type: str, root_depth_cm: float = 10.0) -> float:
     """Return the approximate plant-available root-zone water in mm."""
-    return float(SOIL_PROFILES.get(soil_type, SOIL_PROFILES["loamy"])["capacity_mm"])
+    base = float(SOIL_PROFILES.get(soil_type, SOIL_PROFILES["loamy"])["capacity_mm"])
+    return round(base * max(0.5, min(3.0, root_depth_cm / 10.0)), 2)
 
 
 def soil_profile(soil_type: str) -> dict[str, float]:
@@ -260,6 +280,7 @@ def penman_monteith_evapotranspiration(
     cloud_coverage: float,
     pressure_hpa: float | None = None,
     dew_point: float | None = None,
+    wind_measurement_height_m: float = 10.0,
 ) -> float:
     """Estimate daily reference ET with FAO-56 Penman-Monteith inputs."""
     t_min = min(temperature_min, temperature_max)
@@ -267,6 +288,9 @@ def penman_monteith_evapotranspiration(
     t_mean = (t_min + t_max) / 2
     relative_humidity = max(1.0, min(100.0, humidity))
     wind = max(0.0, min(25.0, wind_speed_m_s))
+    height = max(0.2, wind_measurement_height_m)
+    if abs(height - 2.0) > 0.01:
+        wind *= 4.87 / math.log(67.8 * height - 5.42)
     clouds = max(0.0, min(100.0, cloud_coverage))
 
     es = (_saturation_vapor_pressure(t_min) + _saturation_vapor_pressure(t_max)) / 2
@@ -308,6 +332,113 @@ def penman_monteith_evapotranspiration(
     return round(max(0.0, numerator / denominator), 2) if denominator else 0.0
 
 
+def interval_evapotranspiration(
+    *, daily_et_mm: float, end: datetime, interval_hours: float, latitude: float
+) -> float:
+    """Distribute daily ET with most loss occurring during daylight."""
+    if interval_hours <= 0 or daily_et_mm <= 0:
+        return 0.0
+    day_of_year = end.date().timetuple().tm_yday
+    phi = math.radians(max(-65.0, min(65.0, latitude)))
+    delta = 0.409 * math.sin(2 * math.pi * day_of_year / 365 - 1.39)
+    angle = math.acos(max(-1.0, min(1.0, -math.tan(phi) * math.tan(delta))))
+    daylight_hours = max(1.0, min(23.0, 24 * angle / math.pi))
+    sunrise = 12 - daylight_hours / 2
+    sunset = 12 + daylight_hours / 2
+    midpoint = end - timedelta(hours=interval_hours / 2)
+    local_hour = midpoint.hour + midpoint.minute / 60
+    is_daylight = sunrise <= local_hour < sunset
+    daily_share = 0.85 if is_daylight else 0.15
+    period_hours = daylight_hours if is_daylight else 24 - daylight_hours
+    return round(daily_et_mm * daily_share * interval_hours / period_hours, 4)
+
+
+def recommended_watering_window(
+    forecast: list[dict[str, Any]],
+    now: datetime,
+    *,
+    wind_speed_unit: str = "m/s",
+) -> dict[str, Any]:
+    """Choose a cool, calm and dry forecast hour for watering."""
+    candidates: list[tuple[float, datetime, dict[str, Any], float | None]] = []
+    for item in forecast:
+        raw_timestamp = item.get("datetime")
+        if not raw_timestamp:
+            continue
+        try:
+            timestamp = datetime.fromisoformat(
+                str(raw_timestamp).replace("Z", "+00:00")
+            )
+        except ValueError:
+            continue
+        reference = now
+        if timestamp.tzinfo is not None and reference.tzinfo is not None:
+            timestamp = timestamp.astimezone(reference.tzinfo)
+        elif timestamp.tzinfo is not None:
+            reference = reference.replace(tzinfo=timestamp.tzinfo)
+        elif reference.tzinfo is not None:
+            timestamp = timestamp.replace(tzinfo=reference.tzinfo)
+        if not reference <= timestamp <= reference + timedelta(hours=48):
+            continue
+        try:
+            precipitation = max(0.0, float(item.get("precipitation", 0)))
+        except (TypeError, ValueError):
+            precipitation = 0.0
+        try:
+            probability = max(
+                0.0, min(100.0, float(item.get("precipitation_probability", 0)))
+            )
+        except (TypeError, ValueError):
+            probability = 0.0
+        if precipitation >= 0.2 or probability >= 50:
+            continue
+        try:
+            temperature = float(item["temperature"])
+        except (KeyError, TypeError, ValueError):
+            temperature = None
+        try:
+            wind = max(0.0, float(item.get("wind_speed", 0)))
+        except (TypeError, ValueError):
+            wind = 0.0
+        normalized_unit = wind_speed_unit.lower()
+        if "km/h" in normalized_unit or "kmh" in normalized_unit:
+            wind /= 3.6
+        elif "mph" in normalized_unit:
+            wind *= 0.44704
+        elif "kn" in normalized_unit:
+            wind *= 0.514444
+        if wind > 6:
+            continue
+        hour_penalty = abs(timestamp.hour + timestamp.minute / 60 - 6)
+        if not 4 <= timestamp.hour < 10:
+            hour_penalty += 5
+        temperature_penalty = max(0.0, (temperature or 18.0) - 24) * 0.8
+        score = hour_penalty + wind * 1.5 + temperature_penalty + probability / 25
+        candidates.append((score, timestamp, item, wind))
+    if not candidates:
+        return {
+            "start": None,
+            "end": None,
+            "reason": "no_suitable_window",
+            "temperature": None,
+            "wind_speed_m_s": None,
+        }
+    _, start, item, wind = min(candidates, key=lambda candidate: candidate[0])
+    try:
+        temperature = round(float(item["temperature"]), 1)
+    except (KeyError, TypeError, ValueError):
+        temperature = None
+    return {
+        "start": start.isoformat(),
+        "end": (start + timedelta(hours=1)).isoformat(),
+        "reason": "cool_calm_dry_period"
+        if 4 <= start.hour < 10
+        else "best_available_period",
+        "temperature": temperature,
+        "wind_speed_m_s": round(wind, 1) if wind is not None else None,
+    }
+
+
 def update_soil_water_balance(
     *,
     water_mm: float,
@@ -318,16 +449,28 @@ def update_soil_water_balance(
     irrigation_mm: float = 0.0,
     reference_et_mm: float,
     crop_coefficient: float,
+    root_depth_cm: float = 10.0,
+    slope: str = "flat",
+    compaction: str = "normal",
+    interception_available_mm: float | None = None,
 ) -> dict[str, float]:
     """Update a bounded lawn root-zone balance with infiltration and ET stress."""
     profile = soil_profile(soil_type)
-    capacity = profile["capacity_mm"]
+    capacity = soil_capacity(soil_type, root_depth_cm)
     rain = max(0.0, precipitation_mm)
     hours = max(0.0, interval_hours)
-    interception = min(rain, profile["interception_mm"])
+    interception_limit = (
+        profile["interception_mm"]
+        if interception_available_mm is None
+        else max(0.0, interception_available_mm)
+    )
+    interception = min(rain, interception_limit)
     throughfall = max(0.0, rain - interception)
-    infiltration_limit = profile["infiltration_mm_per_hour"] * max(hours, 1 / 60)
-    if precipitation_intensity_mm_h <= profile["infiltration_mm_per_hour"]:
+    infiltration_rate = profile["infiltration_mm_per_hour"]
+    infiltration_rate *= 0.65 if compaction == "compacted" else 1.0
+    infiltration_rate *= {"flat": 1.0, "gentle": 0.85, "steep": 0.6}.get(slope, 1.0)
+    infiltration_limit = infiltration_rate * max(hours, 1 / 60)
+    if precipitation_intensity_mm_h <= infiltration_rate:
         infiltration_limit = throughfall
     infiltrated = min(throughfall, infiltration_limit)
     runoff = max(0.0, throughfall - infiltrated)
@@ -403,14 +546,18 @@ def growth_state(
     """Classify the vegetation phase of the lawn."""
     if growth_temperature is None:
         return "collecting_data"
-    drought_limit = 25 if previous_state == "heat_drought_stress" else 20
-    if soil_moisture_percent < drought_limit and growth_temperature >= 5:
-        return "heat_drought_stress"
     winter_limit = 6 if previous_state == "winter_dormancy" else 5
     if growth_temperature < winter_limit or (
         today.month in (11, 12, 1, 2) and growth_temperature < 7
     ):
         return "winter_dormancy"
+    drought_limit = 25 if previous_state == "heat_drought_stress" else 20
+    if (
+        today.month in range(3, 11)
+        and soil_moisture_percent < drought_limit
+        and growth_temperature >= 8
+    ):
+        return "heat_drought_stress"
     if today.month in (9, 10, 11) and growth_temperature < 10:
         return "autumn_slowdown"
     if today.month <= 5 and gts < 200:
@@ -529,6 +676,29 @@ def watering_recommendation(
         rain = rain_48h
     else:
         rain = rain_24h
+    probability_adjusted_rain_24h = (
+        sum_hourly_forecast_rain(hourly_forecast, 24, now, probability_adjusted=True)
+        if hourly_coverage_hours >= 24
+        else None
+    )
+    if probability_adjusted_rain_24h is None and forecast:
+        probability_adjusted_rain_24h = sum_forecast_rain(
+            forecast, 1, probability_adjusted=True
+        )
+    probability_adjusted_rain = (
+        sum_hourly_forecast_rain(
+            hourly_forecast,
+            72 if hourly_coverage_hours >= 72 else 48,
+            now,
+            probability_adjusted=True,
+        )
+        if hourly_coverage_hours >= 48
+        else None
+    )
+    if probability_adjusted_rain is None and forecast:
+        probability_adjusted_rain = sum_forecast_rain(
+            forecast, min(3, len(forecast)), probability_adjusted=True
+        )
     elapsed = days_since(last_watering, today)
     month = today.month
 
@@ -548,6 +718,7 @@ def watering_recommendation(
             "next_rain_at": next_forecast_rain_at(hourly_forecast, now),
             "hours_until_rain": None,
             "effective_rain_24h": 0.0,
+            "probability_adjusted_rain_24h": probability_adjusted_rain_24h,
             "expected_et_24h": round(max(0.0, expected_et_24h_mm), 1),
             "forecast_72h_estimated": (
                 hourly_coverage_hours < 72 and rain_72h is not None
@@ -600,8 +771,8 @@ def watering_recommendation(
         except ValueError:
             pass
     effective_rain_24h = (
-        max(0.0, rain_24h) * max(0.0, min(1.0, rain_efficiency))
-        if rain_24h is not None
+        max(0.0, probability_adjusted_rain_24h) * max(0.0, min(1.0, rain_efficiency))
+        if probability_adjusted_rain_24h is not None
         else 0.0
     )
     near_term_need = max(0.0, deficit + max(0.0, expected_et_24h_mm))
@@ -610,8 +781,8 @@ def watering_recommendation(
     )
     enough_later_rain = (
         (soil_moisture_percent is None or soil_moisture_percent >= 35.0)
-        and rain is not None
-        and rain * max(0.0, min(1.0, rain_efficiency)) >= 8.0
+        and probability_adjusted_rain is not None
+        and probability_adjusted_rain * max(0.0, min(1.0, rain_efficiency)) >= 8.0
     )
     enough_rain = enough_rain_24h or enough_later_rain
 
@@ -680,6 +851,7 @@ def watering_recommendation(
             round(hours_until_rain, 1) if hours_until_rain is not None else None
         ),
         "effective_rain_24h": round(effective_rain_24h, 1),
+        "probability_adjusted_rain_24h": probability_adjusted_rain_24h,
         "expected_et_24h": round(max(0.0, expected_et_24h_mm), 1),
         "forecast_72h_estimated": (hourly_coverage_hours < 72 and rain_72h is not None),
         "forecast_coverage_hours": coverage_hours,
@@ -754,6 +926,8 @@ def fertilizing_recommendation(
         dose = 35.0
     elif lawn_type == "ornamental":
         dose = 25.0
+    elif lawn_type == "shade":
+        dose = 22.0
 
     due = False
     status = "not_due"

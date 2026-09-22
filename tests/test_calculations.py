@@ -20,6 +20,7 @@ forecast_coverage_hours = _CALCULATIONS.forecast_coverage_hours
 grassland_temperature_increment = _CALCULATIONS.grassland_temperature_increment
 growth_state = _CALCULATIONS.growth_state
 hargreaves_evapotranspiration = _CALCULATIONS.hargreaves_evapotranspiration
+interval_evapotranspiration = _CALCULATIONS.interval_evapotranspiration
 lawn_status = _CALCULATIONS.lawn_status
 mower_recommendation = _CALCULATIONS.mower_recommendation
 mower_state = _CALCULATIONS.mower_state
@@ -27,6 +28,8 @@ next_forecast_rain_at = _CALCULATIONS.next_forecast_rain_at
 next_lawn_action = _CALCULATIONS.next_lawn_action
 penman_monteith_evapotranspiration = _CALCULATIONS.penman_monteith_evapotranspiration
 precipitation_rate_amounts = _CALCULATIONS.precipitation_rate_amounts
+recommended_watering_window = _CALCULATIONS.recommended_watering_window
+soil_capacity = _CALCULATIONS.soil_capacity
 sum_forecast_rain = _CALCULATIONS.sum_forecast_rain
 sum_hourly_forecast_rain = _CALCULATIONS.sum_hourly_forecast_rain
 update_soil_water = _CALCULATIONS.update_soil_water
@@ -616,3 +619,139 @@ def test_watering_amount_accounts_for_near_term_rain_and_et() -> None:
     assert result["status"] == "water_now"
     assert 5 <= result["mm"] < 20
     assert result["effective_rain_24h"] > 0
+
+
+def test_winter_dormancy_takes_priority_over_dry_soil() -> None:
+    """Dry modeled soil must not create heat stress during winter dormancy."""
+    assert (
+        growth_state(
+            today=date(2026, 1, 20),
+            gts=20,
+            growth_temperature=6,
+            soil_moisture_percent=15,
+            mower_started_year=None,
+        )
+        == "winter_dormancy"
+    )
+
+
+def test_interception_can_be_shared_across_rain_samples() -> None:
+    """A rain event must not refill canopy interception for every sample."""
+    water = 20.0
+    canopy = 0.0
+    effective = 0.0
+    for _ in range(4):
+        result = update_soil_water_balance(
+            water_mm=water,
+            soil_type="loamy",
+            precipitation_mm=0.25,
+            precipitation_intensity_mm_h=1,
+            interval_hours=0.25,
+            reference_et_mm=0,
+            crop_coefficient=0.8,
+            interception_available_mm=max(0.0, 0.35 - canopy),
+        )
+        water = result["water_mm"]
+        canopy += result["interception_mm"]
+        effective += result["effective_rain_mm"]
+    assert canopy == 0.35
+    assert effective == 0.65
+    assert water == 20.65
+
+
+def test_root_depth_scales_soil_capacity() -> None:
+    """A deeper active root zone stores proportionally more water."""
+    assert soil_capacity("loamy", 10) == 40
+    assert soil_capacity("loamy", 20) == 80
+
+
+def test_probability_adjusted_rain_is_used_for_decisions() -> None:
+    """A low probability shower must not fully suppress watering."""
+    now = datetime(2026, 7, 20, 8, tzinfo=timezone.utc)
+    hourly = [
+        {
+            "datetime": (now + timedelta(hours=hour)).isoformat(),
+            "precipitation": 0.5,
+            "precipitation_probability": 10,
+        }
+        for hour in range(24)
+    ]
+    result = watering_recommendation(
+        today=now.date(),
+        area_m2=100,
+        sun_exposure="sunny",
+        soil_type="loamy",
+        current_temperature=26,
+        forecast=[],
+        hourly_forecast=hourly,
+        last_watering=date(2026, 7, 10),
+        soil_moisture_percent=25,
+        soil_water_mm=10,
+        soil_capacity_mm=40,
+        growth="active_growth",
+        now=now,
+    )
+    assert result["rain_24h"] == 12
+    assert result["probability_adjusted_rain_24h"] == 1.2
+    assert result["status"] == "water_now"
+
+
+def test_watering_window_prefers_calm_morning() -> None:
+    """The recommendation chooses a dry calm morning forecast hour."""
+    now = datetime(2026, 7, 20, 12, tzinfo=timezone.utc)
+    forecast = [
+        {
+            "datetime": (now + timedelta(hours=hour)).isoformat(),
+            "temperature": 20 if hour == 18 else 27,
+            "wind_speed": 2 if hour == 18 else 5,
+            "precipitation": 0,
+            "precipitation_probability": 10,
+        }
+        for hour in range(1, 25)
+    ]
+    result = recommended_watering_window(forecast, now)
+    assert result["start"] == (now + timedelta(hours=18)).isoformat()
+    assert result["reason"] == "cool_calm_dry_period"
+
+
+def test_watering_window_uses_local_hour() -> None:
+    """A UTC forecast hour is ranked using the lawn's local morning time."""
+    local_timezone = timezone(timedelta(hours=2))
+    now = datetime(2026, 7, 20, 5, tzinfo=local_timezone)
+    forecast = [
+        {
+            "datetime": "2026-07-20T04:00:00+00:00",
+            "temperature": 17,
+            "wind_speed": 1,
+            "precipitation": 0,
+        }
+    ]
+    result = recommended_watering_window(forecast, now)
+    assert result["start"] == "2026-07-20T06:00:00+02:00"
+    assert result["reason"] == "cool_calm_dry_period"
+
+
+def test_daylight_evapotranspiration_exceeds_night_rate() -> None:
+    """Most daily evapotranspiration is assigned to daylight hours."""
+    noon = datetime(2026, 7, 20, 12, tzinfo=timezone.utc)
+    midnight = datetime(2026, 7, 20, 0, tzinfo=timezone.utc)
+    day = interval_evapotranspiration(
+        daily_et_mm=5, end=noon, interval_hours=1, latitude=51
+    )
+    night = interval_evapotranspiration(
+        daily_et_mm=5, end=midnight, interval_hours=1, latitude=51
+    )
+    assert day > night
+
+
+def test_shade_lawn_uses_reduced_fertilizer_dose() -> None:
+    """Shade lawn receives less fertilizer than a family lawn."""
+    result = fertilizing_recommendation(
+        today=date(2026, 5, 20),
+        gts=300,
+        area_m2=100,
+        lawn_type="shade",
+        last_fertilizing=None,
+    )
+    assert result["dose"] == 22
+    assert result["total_kg"] == 2.2

@@ -2,250 +2,89 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.1.0
+Version 3.2.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
 
-Diese Custom Integration bewertet einen Rasen aus den vorhandenen Daten der
-Home-Assistant-Integration **OpenWeatherMap**. Sie berechnet Wachstum,
-Grünlandtemperatursumme, eine modellierte Bodenfeuchte sowie Empfehlungen für
-Bewässerung und Düngung. Sie steuert weder Bewässerung noch Mähroboter selbst.
-
-## Voraussetzungen
-
-- Home Assistant 2026.4.0 oder neuer
-- eingerichtete OpenWeatherMap-Integration
-- empfohlen: OpenWeatherMap-Modus `v3.0`, weil dieser aktuelle Wetterdaten,
-  stündliche und tägliche Vorhersagen gemeinsam bereitstellt
-
-Es wird kein zusätzlicher OpenWeatherMap-API-Schlüssel benötigt. Die Integration
-liest ausschließlich bereits in Home Assistant vorhandene Entitäten und ruft
-Vorhersagen über `weather.get_forecasts` ab.
-
-## Funktionen
-
-- GUI-Einrichtung und GUI-Optionen
-- Auswahl und Prüfung einer OpenWeatherMap-Wetterentität
-- frei wählbarer Außentemperatursensor mit automatischem OpenWeatherMap-Fallback
-- automatische Nutzung eines aktiven OpenWeatherMap-Regensensors oder eines
-  optional ausgewählten Niederschlagssensors
-- auswählbare Auswertung als Rate, kumulativer Wert oder Einzelmenge
-- optionaler physischer Bodenfeuchtesensor zur sanften Modellkalibrierung
-- optionaler Bodentemperatursensor für die Vegetationsbestimmung
-- OpenWeatherMap-Vorhersage für Bewässerungsentscheidungen, getrennt von
-  tatsächlich gemessenem Regen
-- zeitstempelbasierte Regenauswertung; OpenWeatherMap v3.0 liefert 48 Stunden
-  stündlich, für 72 Stunden werden ergänzend Tagesdaten verwendet
-- optionale Binärsensoren für „Rasen wurde gemäht“ und „Rasen wurde bewässert“
-- Grünlandtemperatursumme mit der Gewichtung Januar 0,5, Februar 0,75 und ab
-  März 1,0
-- Wachstumsstatus:
-  - Daten werden gesammelt
-  - Winterruhe (Wachstumsstopp)
-  - Erstes Erwachen (zaghaftes Wachstum)
-  - Nachhaltiger Vegetationsbeginn (volles Wachstum)
-  - Aktives Wachstum
-  - Langsames Wachstum
-  - Wachstum verlangsamt (Herbst)
-  - Hitze- oder Trockenstress
-- eigener Mähroboterstatus mit konkreten Handlungsanweisungen, Saisonhinweisen
-  und dem letzten Mähdatum als Attribute
-- modellierte Bodenfeuchte in Prozent
-- erweitertes Verdunstungsmodell nach Penman-Monteith mit automatischem
-  Hargreaves-Samani-Rückfallverfahren
-- Bodenwasserbilanz mit Benetzungsverlust, Infiltration, Oberflächenabfluss,
-  Drainage und trockenheitsbedingter Begrenzung der Verdunstung
-- Bewässerungsempfehlung mit Zielmenge in mm und Litern
-- saisonale NPK-Empfehlung und Produktmenge
-- Diagnose-Download über Home Assistant
-- eigener Diagnosebereich mit Datenqualität, Modellvertrauen und Datenquellen
-- Sensor „Nächste Aktion“ als kompakte Handlungsempfehlung
-- Reparaturhinweise bei fehlenden Wetter- oder konfigurierten Eingangsdaten
-- Erkennung veralteter Vorhersagen nach drei Stunden
-- protokollierbare Pflegemaßnahmen mit tatsächlicher Wasser- oder Düngermenge
-  und rückgängig machbarer Ereignishistorie
-- automatische Migration einer Konfiguration aus Version 1.0.0
-- HACS-kompatible Repository-Struktur und Release-Workflow
-
-## Modellierte Bodenfeuchte
-
-Das Modell verwendet einen virtuellen Wasserspeicher in der durchwurzelten
-Bodenschicht:
-
-```text
-neuer Wasserstand = alter Wasserstand
-                    + wirksamer Regen
-                    + protokollierte Bewässerung
-                    - geschätzte Rasenverdunstung
-```
-
-Die Speichergröße und Infiltrationsleistung hängen von der Bodenart ab. Wenn
-Temperatur, Luftfeuchtigkeit, Wind und Bewölkung aktuell verfügbar sind, wird
-die Referenzverdunstung nach FAO-56 Penman-Monteith berechnet. Die
-Sonneneinstrahlung wird dabei aus Standort, Datum und Bewölkung geschätzt. Bei
-fehlenden Eingangswerten verwendet die Integration automatisch
-Hargreaves-Samani. Ein Rasen- und Sonnenlagenfaktor passt die
-Referenzverdunstung an den Rasen an.
-
-Gefallener Regen wird nicht vollständig als Bodenwasser behandelt. Je nach
-Bodenart und Regenintensität berücksichtigt das Modell Benetzungsverlust,
-Infiltration, Oberflächenabfluss und Drainage. Bei sehr trockenem Boden wird
-die tatsächliche Verdunstung gegenüber der potenziellen Verdunstung begrenzt.
-
-Zuerst verwendet das Modell einen ausdrücklich ausgewählten Niederschlagssensor.
-Ohne Auswahl sucht es automatisch nach einem aktiven OpenWeatherMap-Regensensor
-derselben Wetterkonfiguration. Ohne verfügbare Messquelle wird kein vermeintlicher
-Regen in den Bodenwasserspeicher eingetragen. Die bereits
-von Home Assistant zwischengespeicherte OpenWeatherMap-Vorhersage wird nur für
-die Bewässerungsempfehlung verwendet. Die Modellqualität wird abhängig von der
-verfügbaren Datenquelle als `high`, `medium` oder `low` gekennzeichnet. Wird der optionale
-Binärsensor „Rasen wurde bewässert“ eingeschaltet, ergänzt die Integration die
-berechnete Wassermenge beziehungsweise die konfigurierbare Standardmenge im
-virtuellen Speicher.
-
-Der Wert `forecast_rain_mm` bezeichnet die Summe der ersten drei täglichen
-Vorhersagezeiträume. Die Integration ruft OpenWeatherMap nicht selbst auf:
-`weather.get_forecasts` liest den Cache der offiziellen Home-Assistant-
-Integration. Der Forecast wird im Rasenpflege-Assistenten zusätzlich eine
-Stunde lang zwischengespeichert. Nach drei Stunden ohne erfolgreiche
-Aktualisierung gilt die Vorhersage als veraltet und die Datenqualität wird als
-unzureichend bewertet.
-
-Die modellierte Bodenfeuchte ist kein Ersatz für einen Bodensensor. Schatten,
-Gefälle, Bodenverdichtung, Dachüberstände und lokale Schauer können zu
-Abweichungen führen. Über **Konfigurieren → Modellierte Bodenfeuchte neu
-kalibrieren** kann der virtuelle Speicher korrigiert werden.
-
-## Wachstums- und Mähroboterlogik
-
-Der Wachstumsstatus kombiniert:
-
-- Grünlandtemperatursumme
-- mittlere Temperatur der letzten sieben vollständigen Tage
-- Jahreszeit
-- modellierte Bodenfeuchte
-- Bestätigung, ob die Mähsaison bereits gestartet wurde
-
-Als Frühjahrsrichtwert dient eine Grünlandtemperatursumme von 200. Werden
-zusätzlich etwa 8 °C im Sieben-Tage-Mittel erreicht und besteht kein
-Trockenstress, meldet der Mähroboterstatus **Mähroboter wieder starten**. Danach
-entweder die Schaltfläche **Mähen protokollieren** drücken oder den optionalen
-Binärsensor „Rasen wurde gemäht“ kurz einschalten. Das Ereignis speichert zugleich
-das letzte Mähdatum und bestätigt den Saisonstart. Der Hinweis bleibt für den
-Rest des Kalenderjahres quittiert und wird am 1. Januar zurückgesetzt.
-
-Im Herbst wird bei sinkender Sieben-Tage-Temperatur zunächst
-**Mähhäufigkeit im Herbst reduzieren** gemeldet. Bei einem Wachstumsstopp folgt
-**Für den Winter abschalten**. Trockenstress führt unabhängig von der
-Jahreszeit zur Empfehlung, das Mähen vorübergehend zu pausieren.
-
-## Außentemperaturquelle
-
-Unter **Konfigurieren** kann ein beliebiger Home-Assistant-Temperatursensor als
-lokale Außentemperatur gewählt werden. Solange dieser einen gültigen Wert
-liefert, hat er Vorrang. Ohne Auswahl oder bei `unavailable`/`unknown` verwendet
-die Integration automatisch die aktuelle Temperatur der ausgewählten
-OpenWeatherMap-Wetterentität. Die tatsächlich verwendete Entität steht als
-Attribut `temperature_source` am Wachstums- und Mähroboterstatus.
+Diese Integration bewertet Wachstum und Pflegebedarf deines Rasens aus den
+vorhandenen OpenWeatherMap-Daten in Home Assistant. Sie berechnet die
+Grünlandtemperatursumme, modellierte Bodenfeuchte sowie Empfehlungen zum
+Bewässern, Düngen und Mähen. Sie schaltet weder Bewässerung noch Mähroboter.
 
 ## Installation
 
-### Installation über HACS
+Benötigt werden Home Assistant 2026.4.0 oder neuer und eine eingerichtete
+OpenWeatherMap-Integration. Der Modus `v3.0` bietet aktuelle Wetterdaten sowie
+stündliche und tägliche Vorhersagen.
 
-1. In HACS **Integrationen** öffnen.
-2. Über das Drei-Punkte-Menü **Benutzerdefinierte Repositories** wählen.
-3. Als Repository
+1. In **HACS → Integrationen → Benutzerdefinierte Repositories** die Adresse
    `https://github.com/sisimon1904/home-assistant-rasenpflege-assistent`
-   und als Kategorie **Integration** eintragen.
-4. Den Rasenpflege-Assistenten herunterladen und Home Assistant neu starten.
-5. Unter **Einstellungen → Geräte & Dienste → Integration hinzufügen** nach
-   **Rasenpflege-Assistent** suchen.
+   mit der Kategorie **Integration** eintragen.
+2. **Rasenpflege-Assistent** installieren und Home Assistant neu starten.
+3. Unter **Einstellungen → Geräte & Dienste → Integration hinzufügen** den
+   **Rasenpflege-Assistenten** wählen und die OpenWeatherMap-Wetterentität
+   angeben.
 
-### Manuelle Installation
+Alternativ den Ordner `custom_components/rasenpflege_assistent` nach
+`/config/custom_components/rasenpflege_assistent` kopieren und Home Assistant
+neu starten. Updates per HACS erfordern veröffentlichte GitHub-Releases.
 
-1. Den Ordner `custom_components/rasenpflege_assistent` vollständig nach
-   `/config/custom_components/rasenpflege_assistent` kopieren.
-2. Home Assistant neu starten.
-3. **Einstellungen → Geräte & Dienste → Integration hinzufügen** öffnen.
-4. Nach **Rasenpflege-Assistent** suchen.
-5. OpenWeatherMap-Wetterentität, optionale Ereignissensoren und Rasenparameter
-   auswählen.
+## Einrichtung und Datenquellen
 
-## Aktualisierung von Version 1.0.0
+Pro Rasen lassen sich Fläche, Nutzung, Bodenart, Sonnenlage, Wurzeltiefe,
+Gefälle, Verdichtung, Bewässerungseffizienz und Regenkorrektur einstellen.
+Optional sind Außentemperatur, Niederschlag, Bodentemperatur und Bodenfeuchte
+als separate Sensoren wählbar. Fehlt ein Außentemperatursensor, verwendet die
+Integration OpenWeatherMap. Ohne ausdrücklich ausgewählten Regensensor sucht
+sie einen aktiven OpenWeatherMap-Regensensor derselben Wetterkonfiguration.
 
-1. Den vorhandenen Ordner
-   `/config/custom_components/rasenpflege_assistent` ersetzen.
-2. Home Assistant neu starten.
-3. Beim nächsten Start migriert Home Assistant den Konfigurationseintrag
-  automatisch auf Version 6.
-4. Danach unter **Einstellungen → Geräte & Dienste → Rasenpflege-Assistent →
-   Konfigurieren** die anfängliche Bodenfeuchte prüfen. Ab Version 1.2.0 kann
-   dort zusätzlich ein lokaler Außentemperatursensor ausgewählt werden.
+Ein physischer Bodenfeuchtesensor lässt sich mit Trocken- und Nassreferenzen
+kalibrieren. Optionale Binärsensoren für **Rasen wurde gemäht** und **Rasen wurde
+bewässert** protokollieren eine Aus→Ein-Flanke; ohne sie stehen die manuellen
+Schaltflächen zur Verfügung. Bewässerung und Düngung lassen sich auch mit
+tatsächlichen Mengen protokollieren und das letzte Ereignis rückgängig machen.
 
-## Änderungen in Version 1.3.0
-
-- Die früheren Entitäten „Düngeempfehlung“ und „Status“ sind im neuen
-  **Pflegestatus** zusammengeführt. NPK-Typ, Dosierung, Gesamtmenge, Zeitfenster
-  und Begründungen bleiben als Attribute erhalten.
-- „Mähroboterstart empfohlen“ und „Mähroboter kann abgeschaltet werden“ sind nun
-  Attribute des **Mähroboterstatus**. Die alten doppelten Entitäten werden beim
-  Start entfernt.
-- Wachstums-, Pflege- und Mähroboterstatus liefern das Attribut `icon_color` für
-  Dashboard-Karten, die dynamische Symbolfarben unterstützen. Das normale
-  Home-Assistant-Entitätsmodell kann eine Symbolfarbe nicht selbst erzwingen.
-- Optionale Binärsensoren protokollieren Mähen und Bewässern automatisch bei
-  einer Aus→Ein-Flanke. Ist ein Sensor nicht konfiguriert, bleibt die passende
-  manuelle Schaltfläche erhalten.
-
-## Fehlerbehebung in Version 1.3.1
-
-- Behebt einen Einrichtungsfehler durch die irrtümliche Übergabe von
-  `last_mowing` an die Berechnung der Düngeempfehlung.
-
-## Automatische Updates mit HACS
-
-Neue stabile Versionen werden als GitHub-Releases wie `v2.0.0` veröffentlicht.
-Eine über HACS installierte Kopie zeigt diese anschließend als Update an. Eine
-nur manuell nach `custom_components` kopierte Integration kann Home Assistant
-nicht selbst aus dem Internet aktualisieren.
+Die Integration benötigt keinen weiteren OpenWeatherMap-API-Schlüssel. Sie
+liest vorhandene Entitäten und ruft Vorhersagen über Home Assistants
+`weather.get_forecasts` ab, ohne OpenWeatherMap direkt anzufragen.
 
 ## Wichtige Entitäten
 
-- Pflegestatus
-- Wachstumsstatus
-- Mähroboterstatus
-- Modellierte Bodenfeuchte
-- Grünlandtemperatursumme
-- Bewässerungsempfehlung
-- Nächste Aktion
-- Datenqualität und Modellvertrauen
-- empfohlene Wassermenge
-- empfohlene Düngermenge
-- Mähen protokollieren (wenn kein automatischer Binärsensor gewählt ist)
-- Bewässerung protokollieren (wenn kein automatischer Binärsensor gewählt ist)
-- Düngung protokollieren
-- Letzte Pflegemaßnahme rückgängig machen (standardmäßig deaktiviert)
+| Entität | Inhalt |
+| --- | --- |
+| Wachstumsstatus | Winterruhe, Erwachen, Wachstum, Herbst oder Trockenstress; Symbolfarbe als Attribut `icon_color` |
+| Pflegestatus | Wichtigster Pflegebedarf mit Düngeempfehlung, NPK, Dosis und Produktmenge als Attributen |
+| Mähroboterstatus | Start, regelmäßiges Mähen, Pause oder Winterabschaltung; nächstes Mähen als Attribut |
+| Modellierte Bodenfeuchte | Geschätzte Feuchte, Wasservorrat und Wasserbilanz |
+| Bewässerungsempfehlung | Zeitpunkt, mm, Liter, Regenprognose und empfohlenes Zeitfenster |
+| Grünlandtemperatursumme | Vegetationsindikator mit Angaben zur Vollständigkeit |
+| Nächste Aktion | Kompakte Handlungsempfehlung |
 
-## Änderungen in Version 2.0.0
+Diagnose-Entitäten zeigen Datenqualität, Modellvertrauen, Quellen,
+Vorhersagealter, Verdunstungsverfahren und weitere Modellwerte. Einige sind
+standardmäßig deaktiviert und können in Home Assistant aktiviert werden.
 
-- Python-Quellcode und interne Zustände sind vollständig englisch. Deutsche und
-  englische Anzeigen werden über Home-Assistant-Übersetzungen bereitgestellt.
-- Gemessener und vorhergesagter Niederschlag werden getrennt behandelt.
-- Optionaler Niederschlagssensor für `mm` oder `mm/h`.
-- Die Bewässerungsmenge wird aus dem modellierten Wasserdefizit berechnet.
-- Die Standardmenge einer protokollierten Bewässerung ist konfigurierbar.
-- Der Mähroboterstatus berücksichtigt das letzte Mähen und liefert empfohlenes
-  Intervall sowie nächsten Mähtermin.
-- Wetterdatenquelle, Forecast-Zeitpunkt und Modellvertrauen sind als Attribute
-  verfügbar.
-- Bestehende Konfigurationen werden automatisch auf Konfigurationsversion 4
-  migriert. Durch die neuen englischen Rohzustände müssen Automationen, die
-  bisher deutsche Zustandstexte verglichen haben, angepasst werden.
+## Bodenwasser und Grenzen
 
-### Dynamische Symbolfarben mit Mushroom
+Das Modell führt einen virtuellen Wasserspeicher: wirksamer gemessener Regen
+und protokollierte Bewässerung füllen ihn; geschätzte Verdunstung leert ihn.
+Dabei berücksichtigt es Bodenart, Wurzeltiefe, Blattbenetzung, Versickerung,
+Abfluss und Wasserstress. Die Verdunstung stammt aus Penman-Monteith mit
+geschätzter Strahlung oder bei fehlenden Eingangswerten aus Hargreaves-Samani.
+Die Regenwahrscheinlichkeit beeinflusst nur die Empfehlung; vorhergesagter
+Regen wird niemals als tatsächlich gefallener Regen verbucht.
 
-Die Attribute `icon_color` können beispielsweise so verwendet werden:
+Ohne Messwert für gefallenen Regen bleibt dessen Anteil in der Bodenbilanz
+unbekannt. Lokale Schauer, Bodenunterschiede und Schatten können vom Modell
+abweichen. Bei Bedarf die Bodenfeuchte über **Konfigurieren → Modellierte
+Bodenfeuchte neu kalibrieren** korrigieren. NPK und Produktmenge sind
+Richtwerte; Herstellerdosierung und Bodenanalyse haben Vorrang.
+
+## Anzeige auf dem Dashboard
+
+Home-Assistant-Sensoren setzen ihre Symbolfarbe nicht selbst. Eine
+Mushroom-Template-Karte kann das Attribut `icon_color` verwenden:
 
 ```yaml
 type: custom:mushroom-template-card
@@ -258,105 +97,7 @@ tap_action:
   action: more-info
 ```
 
-`states(entity)` liefert bei übersetzbaren Enum-Sensoren den stabilen englischen
-Rohzustand. `state_translated(entity)` zeigt dagegen den zur Sprache des
-Home-Assistant-Benutzers passenden Zustand an.
+`state_translated(entity)` zeigt den übersetzten Zustand; `states(entity)`
+liefert den englischen Rohzustand für Automationen.
 
-## Änderungen in Version 2.0.1
-
-- Deutsche README bleibt die Standardansicht auf GitHub und in HACS.
-- Eine vollständige englische README ist über die Sprachauswahl erreichbar.
-- Statische Metadaten verwenden den englischen Namen `Lawn Care Assistant`;
-  Home Assistant zeigt über seine Übersetzungen weiterhin
-  **Rasenpflege-Assistent** an.
-- Veraltete Angaben zur Konfigurationsversion und Standard-Bewässerungsmenge
-  wurden korrigiert.
-- Das Mushroom-Beispiel verwendet den übersetzten Zustand.
-
-## Änderungen in Version 2.1.0
-
-- Stündliche OpenWeatherMap-Vorhersagen werden für die kommenden 24, 48 und
-  72 Stunden ausgewertet, ohne OpenWeatherMap direkt abzufragen.
-- Ein optionaler physischer Bodenfeuchtesensor gleicht das Bodenmodell höchstens
-  alle sechs Stunden mit 25 % Annäherung an den Messwert an.
-- Der neue Sensor **Nächste Aktion** fasst die wichtigste anstehende Maßnahme
-  zusammen.
-- Diagnose-Entitäten zeigen Datenqualität, Modellvertrauen, Forecast-Alter,
-  Niederschlag, Datenquellen, Bodenwasservorrat und Verdunstung.
-- Home Assistant erzeugt Reparaturhinweise, wenn Temperatur, Vorhersagen oder
-  konfigurierte Eingangssensoren nicht verfügbar sind.
-- Bestehende Konfigurationen werden automatisch auf Konfigurationsversion 5
-  migriert.
-
-## Änderungen in Version 2.1.1
-
-- Die modellierte Bodenfeuchte wird bei jeder Aktualisierung fortgeschrieben;
-  Verdunstung und gemessener Regen wirken nicht mehr erst am Tageswechsel.
-- Vorhergesagter Regen wird nicht mehr als tatsächlich gefallener Regen in das
-  Bodenmodell übernommen.
-- Die Bewässerungsempfehlung unterscheidet jetzt zwischen
-  **Bodenfeuchte ausreichend**, **Bald wässern**, **Jetzt wässern**,
-  **Auf Regen warten** und **Saisonpause**.
-- Das Datum der letzten Bewässerung ergänzt wieder die Bodenfeuchtebewertung.
-- Die modellierte Bodenfeuchte wird mit einer Nachkommastelle angezeigt.
-- Diagnoseattribute zeigen Forecast-Abdeckung, letzte Modellaktualisierung und
-  erkannte Zeitlücken.
-- Pflegestatus und Wachstumsstatus verwenden eine konsistente Vegetationsphase.
-- Die doppelten Binärsensoren für Bewässerung und Düngung gelten als veraltet
-  und sind bei neuen Installationen standardmäßig deaktiviert. Ihre booleschen
-  Werte stehen als Attribute der jeweiligen Statussensoren bereit.
-
-## Grenzen
-
-Das Bodenmodell ist eine nachvollziehbare Schätzung, keine Messung. Die
-Düngermenge bezeichnet die ungefähre Produktmenge und nicht die reine
-Nährstoffmenge. Maßgeblich bleiben die Herstellerdosierung, eine Bodenanalyse
-und örtliche Vorschriften. Nicht auf gefrorenem, ausgetrocknetem oder
-wassergesättigtem Rasen düngen.
-
-## Änderungen in Version 3.1.0
-
-- Penman-Monteith nutzt vorhandene OpenWeatherMap-Werte für Luftfeuchtigkeit,
-  Wind, Luftdruck, Taupunkt und Bewölkung ohne zusätzliche direkte API-Abfrage.
-- Hargreaves-Samani bleibt als automatisches Rückfallverfahren erhalten.
-- Das Bodenmodell berücksichtigt Infiltration, Benetzungsverlust,
-  Oberflächenabfluss, Drainage und Trockenstress.
-- Frische Zeitstempel verhindern, dass veraltete Regenraten weitergezählt
-  werden.
-- Erwarteter wirksamer Regen reduziert die empfohlene Bewässerungsmenge.
-- Diagnosewerte zeigen Verdunstungsverfahren, Wetteralter und Komponenten der
-  Wasserbilanz.
-- Automatische Pflegeereignisse werden gegen Mehrfachauslösung geschützt.
-- Das Rückgängigmachen einer Bewässerung verwirft keine späteren natürlichen
-  Änderungen des Bodenwasservorrats mehr.
-
-## Änderungen in Version 3.0.1
-
-- Vergangene Vorhersagewerte werden nicht mehr als zukünftiger Regen gezählt.
-- Stündliche und tägliche Vorhersagen werden getrennt auf Aktualität geprüft.
-- Nach einem Ausfall sowie beim Wechsel von Niederschlagsquelle oder Messmodus
-  wird eine sichere neue Messbasis gesetzt.
-- Regenmengen über Mitternacht werden dem richtigen Tag zugeordnet.
-- Datumsfelder können in den Optionen zuverlässig geleert und Rasen
-  vollständig umbenannt werden.
-- Manuelle Pflege-Schaltflächen bleiben auch bei konfigurierten
-  Eingangs-Binärsensoren erhalten.
-- Diagnose, Einheiten und Statistikdefinitionen wurden korrigiert.
-
-## Änderungen in Version 3.0.0
-
-- Das Bodenmodell berechnet nach Neustarts bis zu 24 Stunden Verdunstung nach.
-- Ein aktiver OpenWeatherMap-Regensensor wird automatisch gefunden, sofern kein
-  eigener Niederschlagssensor ausgewählt wurde.
-- Die Art des Niederschlagssensors kann automatisch erkannt oder fest als Rate,
-  kumulativer Wert beziehungsweise Einzelmenge vorgegeben werden.
-- Forecast-Zeitfenster werden aus Zeitstempeln berechnet und veraltete Daten
-  nach drei Stunden erkannt.
-- Pflegestatus unterscheiden eindeutig zwischen „Bald wässern“, „Jetzt
-  wässern“, „Auf Regen warten“, Trockenstress, Düngung und Mähen.
-- Hysterese stabilisiert Wachstums- und Trockenstresszustände.
-- Ein optionaler Bodentemperatursensor verbessert die Vegetationsbestimmung.
-- Neue Home-Assistant-Aktionen protokollieren Bewässerung, Düngung und Mähen;
-  die letzte Pflegemaßnahme kann rückgängig gemacht werden.
-- Die alten doppelten Binärsensoren werden bei der Migration entfernt.
-- Konfigurationseinträge werden automatisch auf Version 6 migriert.
+Für Einzelheiten früherer Versionen siehe den [Änderungsverlauf](CHANGELOG.md).

@@ -23,7 +23,14 @@
           "last_watering": "Last watering (optional)",
           "last_fertilizing": "Last fertilizing (optional)",
           "initial_gts": "Current grassland temperature sum (0 for automatic start)",
-          "initial_soil_moisture": "Estimated initial soil moisture"
+          "initial_soil_moisture": "Estimated initial soil moisture",
+          "root_depth_cm": "Effective root depth",
+          "slope": "Surface slope",
+          "compaction": "Soil compaction",
+          "irrigation_efficiency": "Irrigation efficiency",
+          "rain_correction": "Observed rain correction factor",
+          "soil_sensor_dry": "Soil sensor dry reference",
+          "soil_sensor_wet": "Soil sensor wet reference"
         },
         "data_description": {
           "initial_gts": "If installing during the year, enter a known starting value here. From the next January 1, the integration starts automatically at 0.",
@@ -35,7 +42,14 @@
           "soil_moisture_entity": "Gently calibrates the modeled soil reservoir toward the measured percentage every six hours. Without a sensor, the model continues independently.",
           "soil_temperature_entity": "When selected, soil temperature takes priority for vegetation-state decisions.",
           "default_watering_amount": "Amount added to the soil model when watering is recorded and no calculated recommendation is available.",
-          "initial_soil_moisture": "Starting value of the virtual soil reservoir. For normal loamy soil, 70% is a reasonable initial estimate."
+          "initial_soil_moisture": "Starting value of the virtual soil reservoir. For normal loamy soil, 70% is a reasonable initial estimate.",
+          "root_depth_cm": "Effective depth of the active lawn root zone. Ten centimeters preserves the previous model behavior.",
+          "slope": "A steeper surface reduces infiltration during intense rain.",
+          "compaction": "Compacted soil accepts water more slowly and produces more runoff.",
+          "irrigation_efficiency": "Fraction of applied irrigation that reaches the modeled root zone.",
+          "rain_correction": "Corrects systematic over- or underestimation of the observed rain source. 1.0 leaves it unchanged.",
+          "soil_sensor_dry": "Raw percentage shown by the physical sensor in dry soil.",
+          "soil_sensor_wet": "Raw percentage shown by the physical sensor near field capacity. Must be greater than the dry reference."
         }
       }
     },
@@ -43,7 +57,8 @@
       "not_openweathermap": "The selected entity is not provided by the OpenWeatherMap integration.",
       "weather_data_unavailable": "The OpenWeatherMap entity does not provide a current temperature. Prefer mode v3.0 and verify that the entity is available.",
       "name_already_configured": "Another lawn already uses this name.",
-      "name_required": "Enter a name for the lawn."
+      "name_required": "Enter a name for the lawn.",
+      "soil_sensor_range_invalid": "The wet sensor reference must be greater than the dry reference."
     },
     "abort": {
       "already_configured": "A lawn with this name is already configured."
@@ -72,7 +87,14 @@
           "last_watering": "Correct last watering date",
           "last_fertilizing": "Correct last fertilizing date",
           "initial_gts": "Correct current grassland temperature sum",
-          "initial_soil_moisture": "Recalibrate modeled soil moisture"
+          "initial_soil_moisture": "Recalibrate modeled soil moisture",
+          "root_depth_cm": "Effective root depth",
+          "slope": "Surface slope",
+          "compaction": "Soil compaction",
+          "irrigation_efficiency": "Irrigation efficiency",
+          "rain_correction": "Observed rain correction factor",
+          "soil_sensor_dry": "Soil sensor dry reference",
+          "soil_sensor_wet": "Soil sensor wet reference"
         }
       }
     },
@@ -80,14 +102,17 @@
       "not_openweathermap": "The selected entity is not provided by the OpenWeatherMap integration.",
       "weather_data_unavailable": "The OpenWeatherMap entity does not provide a current temperature. Prefer mode v3.0 and verify that the entity is available.",
       "name_already_configured": "Another lawn already uses this name.",
-      "name_required": "Enter a name for the lawn."
+      "name_required": "Enter a name for the lawn.",
+      "soil_sensor_range_invalid": "The wet sensor reference must be greater than the dry reference."
     }
   },
   "selector": {
     "sun_exposure": {"options": {"sunny": "Sunny", "partial_shade": "Partial shade", "shade": "Shade"}},
     "lawn_type": {"options": {"family": "Family lawn", "play": "Heavily used play lawn", "ornamental": "Ornamental lawn", "shade": "Shade lawn"}},
     "soil_type": {"options": {"sandy": "Sandy", "loamy": "Balanced loam", "clayey": "Clayey"}},
-    "precipitation_mode": {"options": {"auto": "Automatic", "rate": "Rate (for example mm/h)", "cumulative": "Cumulative total", "increment": "Amount per state update"}}
+    "precipitation_mode": {"options": {"auto": "Automatic", "rate": "Rate (for example mm/h)", "cumulative": "Cumulative total", "increment": "Amount per state update"}},
+    "slope": {"options": {"flat": "Flat", "gentle": "Gentle slope", "steep": "Steep slope"}},
+    "compaction": {"options": {"normal": "Normal", "compacted": "Compacted"}}
   },
   "entity": {
     "sensor": {

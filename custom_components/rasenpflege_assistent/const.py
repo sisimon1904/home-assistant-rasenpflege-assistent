@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 DOMAIN = "rasenpflege_assistent"
-INTEGRATION_VERSION = "3.1.0"
+INTEGRATION_VERSION = "3.2.0"
 PLATFORMS = ["sensor", "button"]
 
 CONF_NAME = "name"
@@ -26,6 +26,13 @@ CONF_LAST_WATERING = "last_watering"
 CONF_LAST_FERTILIZING = "last_fertilizing"
 CONF_INITIAL_GTS = "initial_gts"
 CONF_INITIAL_SOIL_MOISTURE = "initial_soil_moisture"
+CONF_ROOT_DEPTH = "root_depth_cm"
+CONF_SLOPE = "slope"
+CONF_COMPACTION = "compaction"
+CONF_IRRIGATION_EFFICIENCY = "irrigation_efficiency"
+CONF_RAIN_CORRECTION = "rain_correction"
+CONF_SOIL_SENSOR_DRY = "soil_sensor_dry"
+CONF_SOIL_SENSOR_WET = "soil_sensor_wet"
 
 DEFAULT_NAME = "Lawn"
 DEFAULT_AREA = 100.0
@@ -36,6 +43,13 @@ DEFAULT_INITIAL_GTS = 0.0
 DEFAULT_INITIAL_SOIL_MOISTURE = 70.0
 DEFAULT_WATERING_AMOUNT = 15.0
 DEFAULT_PRECIPITATION_MODE = "auto"
+DEFAULT_ROOT_DEPTH = 10.0
+DEFAULT_SLOPE = "flat"
+DEFAULT_COMPACTION = "normal"
+DEFAULT_IRRIGATION_EFFICIENCY = 0.85
+DEFAULT_RAIN_CORRECTION = 1.0
+DEFAULT_SOIL_SENSOR_DRY = 0.0
+DEFAULT_SOIL_SENSOR_WET = 100.0
 
 UPDATE_INTERVAL = timedelta(minutes=30)
 FORECAST_CACHE_INTERVAL = timedelta(hours=1)
@@ -118,3 +132,11 @@ ATTR_HOURS_UNTIL_RAIN = "hours_until_rain"
 ATTR_EXPECTED_ET_24H = "expected_et_24h_mm"
 ATTR_FORECAST_72H_ESTIMATED = "forecast_72h_estimated"
 ATTR_LAST_MAINTENANCE_EVENT = "last_maintenance_event"
+ATTR_PROBABILITY_ADJUSTED_RAIN = "probability_adjusted_rain_24h_mm"
+ATTR_WATERING_WINDOW_START = "watering_window_start"
+ATTR_WATERING_WINDOW_END = "watering_window_end"
+ATTR_WATERING_WINDOW_REASON = "watering_window_reason"
+ATTR_WATERING_WINDOW_TEMPERATURE = "watering_window_temperature"
+ATTR_WATERING_WINDOW_WIND_SPEED = "watering_window_wind_speed_m_s"
+ATTR_GTS_COMPLETE = "gts_complete"
+ATTR_MISSING_TEMPERATURE_DAYS = "missing_temperature_days"

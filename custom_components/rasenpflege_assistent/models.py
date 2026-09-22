@@ -71,6 +71,12 @@ class LawnData:
     hours_until_rain: float | None = None
     expected_et_24h_mm: float = 0.0
     forecast_72h_estimated: bool = False
+    probability_adjusted_rain_24h_mm: float | None = None
+    watering_window_start: str | None = None
+    watering_window_end: str | None = None
+    watering_window_reason: str | None = None
+    watering_window_temperature: float | None = None
+    watering_window_wind_speed_m_s: float | None = None
     soil_model_confidence: str = "low"
     next_action: str = "collecting_data"
     data_quality: str = "insufficient"
@@ -85,6 +91,8 @@ class LawnData:
     precipitation_mode: str = "auto"
     soil_temperature: float | None = None
     last_maintenance_event: dict[str, Any] | None = None
+    gts_complete: bool = True
+    missing_temperature_days: int = 0
 
 
 @dataclass(slots=True)
@@ -125,7 +133,12 @@ class RuntimeState:
     daily_runoff_mm: float = 0.0
     daily_drainage_mm: float = 0.0
     daily_interception_mm: float = 0.0
-    water_model_version: int = 2
+    water_model_version: int = 3
+    canopy_storage_mm: float = 0.0
+    last_rain_at: str | None = None
+    configured_soil_type: str | None = None
+    configured_root_depth_cm: float = 10.0
+    missing_temperature_days: int = 0
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable representation."""
@@ -167,4 +180,9 @@ class RuntimeState:
             "daily_drainage_mm": self.daily_drainage_mm,
             "daily_interception_mm": self.daily_interception_mm,
             "water_model_version": self.water_model_version,
+            "canopy_storage_mm": self.canopy_storage_mm,
+            "last_rain_at": self.last_rain_at,
+            "configured_soil_type": self.configured_soil_type,
+            "configured_root_depth_cm": self.configured_root_depth_cm,
+            "missing_temperature_days": self.missing_temperature_days,
         }

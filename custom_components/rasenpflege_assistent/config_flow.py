@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 from typing import Any
+from uuid import uuid4
 
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.config_entries import ConfigFlowResult, OptionsFlowWithReload
+from homeassistant.config_entries import ConfigFlowResult
+
+try:
+    from homeassistant.config_entries import OptionsFlowWithReload
+except ImportError:  # Compatibility with older Home Assistant test runtimes.
+    from homeassistant.config_entries import OptionsFlow as OptionsFlowWithReload
 from homeassistant.const import UnitOfArea
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
@@ -15,9 +21,11 @@ from homeassistant.helpers import selector
 
 from .const import (
     CONF_AREA,
+    CONF_COMPACTION,
     CONF_DEFAULT_WATERING_AMOUNT,
     CONF_INITIAL_GTS,
     CONF_INITIAL_SOIL_MOISTURE,
+    CONF_IRRIGATION_EFFICIENCY,
     CONF_LAST_FERTILIZING,
     CONF_LAST_WATERING,
     CONF_LAWN_TYPE,
@@ -25,7 +33,12 @@ from .const import (
     CONF_NAME,
     CONF_PRECIPITATION_ENTITY,
     CONF_PRECIPITATION_MODE,
+    CONF_RAIN_CORRECTION,
+    CONF_ROOT_DEPTH,
+    CONF_SLOPE,
     CONF_SOIL_MOISTURE_ENTITY,
+    CONF_SOIL_SENSOR_DRY,
+    CONF_SOIL_SENSOR_WET,
     CONF_SOIL_TEMPERATURE_ENTITY,
     CONF_SOIL_TYPE,
     CONF_SUN_EXPOSURE,
@@ -33,11 +46,18 @@ from .const import (
     CONF_WATERED_ENTITY,
     CONF_WEATHER_ENTITY,
     DEFAULT_AREA,
+    DEFAULT_COMPACTION,
     DEFAULT_INITIAL_GTS,
     DEFAULT_INITIAL_SOIL_MOISTURE,
+    DEFAULT_IRRIGATION_EFFICIENCY,
     DEFAULT_LAWN_TYPE,
     DEFAULT_NAME,
     DEFAULT_PRECIPITATION_MODE,
+    DEFAULT_RAIN_CORRECTION,
+    DEFAULT_ROOT_DEPTH,
+    DEFAULT_SLOPE,
+    DEFAULT_SOIL_SENSOR_DRY,
+    DEFAULT_SOIL_SENSOR_WET,
     DEFAULT_SOIL_TYPE,
     DEFAULT_SUN_EXPOSURE,
     DEFAULT_WATERING_AMOUNT,
@@ -159,6 +179,66 @@ def _schema() -> vol.Schema:
                     mode=selector.NumberSelectorMode.SLIDER,
                 )
             ),
+            vol.Required(
+                CONF_ROOT_DEPTH, default=DEFAULT_ROOT_DEPTH
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=5,
+                    max=30,
+                    step=1,
+                    unit_of_measurement="cm",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Required(CONF_SLOPE, default=DEFAULT_SLOPE): _select(
+                "slope", ["flat", "gentle", "steep"]
+            ),
+            vol.Required(CONF_COMPACTION, default=DEFAULT_COMPACTION): _select(
+                "compaction", ["normal", "compacted"]
+            ),
+            vol.Required(
+                CONF_IRRIGATION_EFFICIENCY,
+                default=DEFAULT_IRRIGATION_EFFICIENCY,
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0.5,
+                    max=1.0,
+                    step=0.05,
+                    mode=selector.NumberSelectorMode.SLIDER,
+                )
+            ),
+            vol.Required(
+                CONF_RAIN_CORRECTION, default=DEFAULT_RAIN_CORRECTION
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0.5,
+                    max=1.5,
+                    step=0.05,
+                    mode=selector.NumberSelectorMode.SLIDER,
+                )
+            ),
+            vol.Required(
+                CONF_SOIL_SENSOR_DRY, default=DEFAULT_SOIL_SENSOR_DRY
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0,
+                    max=100,
+                    step=1,
+                    unit_of_measurement="%",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Required(
+                CONF_SOIL_SENSOR_WET, default=DEFAULT_SOIL_SENSOR_WET
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0,
+                    max=100,
+                    step=1,
+                    unit_of_measurement="%",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
         }
     )
 
@@ -179,10 +259,19 @@ def _validate_openweathermap_entities(
     return errors
 
 
+def _validate_calibration(user_input: dict[str, Any]) -> dict[str, str]:
+    """Validate optional model calibration bounds."""
+    if float(user_input[CONF_SOIL_SENSOR_WET]) <= float(
+        user_input[CONF_SOIL_SENSOR_DRY]
+    ):
+        return {CONF_SOIL_SENSOR_WET: "soil_sensor_range_invalid"}
+    return {}
+
+
 class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Lawn Care Assistant."""
 
-    VERSION = 6
+    VERSION = 7
     MINOR_VERSION = 0
 
     async def async_step_user(
@@ -190,7 +279,10 @@ class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Handle the initial setup step."""
         if user_input is not None:
-            errors = _validate_openweathermap_entities(self.hass, user_input)
+            errors = {
+                **_validate_openweathermap_entities(self.hass, user_input),
+                **_validate_calibration(user_input),
+            }
             name = user_input[CONF_NAME].strip()
             if not name:
                 errors[CONF_NAME] = "name_required"
@@ -198,8 +290,7 @@ class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self.async_show_form(
                     step_id="user", data_schema=_schema(), errors=errors
                 )
-            await self.async_set_unique_id(name.lower())
-            self._abort_if_unique_id_configured()
+            await self.async_set_unique_id(uuid4().hex)
             return self.async_create_entry(
                 title=name, data={**user_input, CONF_NAME: name}
             )
@@ -223,17 +314,13 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
     ) -> ConfigFlowResult:
         """Manage integration options."""
         if user_input is not None:
-            errors = _validate_openweathermap_entities(self.hass, user_input)
+            errors = {
+                **_validate_openweathermap_entities(self.hass, user_input),
+                **_validate_calibration(user_input),
+            }
             new_name = user_input[CONF_NAME].strip()
-            new_unique_id = new_name.lower()
             if not new_name:
                 errors[CONF_NAME] = "name_required"
-            if any(
-                other.entry_id != self.config_entry.entry_id
-                and other.unique_id == new_unique_id
-                for other in self.hass.config_entries.async_entries(DOMAIN)
-            ):
-                errors[CONF_NAME] = "name_already_configured"
             if errors:
                 current = {**self.config_entry.data, **user_input}
                 return self.async_show_form(
@@ -254,7 +341,6 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
             self.hass.config_entries.async_update_entry(
                 self.config_entry,
                 title=new_name,
-                unique_id=new_unique_id,
             )
             return self.async_create_entry(data=options)
 
