@@ -277,6 +277,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         if initial_gts != self._state.configured_initial_gts:
             self._state.gts = initial_gts
             self._state.configured_initial_gts = initial_gts
+            self._state.missing_temperature_days = (
+                0 if initial_gts > 0 else (today - date(today.year, 1, 1)).days
+            )
         if initial_moisture != self._state.configured_initial_soil_moisture:
             self._state.soil_water_mm = capacity * initial_moisture / 100
             self._state.configured_initial_soil_moisture = initial_moisture

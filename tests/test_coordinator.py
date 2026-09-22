@@ -1,6 +1,7 @@
 """Regression checks for local-day accounting and the water balance."""
 
 from datetime import date, datetime, timedelta, timezone
+from unittest.mock import AsyncMock, patch
 
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
@@ -87,6 +88,30 @@ async def test_full_day_without_temperature_is_gts_gap(
     coordinator._roll_day_and_sample(date(2026, 3, 4), 8)
     assert coordinator._state.gts == 100
     assert coordinator._state.missing_temperature_days == 1
+
+
+async def test_manual_gts_baseline_resolves_historical_gap(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """A supplied annual GTS baseline explicitly covers missing earlier days."""
+    coordinator = _coordinator(hass, initial_gts=140)
+    with patch.object(
+        coordinator._store,
+        "async_load",
+        new_callable=AsyncMock,
+        return_value={
+            "year": 2026,
+            "gts": 10,
+            "sample_date": "2026-07-20",
+            "configured_initial_gts": 0,
+            "missing_temperature_days": 8,
+            "local_day_model": True,
+        },
+    ):
+        await coordinator._async_setup()
+    assert coordinator._state is not None
+    assert coordinator._state.gts == 140
+    assert coordinator._state.missing_temperature_days == 0
 
 
 async def test_local_midnight_is_day_boundary(
