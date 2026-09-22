@@ -182,6 +182,14 @@
       "precipitation_source": {"name": "Precipitation source"},
       "soil_water": {"name": "Modeled soil water"},
       "daily_evapotranspiration": {"name": "Evapotranspiration today"},
+      "evapotranspiration_method": {
+        "name": "Evapotranspiration method",
+        "state": {
+          "penman_monteith_estimated_radiation": "Penman-Monteith with estimated radiation",
+          "hargreaves_samani": "Hargreaves-Samani fallback",
+          "unavailable": "Unavailable"
+        }
+      },
       "last_soil_update": {"name": "Last soil model update"},
       "last_calculation": {"name": "Last calculation"}
     },
@@ -216,6 +224,10 @@
     "observed_precipitation_unavailable": {
       "title": "Observed precipitation unavailable",
       "description": "No usable observed precipitation sensor was found. Enable the OpenWeatherMap rain sensor or select a precipitation sensor in the integration options."
+    },
+    "current_weather_stale": {
+      "title": "Current weather data is stale",
+      "description": "The current OpenWeatherMap observations are more than three hours old. The water model is using a reduced fallback calculation until fresh humidity, wind, and cloud data are available."
     }
   },
   "services": {

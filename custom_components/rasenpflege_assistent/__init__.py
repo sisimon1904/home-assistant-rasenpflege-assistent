@@ -123,9 +123,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
         ):
             return
         if action == "mowed":
-            await coordinator.async_mark_mowed()
+            await coordinator.async_mark_mowed(deduplicate=True)
         else:
-            await coordinator.async_mark_watered()
+            await coordinator.async_mark_watered(deduplicate=True)
 
     for config_key, action in (
         (CONF_MOWED_ENTITY, "mowed"),

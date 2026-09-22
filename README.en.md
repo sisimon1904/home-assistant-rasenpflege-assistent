@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.0.1
+Version 3.1.0
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -53,6 +53,10 @@ entities already available in Home Assistant and requests forecasts through
 - dedicated mower status with clear actions, seasonal guidance, and the most
   recent mowing date as attributes
 - modeled soil moisture in percent
+- enhanced Penman-Monteith evapotranspiration with an automatic
+  Hargreaves-Samani fallback
+- a soil-water balance with interception, infiltration, runoff, drainage, and
+  water-stress-limited evapotranspiration
 - watering recommendation with target amount in millimeters and liters
 - seasonal NPK recommendation and product quantity
 - downloadable diagnostics through Home Assistant
@@ -75,11 +79,17 @@ new water level = previous water level
                   - estimated lawn evapotranspiration
 ```
 
-Reservoir capacity depends on soil type. Reference evapotranspiration is
-estimated from minimum temperature, maximum temperature, date, and geographic
-latitude using the Hargreaves-Samani method. The model subtracts it
-incrementally on every update. A lawn coefficient reduces evapotranspiration
-during winter.
+Reservoir capacity and infiltration depend on soil type. When fresh
+temperature, humidity, wind, and cloud data are available, reference
+evapotranspiration is calculated with FAO-56 Penman-Monteith. Solar radiation
+is estimated from location, date, and cloud coverage. The integration falls
+back automatically to Hargreaves-Samani when required inputs are unavailable.
+A lawn and sun-exposure coefficient adapts reference ET to the lawn.
+
+Observed rain is not treated as completely available soil water. Depending on
+soil type and rain intensity, the model accounts for interception,
+infiltration, surface runoff, and drainage. Water stress limits actual
+evapotranspiration when the root zone is nearly empty.
 
 The model first uses an explicitly selected precipitation sensor. Otherwise it
 automatically searches for an active OpenWeatherMap rain sensor belonging to
@@ -282,6 +292,21 @@ Home Assistant user.
 - Care and growth status now use a consistent vegetation phase.
 - Legacy watering and fertilizing binary sensors are disabled by default for
   new installations; their boolean values remain available as attributes.
+
+## Changes in version 3.1.0
+
+- Penman-Monteith uses existing OpenWeatherMap humidity, wind, pressure, dew
+  point, and cloud data without an additional direct API request.
+- Hargreaves-Samani remains available as an automatic fallback.
+- The soil model accounts for infiltration, interception, runoff, drainage,
+  and water stress.
+- Provider timestamps prevent stale precipitation rates from being counted
+  repeatedly.
+- Effective forecast rain reduces the recommended irrigation amount.
+- Diagnostics expose the ET method, weather age, and water-balance components.
+- Automatic maintenance inputs are protected against duplicate triggers.
+- Undoing a watering event no longer discards later natural water-balance
+  changes.
 
 ## Changes in version 3.0.1
 

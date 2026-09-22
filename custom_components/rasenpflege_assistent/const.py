@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 DOMAIN = "rasenpflege_assistent"
-INTEGRATION_VERSION = "3.0.1"
+INTEGRATION_VERSION = "3.1.0"
 PLATFORMS = ["sensor", "button"]
 
 CONF_NAME = "name"
@@ -42,7 +42,9 @@ FORECAST_CACHE_INTERVAL = timedelta(hours=1)
 FORECAST_STALE_AFTER = timedelta(hours=3)
 SOIL_SENSOR_CALIBRATION_INTERVAL = timedelta(hours=6)
 SOIL_SENSOR_BLEND_FACTOR = 0.25
-MAX_SOIL_MODEL_INTERVAL = timedelta(hours=24)
+MAX_SOIL_MODEL_INTERVAL = timedelta(hours=6)
+CURRENT_WEATHER_STALE_AFTER = timedelta(hours=3)
+PRECIPITATION_RATE_STALE_AFTER = timedelta(hours=2)
 STORE_VERSION = 1
 STORE_KEY_PREFIX = f"{DOMAIN}."
 
@@ -99,4 +101,20 @@ ATTR_SOIL_MOISTURE_PERCENT = "soil_moisture_percent"
 ATTR_FORECAST_STALE = "forecast_stale"
 ATTR_PRECIPITATION_MODE = "precipitation_mode"
 ATTR_SOIL_TEMPERATURE = "soil_temperature"
+ATTR_REFERENCE_EVAPOTRANSPIRATION_MM = "reference_evapotranspiration_mm"
+ATTR_EVAPOTRANSPIRATION_METHOD = "evapotranspiration_method"
+ATTR_EFFECTIVE_RAIN_MM = "effective_rain_today_mm"
+ATTR_RUNOFF_MM = "runoff_today_mm"
+ATTR_DRAINAGE_MM = "drainage_today_mm"
+ATTR_INTERCEPTION_MM = "interception_today_mm"
+ATTR_WATER_STRESS_FACTOR = "water_stress_factor"
+ATTR_WEATHER_AGE_MINUTES = "weather_age_minutes"
+ATTR_HUMIDITY = "humidity"
+ATTR_WIND_SPEED = "wind_speed_m_s"
+ATTR_CLOUD_COVERAGE = "cloud_coverage"
+ATTR_PRESSURE = "pressure_hpa"
+ATTR_DEW_POINT = "dew_point"
+ATTR_HOURS_UNTIL_RAIN = "hours_until_rain"
+ATTR_EXPECTED_ET_24H = "expected_et_24h_mm"
+ATTR_FORECAST_72H_ESTIMATED = "forecast_72h_estimated"
 ATTR_LAST_MAINTENANCE_EVENT = "last_maintenance_event"

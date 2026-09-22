@@ -55,6 +55,22 @@ class LawnData:
     soil_water_mm: float = 0.0
     soil_capacity_mm: float = 0.0
     daily_evapotranspiration_mm: float = 0.0
+    reference_evapotranspiration_mm: float = 0.0
+    evapotranspiration_method: str = "hargreaves_samani"
+    effective_rain_today_mm: float = 0.0
+    runoff_today_mm: float = 0.0
+    drainage_today_mm: float = 0.0
+    interception_today_mm: float = 0.0
+    water_stress_factor: float = 1.0
+    weather_age_minutes: int | None = None
+    humidity: float | None = None
+    wind_speed_m_s: float | None = None
+    cloud_coverage: float | None = None
+    pressure_hpa: float | None = None
+    dew_point: float | None = None
+    hours_until_rain: float | None = None
+    expected_et_24h_mm: float = 0.0
+    forecast_72h_estimated: bool = False
     soil_model_confidence: str = "low"
     next_action: str = "collecting_data"
     data_quality: str = "insufficient"
@@ -104,6 +120,12 @@ class RuntimeState:
     last_soil_model_gap_hours: float = 0.0
     last_growth_state: str | None = None
     maintenance_history: list[dict[str, Any]] = field(default_factory=list)
+    weather_samples: list[dict[str, Any]] = field(default_factory=list)
+    daily_effective_rain_mm: float = 0.0
+    daily_runoff_mm: float = 0.0
+    daily_drainage_mm: float = 0.0
+    daily_interception_mm: float = 0.0
+    water_model_version: int = 2
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable representation."""
@@ -139,4 +161,10 @@ class RuntimeState:
             "last_soil_model_gap_hours": self.last_soil_model_gap_hours,
             "last_growth_state": self.last_growth_state,
             "maintenance_history": self.maintenance_history[-20:],
+            "weather_samples": self.weather_samples[-96:],
+            "daily_effective_rain_mm": self.daily_effective_rain_mm,
+            "daily_runoff_mm": self.daily_runoff_mm,
+            "daily_drainage_mm": self.daily_drainage_mm,
+            "daily_interception_mm": self.daily_interception_mm,
+            "water_model_version": self.water_model_version,
         }

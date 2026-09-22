@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from calendar import monthrange
 from datetime import date, datetime, timedelta
+from itertools import pairwise
 from typing import Any
 
 
@@ -93,7 +94,13 @@ def forecast_coverage_hours(
             ]
         timestamps = [timestamp for timestamp in timestamps if timestamp >= reference]
     if len(timestamps) >= 2:
-        step = max(1.0, (timestamps[1] - timestamps[0]).total_seconds() / 3600)
+        intervals = sorted(
+            max(0.0, (current - previous).total_seconds() / 3600)
+            for previous, current in pairwise(timestamps)
+            if current > previous
+        )
+        step = intervals[len(intervals) // 2] if intervals else 1.0
+        step = max(1.0, min(24.0, step))
         hourly_coverage = min(
             maximum_hours,
             round((timestamps[-1] - timestamps[0]).total_seconds() / 3600 + step),
@@ -163,31 +170,49 @@ def days_since(value: date | None, today: date) -> int | None:
     return max(0, (today - value).days)
 
 
-SOIL_CAPACITY_MM = {
-    "sandy": 22.0,
-    "loamy": 40.0,
-    "clayey": 46.0,
+SOIL_PROFILES = {
+    "sandy": {
+        "capacity_mm": 22.0,
+        "wilting_point_fraction": 0.12,
+        "readily_available_fraction": 0.45,
+        "infiltration_mm_per_hour": 18.0,
+        "interception_mm": 0.25,
+    },
+    "loamy": {
+        "capacity_mm": 40.0,
+        "wilting_point_fraction": 0.18,
+        "readily_available_fraction": 0.50,
+        "infiltration_mm_per_hour": 12.0,
+        "interception_mm": 0.35,
+    },
+    "clayey": {
+        "capacity_mm": 46.0,
+        "wilting_point_fraction": 0.25,
+        "readily_available_fraction": 0.55,
+        "infiltration_mm_per_hour": 7.0,
+        "interception_mm": 0.45,
+    },
 }
 
 
 def soil_capacity(soil_type: str) -> float:
     """Return the approximate plant-available root-zone water in mm."""
-    return SOIL_CAPACITY_MM.get(soil_type, SOIL_CAPACITY_MM["loamy"])
+    return float(SOIL_PROFILES.get(soil_type, SOIL_PROFILES["loamy"])["capacity_mm"])
 
 
-def hargreaves_evapotranspiration(
-    *, day: date, latitude: float, temperature_min: float, temperature_max: float
-) -> float:
-    """Estimate reference evapotranspiration using Hargreaves-Samani."""
-    t_min = min(temperature_min, temperature_max)
-    t_max = max(temperature_min, temperature_max)
-    t_mean = (t_min + t_max) / 2
+def soil_profile(soil_type: str) -> dict[str, float]:
+    """Return hydrological properties for a lawn root zone."""
+    return dict(SOIL_PROFILES.get(soil_type, SOIL_PROFILES["loamy"]))
+
+
+def extraterrestrial_radiation(day: date, latitude: float) -> float:
+    """Return daily extraterrestrial radiation in MJ m-2 day-1."""
     day_of_year = day.timetuple().tm_yday
     phi = math.radians(max(-65.0, min(65.0, latitude)))
     dr = 1 + 0.033 * math.cos(2 * math.pi * day_of_year / 365)
     delta = 0.409 * math.sin(2 * math.pi * day_of_year / 365 - 1.39)
     sunset_angle = math.acos(max(-1.0, min(1.0, -math.tan(phi) * math.tan(delta))))
-    radiation = (
+    return (
         24
         * 60
         / math.pi
@@ -198,6 +223,16 @@ def hargreaves_evapotranspiration(
             + math.cos(phi) * math.cos(delta) * math.sin(sunset_angle)
         )
     )
+
+
+def hargreaves_evapotranspiration(
+    *, day: date, latitude: float, temperature_min: float, temperature_max: float
+) -> float:
+    """Estimate reference evapotranspiration using Hargreaves-Samani."""
+    t_min = min(temperature_min, temperature_max)
+    t_max = max(temperature_min, temperature_max)
+    t_mean = (t_min + t_max) / 2
+    radiation = extraterrestrial_radiation(day, latitude)
     radiation_water_equivalent = radiation * 0.408
     et0 = (
         0.0023
@@ -206,6 +241,114 @@ def hargreaves_evapotranspiration(
         * radiation_water_equivalent
     )
     return round(max(0.0, et0), 2)
+
+
+def _saturation_vapor_pressure(temperature: float) -> float:
+    """Return saturation vapor pressure in kPa."""
+    return 0.6108 * math.exp(17.27 * temperature / (temperature + 237.3))
+
+
+def penman_monteith_evapotranspiration(
+    *,
+    day: date,
+    latitude: float,
+    elevation: float,
+    temperature_min: float,
+    temperature_max: float,
+    humidity: float,
+    wind_speed_m_s: float,
+    cloud_coverage: float,
+    pressure_hpa: float | None = None,
+    dew_point: float | None = None,
+) -> float:
+    """Estimate daily reference ET with FAO-56 Penman-Monteith inputs."""
+    t_min = min(temperature_min, temperature_max)
+    t_max = max(temperature_min, temperature_max)
+    t_mean = (t_min + t_max) / 2
+    relative_humidity = max(1.0, min(100.0, humidity))
+    wind = max(0.0, min(25.0, wind_speed_m_s))
+    clouds = max(0.0, min(100.0, cloud_coverage))
+
+    es = (_saturation_vapor_pressure(t_min) + _saturation_vapor_pressure(t_max)) / 2
+    ea = (
+        _saturation_vapor_pressure(dew_point)
+        if dew_point is not None
+        else _saturation_vapor_pressure(t_mean) * relative_humidity / 100
+    )
+    vapor_pressure_deficit = max(0.0, es - ea)
+    delta = 4098 * _saturation_vapor_pressure(t_mean) / (t_mean + 237.3) ** 2
+    pressure_kpa = (
+        max(80.0, min(110.0, pressure_hpa / 10))
+        if pressure_hpa is not None
+        else 101.3 * ((293 - 0.0065 * max(-100.0, elevation)) / 293) ** 5.26
+    )
+    gamma = 0.000665 * pressure_kpa
+
+    ra = extraterrestrial_radiation(day, latitude)
+    sunshine_fraction = 1 - clouds / 100
+    solar_radiation = ra * (0.25 + 0.5 * sunshine_fraction)
+    clear_sky_radiation = max(0.1, (0.75 + 0.00002 * elevation) * ra)
+    net_shortwave = (1 - 0.23) * solar_radiation
+    cloud_factor = max(
+        0.05,
+        min(1.0, 1.35 * solar_radiation / clear_sky_radiation - 0.35),
+    )
+    net_longwave = (
+        4.903e-9
+        * (((t_max + 273.16) ** 4 + (t_min + 273.16) ** 4) / 2)
+        * max(0.05, 0.34 - 0.14 * math.sqrt(max(0.0, ea)))
+        * cloud_factor
+    )
+    net_radiation = max(0.0, net_shortwave - net_longwave)
+    numerator = (
+        0.408 * delta * net_radiation
+        + gamma * (900 / (t_mean + 273)) * wind * vapor_pressure_deficit
+    )
+    denominator = delta + gamma * (1 + 0.34 * wind)
+    return round(max(0.0, numerator / denominator), 2) if denominator else 0.0
+
+
+def update_soil_water_balance(
+    *,
+    water_mm: float,
+    soil_type: str,
+    precipitation_mm: float,
+    precipitation_intensity_mm_h: float,
+    interval_hours: float,
+    irrigation_mm: float = 0.0,
+    reference_et_mm: float,
+    crop_coefficient: float,
+) -> dict[str, float]:
+    """Update a bounded lawn root-zone balance with infiltration and ET stress."""
+    profile = soil_profile(soil_type)
+    capacity = profile["capacity_mm"]
+    rain = max(0.0, precipitation_mm)
+    hours = max(0.0, interval_hours)
+    interception = min(rain, profile["interception_mm"])
+    throughfall = max(0.0, rain - interception)
+    infiltration_limit = profile["infiltration_mm_per_hour"] * max(hours, 1 / 60)
+    if precipitation_intensity_mm_h <= profile["infiltration_mm_per_hour"]:
+        infiltration_limit = throughfall
+    infiltrated = min(throughfall, infiltration_limit)
+    runoff = max(0.0, throughfall - infiltrated)
+
+    available_before_et = max(0.0, water_mm) + infiltrated + max(0.0, irrigation_mm)
+    drainage = max(0.0, available_before_et - capacity)
+    available_before_et = min(capacity, available_before_et)
+    readily_available = capacity * profile["readily_available_fraction"]
+    stress_factor = min(1.0, available_before_et / max(0.1, readily_available))
+    potential_et = max(0.0, reference_et_mm * crop_coefficient)
+    actual_et = min(available_before_et, potential_et * stress_factor)
+    updated = max(0.0, available_before_et - actual_et)
+    return {
+        "water_mm": round(updated, 3),
+        "actual_et_mm": round(actual_et, 3),
+        "effective_rain_mm": round(infiltrated, 3),
+        "interception_mm": round(interception, 3),
+        "runoff_mm": round(runoff, 3),
+        "drainage_mm": round(drainage, 3),
+        "water_stress_factor": round(stress_factor, 3),
+    }
 
 
 def update_soil_water(
@@ -351,6 +494,8 @@ def watering_recommendation(
     soil_capacity_mm: float | None = None,
     growth: str | None = None,
     now: datetime | None = None,
+    expected_et_24h_mm: float = 0.0,
+    rain_efficiency: float = 0.8,
 ) -> dict[str, Any]:
     """Calculate a conservative weather-based watering recommendation."""
     hourly_forecast = hourly_forecast or []
@@ -401,6 +546,12 @@ def watering_recommendation(
             "rain_48h": rain_48h,
             "rain_72h": rain_72h,
             "next_rain_at": next_forecast_rain_at(hourly_forecast, now),
+            "hours_until_rain": None,
+            "effective_rain_24h": 0.0,
+            "expected_et_24h": round(max(0.0, expected_et_24h_mm), 1),
+            "forecast_72h_estimated": (
+                hourly_coverage_hours < 72 and rain_72h is not None
+            ),
             "forecast_coverage_hours": coverage_hours,
             "confidence": (
                 "high"
@@ -435,20 +586,45 @@ def watering_recommendation(
         target_water = soil_capacity_mm * 0.8
         deficit = max(0.0, target_water - soil_water_mm)
         target_mm = min(20.0, max(5.0, round(deficit))) if deficit > 0 else 0.0
-    enough_rain = (
-        rain_24h is not None and rain_24h >= min(8.0, max(3.0, deficit))
-    ) or (
-        (soil_moisture_percent is None or soil_moisture_percent >= 25.0)
-        and rain is not None
-        and rain >= 8.0
+    next_rain = next_forecast_rain_at(hourly_forecast, now)
+    hours_until_rain: float | None = None
+    if next_rain and now is not None:
+        try:
+            rain_at = datetime.fromisoformat(next_rain.replace("Z", "+00:00"))
+            reference = now
+            if reference.tzinfo is None and rain_at.tzinfo is not None:
+                reference = reference.replace(tzinfo=rain_at.tzinfo)
+            elif reference.tzinfo is not None and rain_at.tzinfo is None:
+                rain_at = rain_at.replace(tzinfo=reference.tzinfo)
+            hours_until_rain = max(0.0, (rain_at - reference).total_seconds() / 3600)
+        except ValueError:
+            pass
+    effective_rain_24h = (
+        max(0.0, rain_24h) * max(0.0, min(1.0, rain_efficiency))
+        if rain_24h is not None
+        else 0.0
     )
+    near_term_need = max(0.0, deficit + max(0.0, expected_et_24h_mm))
+    enough_rain_24h = rain_24h is not None and effective_rain_24h >= min(
+        8.0, max(3.0, near_term_need)
+    )
+    enough_later_rain = (
+        (soil_moisture_percent is None or soil_moisture_percent >= 35.0)
+        and rain is not None
+        and rain * max(0.0, min(1.0, rain_efficiency)) >= 8.0
+    )
+    enough_rain = enough_rain_24h or enough_later_rain
 
     due_by_time = elapsed is None or elapsed >= interval
     if soil_moisture_percent is None:
         water_now = due_by_time
         water_soon = False
     else:
-        water_now = soil_moisture_percent < 35.0
+        critical = soil_moisture_percent < 25.0
+        rain_very_soon = hours_until_rain is not None and hours_until_rain <= 12
+        water_now = soil_moisture_percent < 35.0 and not (
+            critical and rain_very_soon and enough_rain_24h
+        )
         water_soon = (
             soil_moisture_percent < 45.0
             or (due_by_time and soil_moisture_percent < 55.0)
@@ -472,15 +648,19 @@ def watering_recommendation(
     if soil_moisture_percent is not None:
         reasons.append("modeled_soil_moisture_used")
 
+    adjusted_deficit = max(0.0, near_term_need - effective_rain_24h)
+    adjusted_amount = (
+        min(20.0, max(5.0, round(adjusted_deficit))) if adjusted_deficit > 0 else 0.0
+    )
     if enough_rain and (water_now or water_soon):
         status = "wait_for_rain"
         mm = 0.0
     elif recommended:
         status = "water_now"
-        mm = target_mm
+        mm = adjusted_amount or target_mm
     elif water_soon:
         status = "water_soon"
-        mm = target_mm
+        mm = adjusted_amount or target_mm
     else:
         status = "not_due"
         mm = 0.0
@@ -495,7 +675,13 @@ def watering_recommendation(
         "rain_24h": rain_24h,
         "rain_48h": rain_48h,
         "rain_72h": rain_72h,
-        "next_rain_at": next_forecast_rain_at(hourly_forecast, now),
+        "next_rain_at": next_rain,
+        "hours_until_rain": (
+            round(hours_until_rain, 1) if hours_until_rain is not None else None
+        ),
+        "effective_rain_24h": round(effective_rain_24h, 1),
+        "expected_et_24h": round(max(0.0, expected_et_24h_mm), 1),
+        "forecast_72h_estimated": (hourly_coverage_hours < 72 and rain_72h is not None),
         "forecast_coverage_hours": coverage_hours,
         "confidence": (
             "high"

@@ -27,6 +27,7 @@ async def async_get_config_entry_diagnostics(
             data[key] = data[key].isoformat()
     return {
         "integration_version": INTEGRATION_VERSION,
+        "water_model_version": coordinator.water_model_version,
         "config_entry_version": entry.version,
         "data": data,
         "last_update_success": coordinator.last_update_success,

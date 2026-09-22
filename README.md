@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.0.1
+Version 3.1.0
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -52,6 +52,10 @@ Vorhersagen über `weather.get_forecasts` ab.
 - eigener Mähroboterstatus mit konkreten Handlungsanweisungen, Saisonhinweisen
   und dem letzten Mähdatum als Attribute
 - modellierte Bodenfeuchte in Prozent
+- erweitertes Verdunstungsmodell nach Penman-Monteith mit automatischem
+  Hargreaves-Samani-Rückfallverfahren
+- Bodenwasserbilanz mit Benetzungsverlust, Infiltration, Oberflächenabfluss,
+  Drainage und trockenheitsbedingter Begrenzung der Verdunstung
 - Bewässerungsempfehlung mit Zielmenge in mm und Litern
 - saisonale NPK-Empfehlung und Produktmenge
 - Diagnose-Download über Home Assistant
@@ -76,10 +80,18 @@ neuer Wasserstand = alter Wasserstand
                     - geschätzte Rasenverdunstung
 ```
 
-Die Speichergröße hängt von der Bodenart ab. Die Referenzverdunstung wird mit
-der Hargreaves-Samani-Methode aus Minimum, Maximum, Datum und geografischer
-Breite geschätzt. Das Modell zieht sie anteilig bei jeder Aktualisierung ab;
-ein Rasenfaktor reduziert die Verdunstung im Winter.
+Die Speichergröße und Infiltrationsleistung hängen von der Bodenart ab. Wenn
+Temperatur, Luftfeuchtigkeit, Wind und Bewölkung aktuell verfügbar sind, wird
+die Referenzverdunstung nach FAO-56 Penman-Monteith berechnet. Die
+Sonneneinstrahlung wird dabei aus Standort, Datum und Bewölkung geschätzt. Bei
+fehlenden Eingangswerten verwendet die Integration automatisch
+Hargreaves-Samani. Ein Rasen- und Sonnenlagenfaktor passt die
+Referenzverdunstung an den Rasen an.
+
+Gefallener Regen wird nicht vollständig als Bodenwasser behandelt. Je nach
+Bodenart und Regenintensität berücksichtigt das Modell Benetzungsverlust,
+Infiltration, Oberflächenabfluss und Drainage. Bei sehr trockenem Boden wird
+die tatsächliche Verdunstung gegenüber der potenziellen Verdunstung begrenzt.
 
 Zuerst verwendet das Modell einen ausdrücklich ausgewählten Niederschlagssensor.
 Ohne Auswahl sucht es automatisch nach einem aktiven OpenWeatherMap-Regensensor
@@ -301,6 +313,22 @@ Düngermenge bezeichnet die ungefähre Produktmenge und nicht die reine
 Nährstoffmenge. Maßgeblich bleiben die Herstellerdosierung, eine Bodenanalyse
 und örtliche Vorschriften. Nicht auf gefrorenem, ausgetrocknetem oder
 wassergesättigtem Rasen düngen.
+
+## Änderungen in Version 3.1.0
+
+- Penman-Monteith nutzt vorhandene OpenWeatherMap-Werte für Luftfeuchtigkeit,
+  Wind, Luftdruck, Taupunkt und Bewölkung ohne zusätzliche direkte API-Abfrage.
+- Hargreaves-Samani bleibt als automatisches Rückfallverfahren erhalten.
+- Das Bodenmodell berücksichtigt Infiltration, Benetzungsverlust,
+  Oberflächenabfluss, Drainage und Trockenstress.
+- Frische Zeitstempel verhindern, dass veraltete Regenraten weitergezählt
+  werden.
+- Erwarteter wirksamer Regen reduziert die empfohlene Bewässerungsmenge.
+- Diagnosewerte zeigen Verdunstungsverfahren, Wetteralter und Komponenten der
+  Wasserbilanz.
+- Automatische Pflegeereignisse werden gegen Mehrfachauslösung geschützt.
+- Das Rückgängigmachen einer Bewässerung verwirft keine späteren natürlichen
+  Änderungen des Bodenwasservorrats mehr.
 
 ## Änderungen in Version 3.0.1
 

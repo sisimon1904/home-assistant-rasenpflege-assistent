@@ -1,5 +1,39 @@
 # Changelog
 
+## 3.1.0
+
+### Added
+
+- Estimate reference evapotranspiration with FAO-56 Penman-Monteith using
+  cached OpenWeatherMap humidity, wind, pressure, dew point, and cloud data.
+- Fall back automatically to Hargreaves-Samani when current weather inputs are
+  incomplete or stale.
+- Model soil-specific interception, infiltration, runoff, drainage, and
+  water-stress-limited evapotranspiration.
+- Persist recent weather samples and expose the evapotranspiration method and
+  water-balance components in diagnostics.
+- Create a repair issue when current OpenWeatherMap observations are stale.
+
+### Changed
+
+- Integrate precipitation rates only when the provider reports a fresh sample
+  and use the average of consecutive rates.
+- Reduce watering amounts by effective near-term rain while accounting for
+  expected evapotranspiration.
+- Mark 72-hour rain totals when daily forecasts were needed to extend the
+  exact hourly window.
+- Limit uncertain post-outage soil-model catch-up to six hours.
+- Debounce automatic mowing and watering input events.
+- Derive model confidence from weather freshness, precipitation availability,
+  model gaps, and the evapotranspiration method.
+
+### Fixed
+
+- Undo a recorded watering without discarding rain and evapotranspiration that
+  occurred after the maintenance event.
+- Use a median forecast interval instead of assuming the first two entries
+  represent the complete forecast cadence.
+
 ## 3.0.1
 
 ### Fixed

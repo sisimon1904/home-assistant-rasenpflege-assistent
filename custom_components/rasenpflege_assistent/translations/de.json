@@ -182,6 +182,14 @@
       "precipitation_source": {"name": "Niederschlagsquelle"},
       "soil_water": {"name": "Modellierter Bodenwasservorrat"},
       "daily_evapotranspiration": {"name": "Verdunstung heute"},
+      "evapotranspiration_method": {
+        "name": "Verdunstungsverfahren",
+        "state": {
+          "penman_monteith_estimated_radiation": "Penman-Monteith mit geschätzter Strahlung",
+          "hargreaves_samani": "Hargreaves-Samani als Rückfallverfahren",
+          "unavailable": "Nicht verfügbar"
+        }
+      },
       "last_soil_update": {"name": "Letzte Aktualisierung des Bodenmodells"},
       "last_calculation": {"name": "Letzte Berechnung"}
     },
@@ -216,6 +224,10 @@
     "observed_precipitation_unavailable": {
       "title": "Beobachteter Niederschlag nicht verfügbar",
       "description": "Es wurde kein verwendbarer Sensor für gefallenen Niederschlag gefunden. Aktiviere den OpenWeatherMap-Regensensor oder wähle in den Optionen der Integration einen Niederschlagssensor aus."
+    },
+    "current_weather_stale": {
+      "title": "Aktuelle Wetterdaten sind veraltet",
+      "description": "Die aktuellen OpenWeatherMap-Messwerte sind älter als drei Stunden. Das Wassermodell verwendet eine eingeschränkte Rückfallberechnung, bis wieder aktuelle Werte für Luftfeuchtigkeit, Wind und Bewölkung vorliegen."
     }
   },
   "services": {

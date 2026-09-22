@@ -25,10 +25,12 @@ mower_recommendation = _CALCULATIONS.mower_recommendation
 mower_state = _CALCULATIONS.mower_state
 next_forecast_rain_at = _CALCULATIONS.next_forecast_rain_at
 next_lawn_action = _CALCULATIONS.next_lawn_action
+penman_monteith_evapotranspiration = _CALCULATIONS.penman_monteith_evapotranspiration
 precipitation_rate_amounts = _CALCULATIONS.precipitation_rate_amounts
 sum_forecast_rain = _CALCULATIONS.sum_forecast_rain
 sum_hourly_forecast_rain = _CALCULATIONS.sum_hourly_forecast_rain
 update_soil_water = _CALCULATIONS.update_soil_water
+update_soil_water_balance = _CALCULATIONS.update_soil_water_balance
 watering_recommendation = _CALCULATIONS.watering_recommendation
 
 
@@ -517,3 +519,100 @@ def test_precipitation_rate_splits_an_interval_at_midnight() -> None:
     )
     assert total == 2.0
     assert current_day == 1.0
+
+
+def test_penman_monteith_uses_cached_weather_inputs() -> None:
+    """Humidity, wind and estimated radiation produce plausible daily ET."""
+    et0 = penman_monteith_evapotranspiration(
+        day=date(2026, 7, 20),
+        latitude=51.0,
+        elevation=100,
+        temperature_min=15,
+        temperature_max=28,
+        humidity=55,
+        wind_speed_m_s=2.5,
+        cloud_coverage=25,
+        pressure_hpa=1013,
+        dew_point=14,
+    )
+    assert 2 < et0 < 10
+
+
+def test_penman_monteith_reacts_to_dry_windy_weather() -> None:
+    """Dry windy air evaporates more water than humid calm air."""
+    common = {
+        "day": date(2026, 7, 20),
+        "latitude": 51.0,
+        "elevation": 100,
+        "temperature_min": 15,
+        "temperature_max": 28,
+        "cloud_coverage": 25,
+    }
+    dry = penman_monteith_evapotranspiration(**common, humidity=35, wind_speed_m_s=4)
+    humid = penman_monteith_evapotranspiration(
+        **common, humidity=85, wind_speed_m_s=0.5
+    )
+    assert dry > humid
+
+
+def test_advanced_soil_balance_limits_clay_infiltration() -> None:
+    """A short intense shower partly runs off a clayey root zone."""
+    result = update_soil_water_balance(
+        water_mm=30,
+        soil_type="clayey",
+        precipitation_mm=12,
+        precipitation_intensity_mm_h=24,
+        interval_hours=0.5,
+        reference_et_mm=0,
+        crop_coefficient=0.8,
+    )
+    assert result["runoff_mm"] > 0
+    assert result["effective_rain_mm"] < 12
+    assert result["water_mm"] <= 46
+
+
+def test_advanced_soil_balance_reduces_et_during_water_stress() -> None:
+    """A nearly empty root zone cannot lose the full potential ET amount."""
+    result = update_soil_water_balance(
+        water_mm=2,
+        soil_type="loamy",
+        precipitation_mm=0,
+        precipitation_intensity_mm_h=0,
+        interval_hours=1,
+        reference_et_mm=4,
+        crop_coefficient=0.8,
+    )
+    assert result["water_stress_factor"] < 1
+    assert result["actual_et_mm"] < 3.2
+
+
+def test_watering_amount_accounts_for_near_term_rain_and_et() -> None:
+    """Partial forecast rain reduces rather than merely cancels watering."""
+    now = datetime(2026, 7, 20, 8, tzinfo=timezone.utc)
+    hourly = [
+        {
+            "datetime": (now + timedelta(hours=hour)).isoformat(),
+            "precipitation": 0.5 if hour < 10 else 0,
+        }
+        for hour in range(24)
+    ]
+    result = watering_recommendation(
+        today=now.date(),
+        area_m2=100,
+        sun_exposure="sunny",
+        soil_type="loamy",
+        current_temperature=26,
+        forecast=[],
+        hourly_forecast=hourly,
+        last_watering=date(2026, 7, 10),
+        soil_moisture_percent=30,
+        soil_water_mm=12,
+        soil_capacity_mm=40,
+        growth="active_growth",
+        now=now,
+        expected_et_24h_mm=3,
+        rain_efficiency=0.85,
+    )
+    assert result["status"] == "water_now"
+    assert 5 <= result["mm"] < 20
+    assert result["effective_rain_24h"] > 0
