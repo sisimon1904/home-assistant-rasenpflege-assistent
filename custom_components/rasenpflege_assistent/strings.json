@@ -4,13 +4,24 @@
     "step": {
       "user": {
         "title": "Set up lawn",
-        "description": "Select your existing OpenWeatherMap weather entity. The assistant only gives recommendations and does not control irrigation.",
+        "description": "Select your OpenWeatherMap weather entity. Optional valve control is disabled until configured and enabled.",
         "data": {
           "name": "Name",
           "weather_entity": "OpenWeatherMap weather entity",
           "temperature_entity": "Outdoor temperature sensor (optional)",
           "mowed_entity": "Lawn was mowed binary sensor (optional)",
           "watered_entity": "Lawn was watered binary sensor (optional)",
+          "irrigation_valve": "Irrigation valve switch (optional)",
+          "irrigation_flow": "Water flow or volume sensor (optional)",
+          "mower_location": "Mower position or dock status (required with valve)",
+          "mower_safe_state": "State confirming the mower is docked",
+          "allow_unmetered_manual": "Allow manual timer without water meter",
+          "min_irrigation_minutes": "Minimum manual watering time (minutes)",
+          "max_irrigation_minutes": "Maximum watering time (minutes)",
+          "max_irrigation_liters": "Maximum water per session (liters)",
+          "flow_start_grace_seconds": "Flow startup grace period (seconds)",
+          "min_flow_l_min": "Minimum water flow (L/min)",
+          "max_flow_l_min": "Maximum water flow (L/min)",
           "precipitation_entity": "Observed precipitation sensor (optional)",
           "precipitation_mode": "Precipitation sensor type",
           "soil_moisture_entity": "Physical soil moisture sensor (optional)",
@@ -37,6 +48,12 @@
           "temperature_entity": "This sensor has priority. If it is not selected or is unavailable, the current OpenWeatherMap temperature is used automatically.",
           "mowed_entity": "An off-to-on transition records mowing and acknowledges the mowing season. Without a selection, use the manual button.",
           "watered_entity": "An off-to-on transition records watering and updates the soil model. Without a selection, use the manual button.",
+          "irrigation_valve": "Select a controllable switch. With a valve, the existing watering button starts a supervised session.",
+          "irrigation_flow": "Select a sensor in L, m³, L/min, L/h, L/s or m³/h. Automatic watering requires a working sensor.",
+          "mower_location": "Select a lawn_mower, vacuum, binary sensor or status sensor. Valve starts only when the selected entity explicitly reports the safe state.",
+          "mower_safe_state": "Use docked for lawn_mower/vacuum, on for a binary dock sensor, or the exact state of a custom sensor.",
+          "allow_unmetered_manual": "Manual watering runs for the minimum time only, with no measured water added to the soil model. Automatic starts still require a sensor.",
+          "flow_start_grace_seconds": "Stop if no positive, plausible flow is seen after this time. Safety always overrides the minimum watering time.",
           "precipitation_entity": "Accepts precipitation depth or precipitation intensity. Without a sensor, no rain is added to the soil model; forecasts are used only for recommendations.",
           "precipitation_mode": "Automatic uses the unit and state class. Select a fixed type if your sensor reports an ambiguous value in mm.",
           "soil_moisture_entity": "Gently calibrates the modeled soil reservoir toward the measured percentage every six hours. Without a sensor, the model continues independently.",
@@ -58,7 +75,12 @@
       "weather_data_unavailable": "The OpenWeatherMap entity does not provide a current temperature. Prefer mode v3.0 and verify that the entity is available.",
       "name_already_configured": "Another lawn already uses this name.",
       "name_required": "Enter a name for the lawn.",
-      "soil_sensor_range_invalid": "The wet sensor reference must be greater than the dry reference."
+      "soil_sensor_range_invalid": "The wet sensor reference must be greater than the dry reference.",
+      "mower_required": "Select a reliable dock status before configuring a valve.",
+      "flow_required": "Select a water meter or explicitly allow manual timer mode.",
+      "valve_already_used": "Another lawn already controls this valve.",
+      "maximum_below_minimum": "Maximum must be greater than minimum.",
+      "safe_state_required": "Enter a state confirming the mower is at the dock."
     },
     "abort": {
       "already_configured": "A lawn with this name is already configured."
@@ -75,6 +97,17 @@
           "temperature_entity": "Outdoor temperature sensor (optional)",
           "mowed_entity": "Lawn was mowed binary sensor (optional)",
           "watered_entity": "Lawn was watered binary sensor (optional)",
+          "irrigation_valve": "Irrigation valve switch (optional)",
+          "irrigation_flow": "Water flow or volume sensor (optional)",
+          "mower_location": "Mower position or dock status (required with valve)",
+          "mower_safe_state": "State confirming the mower is docked",
+          "allow_unmetered_manual": "Allow manual timer without water meter",
+          "min_irrigation_minutes": "Minimum manual watering time (minutes)",
+          "max_irrigation_minutes": "Maximum watering time (minutes)",
+          "max_irrigation_liters": "Maximum water per session (liters)",
+          "flow_start_grace_seconds": "Flow startup grace period (seconds)",
+          "min_flow_l_min": "Minimum water flow (L/min)",
+          "max_flow_l_min": "Maximum water flow (L/min)",
           "precipitation_entity": "Observed precipitation sensor (optional)",
           "precipitation_mode": "Precipitation sensor type",
           "soil_moisture_entity": "Physical soil moisture sensor (optional)",
@@ -95,6 +128,17 @@
           "rain_correction": "Observed rain correction factor",
           "soil_sensor_dry": "Soil sensor dry reference",
           "soil_sensor_wet": "Soil sensor wet reference"
+        },
+        "data_description": {
+          "irrigation_valve": "Select a switch to enable supervised valve control. Without a switch, the watering button retains its recording behavior.",
+          "irrigation_flow": "Select a live meter in L, m³, L/min, L/h, L/s or m³/h. Automatic starts require valid readings during watering.",
+          "mower_location": "Select a mower entity, vacuum, dock binary sensor, or custom status sensor. Valve starts only if the mower is confirmed docked.",
+          "mower_safe_state": "For custom status sensors, enter the value that means safely docked. Lawn mower/vacuum use docked; binary dock sensors use on.",
+          "allow_unmetered_manual": "An explicit time-only manual mode does not infer an unmeasured water volume.",
+          "min_irrigation_minutes": "Applies to manual starts unless a safety condition requires earlier shutdown.",
+          "max_irrigation_minutes": "Safety limit for every irrigation session.",
+          "max_irrigation_liters": "Safety limit that overrides the manual minimum runtime.",
+          "flow_start_grace_seconds": "Maximum time without a plausible positive water-flow reading."
         }
       }
     },
@@ -103,7 +147,12 @@
       "weather_data_unavailable": "The OpenWeatherMap entity does not provide a current temperature. Prefer mode v3.0 and verify that the entity is available.",
       "name_already_configured": "Another lawn already uses this name.",
       "name_required": "Enter a name for the lawn.",
-      "soil_sensor_range_invalid": "The wet sensor reference must be greater than the dry reference."
+      "soil_sensor_range_invalid": "The wet sensor reference must be greater than the dry reference.",
+      "mower_required": "Select a reliable dock status before configuring a valve.",
+      "flow_required": "Select a water meter or explicitly allow manual timer mode.",
+      "valve_already_used": "Another lawn already controls this valve.",
+      "maximum_below_minimum": "Maximum must be greater than minimum.",
+      "safe_state_required": "Enter a state confirming the mower is at the dock."
     }
   },
   "selector": {
@@ -116,6 +165,10 @@
   },
   "entity": {
     "sensor": {
+      "irrigation_status": {
+        "name": "Irrigation status",
+        "state": {"idle": "Idle", "running": "Watering", "stopping": "Closing valve", "completed": "Completed", "stopped": "Stopped"}
+      },
       "status": {
         "name": "Care status",
         "state": {
@@ -226,8 +279,13 @@
     "button": {
       "mark_mowing_started": {"name": "Record mowing"},
       "mark_watered": {"name": "Record watering"},
+      "start_irrigation": {"name": "Start irrigation"},
+      "stop_irrigation": {"name": "Stop irrigation"},
       "mark_fertilized": {"name": "Record fertilizing"},
       "undo_last_action": {"name": "Undo last maintenance action"}
+    },
+    "switch": {
+      "automatic_irrigation": {"name": "Automatic irrigation"}
     }
   },
   "issues": {

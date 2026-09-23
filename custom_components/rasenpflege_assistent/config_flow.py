@@ -20,16 +20,27 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 
 from .const import (
+    CONF_ALLOW_UNMETERED_MANUAL,
     CONF_AREA,
     CONF_COMPACTION,
     CONF_DEFAULT_WATERING_AMOUNT,
+    CONF_FLOW_START_GRACE,
     CONF_INITIAL_GTS,
     CONF_INITIAL_SOIL_MOISTURE,
     CONF_IRRIGATION_EFFICIENCY,
+    CONF_IRRIGATION_FLOW,
+    CONF_IRRIGATION_VALVE,
     CONF_LAST_FERTILIZING,
     CONF_LAST_WATERING,
     CONF_LAWN_TYPE,
+    CONF_MAX_FLOW_L_MIN,
+    CONF_MAX_IRRIGATION_LITERS,
+    CONF_MAX_IRRIGATION_MINUTES,
+    CONF_MIN_FLOW_L_MIN,
+    CONF_MIN_IRRIGATION_MINUTES,
     CONF_MOWED_ENTITY,
+    CONF_MOWER_LOCATION,
+    CONF_MOWER_SAFE_STATE,
     CONF_NAME,
     CONF_PRECIPITATION_ENTITY,
     CONF_PRECIPITATION_MODE,
@@ -47,10 +58,16 @@ from .const import (
     CONF_WEATHER_ENTITY,
     DEFAULT_AREA,
     DEFAULT_COMPACTION,
+    DEFAULT_FLOW_START_GRACE,
     DEFAULT_INITIAL_GTS,
     DEFAULT_INITIAL_SOIL_MOISTURE,
     DEFAULT_IRRIGATION_EFFICIENCY,
     DEFAULT_LAWN_TYPE,
+    DEFAULT_MAX_FLOW_L_MIN,
+    DEFAULT_MAX_IRRIGATION_LITERS,
+    DEFAULT_MAX_IRRIGATION_MINUTES,
+    DEFAULT_MIN_FLOW_L_MIN,
+    DEFAULT_MIN_IRRIGATION_MINUTES,
     DEFAULT_NAME,
     DEFAULT_PRECIPITATION_MODE,
     DEFAULT_RAIN_CORRECTION,
@@ -94,6 +111,37 @@ def _schema() -> vol.Schema:
             ),
             vol.Optional(CONF_WATERED_ENTITY): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="binary_sensor")
+            ),
+            vol.Optional(CONF_IRRIGATION_VALVE): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="switch")
+            ),
+            vol.Optional(CONF_IRRIGATION_FLOW): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
+            vol.Optional(CONF_MOWER_LOCATION): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain=["lawn_mower", "vacuum", "binary_sensor", "sensor"]
+                )
+            ),
+            vol.Optional(CONF_MOWER_SAFE_STATE, default="docked"): str,
+            vol.Optional(CONF_ALLOW_UNMETERED_MANUAL, default=False): bool,
+            vol.Required(
+                CONF_MIN_IRRIGATION_MINUTES, default=DEFAULT_MIN_IRRIGATION_MINUTES
+            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=60)),
+            vol.Required(
+                CONF_MAX_IRRIGATION_MINUTES, default=DEFAULT_MAX_IRRIGATION_MINUTES
+            ): vol.All(vol.Coerce(int), vol.Range(min=5, max=240)),
+            vol.Required(
+                CONF_MAX_IRRIGATION_LITERS, default=DEFAULT_MAX_IRRIGATION_LITERS
+            ): vol.All(vol.Coerce(float), vol.Range(min=10, max=50000)),
+            vol.Required(
+                CONF_FLOW_START_GRACE, default=DEFAULT_FLOW_START_GRACE
+            ): vol.All(vol.Coerce(int), vol.Range(min=30, max=600)),
+            vol.Required(CONF_MIN_FLOW_L_MIN, default=DEFAULT_MIN_FLOW_L_MIN): vol.All(
+                vol.Coerce(float), vol.Range(min=0, max=100)
+            ),
+            vol.Required(CONF_MAX_FLOW_L_MIN, default=DEFAULT_MAX_FLOW_L_MIN): vol.All(
+                vol.Coerce(float), vol.Range(min=1, max=1000)
             ),
             vol.Optional(CONF_PRECIPITATION_ENTITY): selector.EntitySelector(
                 selector.EntitySelectorConfig(
@@ -268,10 +316,50 @@ def _validate_calibration(user_input: dict[str, Any]) -> dict[str, str]:
     return {}
 
 
+def _validate_irrigation(user_input: dict[str, Any]) -> dict[str, str]:
+    """Check that optional valve control has a safe configuration."""
+    errors: dict[str, str] = {}
+    if user_input.get(CONF_IRRIGATION_VALVE):
+        if not user_input.get(CONF_MOWER_LOCATION):
+            errors[CONF_MOWER_LOCATION] = "mower_required"
+        if not user_input.get(CONF_IRRIGATION_FLOW) and not user_input.get(
+            CONF_ALLOW_UNMETERED_MANUAL
+        ):
+            errors[CONF_IRRIGATION_FLOW] = "flow_required"
+    if user_input.get(
+        CONF_MIN_IRRIGATION_MINUTES, DEFAULT_MIN_IRRIGATION_MINUTES
+    ) >= user_input.get(CONF_MAX_IRRIGATION_MINUTES, DEFAULT_MAX_IRRIGATION_MINUTES):
+        errors[CONF_MAX_IRRIGATION_MINUTES] = "maximum_below_minimum"
+    if user_input.get(CONF_MIN_FLOW_L_MIN, DEFAULT_MIN_FLOW_L_MIN) >= user_input.get(
+        CONF_MAX_FLOW_L_MIN, DEFAULT_MAX_FLOW_L_MIN
+    ):
+        errors[CONF_MAX_FLOW_L_MIN] = "maximum_below_minimum"
+    if not user_input.get(CONF_MOWER_SAFE_STATE, "docked").strip():
+        errors[CONF_MOWER_SAFE_STATE] = "safe_state_required"
+    return errors
+
+
+def _validate_unique_valve(
+    hass: HomeAssistant, user_input: dict[str, Any], exclude_entry_id: str | None = None
+) -> dict[str, str]:
+    """Prevent independent lawn entries from commanding the same valve."""
+    valve = user_input.get(CONF_IRRIGATION_VALVE)
+    if valve:
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            configured = (
+                entry.options[CONF_IRRIGATION_VALVE]
+                if CONF_IRRIGATION_VALVE in entry.options
+                else entry.data.get(CONF_IRRIGATION_VALVE)
+            )
+            if entry.entry_id != exclude_entry_id and configured == valve:
+                return {CONF_IRRIGATION_VALVE: "valve_already_used"}
+    return {}
+
+
 class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Lawn Care Assistant."""
 
-    VERSION = 7
+    VERSION = 8
     MINOR_VERSION = 0
 
     async def async_step_user(
@@ -282,6 +370,8 @@ class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors = {
                 **_validate_openweathermap_entities(self.hass, user_input),
                 **_validate_calibration(user_input),
+                **_validate_irrigation(user_input),
+                **_validate_unique_valve(self.hass, user_input),
             }
             name = user_input[CONF_NAME].strip()
             if not name:
@@ -317,6 +407,10 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
             errors = {
                 **_validate_openweathermap_entities(self.hass, user_input),
                 **_validate_calibration(user_input),
+                **_validate_irrigation(user_input),
+                **_validate_unique_valve(
+                    self.hass, user_input, self.config_entry.entry_id
+                ),
             }
             new_name = user_input[CONF_NAME].strip()
             if not new_name:
@@ -333,6 +427,9 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
             options.setdefault(CONF_TEMPERATURE_ENTITY, None)
             options.setdefault(CONF_MOWED_ENTITY, None)
             options.setdefault(CONF_WATERED_ENTITY, None)
+            options.setdefault(CONF_IRRIGATION_VALVE, None)
+            options.setdefault(CONF_IRRIGATION_FLOW, None)
+            options.setdefault(CONF_MOWER_LOCATION, None)
             options.setdefault(CONF_PRECIPITATION_ENTITY, None)
             options.setdefault(CONF_SOIL_MOISTURE_ENTITY, None)
             options.setdefault(CONF_SOIL_TEMPERATURE_ENTITY, None)

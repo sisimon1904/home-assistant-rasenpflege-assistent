@@ -44,6 +44,7 @@ from .const import (
     CONF_INITIAL_GTS,
     CONF_INITIAL_SOIL_MOISTURE,
     CONF_IRRIGATION_EFFICIENCY,
+    CONF_IRRIGATION_VALVE,
     CONF_LAST_FERTILIZING,
     CONF_LAST_WATERING,
     CONF_LAWN_TYPE,
@@ -127,6 +128,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         self._forecast_updated_at = None
         self._hourly_forecast_cache: list[dict[str, Any]] = []
         self._hourly_forecast_updated_at = None
+        self.irrigation = None
 
     @property
     def settings(self) -> dict[str, Any]:
@@ -211,6 +213,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                     stored.get("configured_root_depth_cm", root_depth)
                 ),
                 missing_temperature_days=int(stored.get("missing_temperature_days", 0)),
+                irrigation_enabled=bool(stored.get("irrigation_enabled", False)),
+                irrigation_session=stored.get("irrigation_session"),
+                irrigation_last_auto_date=stored.get("irrigation_last_auto_date"),
+                irrigation_last_status=stored.get("irrigation_last_status", "idle"),
+                irrigation_last_reason=stored.get("irrigation_last_reason"),
+                irrigation_last_liters=stored.get("irrigation_last_liters"),
+                irrigation_valve_id=stored.get("irrigation_valve_id"),
             )
             if not stored.get("local_day_model", False):
                 # Earlier releases stored UTC-based partial days. They cannot be
@@ -250,6 +259,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 water_model_version=3,
                 configured_soil_type=soil_type,
                 configured_root_depth_cm=root_depth,
+                irrigation_valve_id=settings.get(CONF_IRRIGATION_VALVE),
                 missing_temperature_days=(
                     (today - date(today.year, 1, 1)).days if initial_gts == 0 else 0
                 ),
@@ -273,6 +283,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             self._state.configured_soil_type = soil_type
             self._state.configured_root_depth_cm = root_depth
         self._state.water_model_version = max(self._state.water_model_version, 3)
+        if self._state.irrigation_valve_id != settings.get(CONF_IRRIGATION_VALVE):
+            self._state.irrigation_enabled = False
+            self._state.irrigation_valve_id = settings.get(CONF_IRRIGATION_VALVE)
 
         if initial_gts != self._state.configured_initial_gts:
             self._state.gts = initial_gts
@@ -1358,6 +1371,19 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             ),
             gts_complete=self._state.missing_temperature_days == 0,
             missing_temperature_days=self._state.missing_temperature_days,
+            irrigation_status=(
+                "not_configured"
+                if self.irrigation is None
+                else self._state.irrigation_last_status
+            ),
+            irrigation_enabled=self._state.irrigation_enabled,
+            irrigation_liters=(
+                round(self._state.irrigation_session["liters"], 1)
+                if self._state.irrigation_session
+                and self._state.irrigation_session["meter_kind"] != "timer"
+                else self._state.irrigation_last_liters
+            ),
+            irrigation_reason=self._state.irrigation_last_reason,
         )
         await self._store.async_save(self._state.as_dict())
         return data

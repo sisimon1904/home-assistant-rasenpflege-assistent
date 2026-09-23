@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
@@ -34,7 +34,17 @@ BUTTONS: tuple[LawnButtonDescription, ...] = (
         key="mark_watered",
         translation_key="mark_watered",
         icon="mdi:watering-can",
-        press_fn=lambda coordinator: coordinator.async_mark_watered(),
+        press_fn=lambda coordinator: (
+            coordinator.irrigation.async_start(manual=True)
+            if coordinator.irrigation and coordinator.irrigation.configured
+            else coordinator.async_mark_watered()
+        ),
+    ),
+    LawnButtonDescription(
+        key="stop_irrigation",
+        translation_key="stop_irrigation",
+        icon="mdi:water-off",
+        press_fn=lambda coordinator: coordinator.irrigation.async_stop(),
     ),
     LawnButtonDescription(
         key="mark_fertilized",
@@ -59,7 +69,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up lawn logging buttons."""
     coordinator: LawnCoordinator = entry.runtime_data
-    async_add_entities(LawnButton(coordinator, description) for description in BUTTONS)
+    async_add_entities(
+        LawnButton(coordinator, description)
+        for description in BUTTONS
+        if description.key != "stop_irrigation"
+        or (coordinator.irrigation and coordinator.irrigation.configured)
+    )
 
 
 class LawnButton(LawnEntity, ButtonEntity):
@@ -72,7 +87,13 @@ class LawnButton(LawnEntity, ButtonEntity):
     ) -> None:
         """Initialize the button."""
         super().__init__(coordinator, description.key)
-        self.entity_description = description
+        self.entity_description = (
+            replace(description, translation_key="start_irrigation")
+            if description.key == "mark_watered"
+            and coordinator.irrigation
+            and coordinator.irrigation.configured
+            else description
+        )
 
     async def async_press(self) -> None:
         """Record a completed maintenance action."""

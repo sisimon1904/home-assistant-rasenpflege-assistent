@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import timedelta
 
 DOMAIN = "rasenpflege_assistent"
-INTEGRATION_VERSION = "3.2.1"
-PLATFORMS = ["sensor", "button"]
+INTEGRATION_VERSION = "3.3.0"
+PLATFORMS = ["sensor", "button", "switch"]
 
 CONF_NAME = "name"
 CONF_TEMPERATURE_ENTITY = "temperature_entity"
@@ -33,6 +33,17 @@ CONF_IRRIGATION_EFFICIENCY = "irrigation_efficiency"
 CONF_RAIN_CORRECTION = "rain_correction"
 CONF_SOIL_SENSOR_DRY = "soil_sensor_dry"
 CONF_SOIL_SENSOR_WET = "soil_sensor_wet"
+CONF_IRRIGATION_VALVE = "irrigation_valve"
+CONF_IRRIGATION_FLOW = "irrigation_flow"
+CONF_MOWER_LOCATION = "mower_location"
+CONF_MOWER_SAFE_STATE = "mower_safe_state"
+CONF_MIN_IRRIGATION_MINUTES = "min_irrigation_minutes"
+CONF_MAX_IRRIGATION_MINUTES = "max_irrigation_minutes"
+CONF_MAX_IRRIGATION_LITERS = "max_irrigation_liters"
+CONF_FLOW_START_GRACE = "flow_start_grace_seconds"
+CONF_MIN_FLOW_L_MIN = "min_flow_l_min"
+CONF_MAX_FLOW_L_MIN = "max_flow_l_min"
+CONF_ALLOW_UNMETERED_MANUAL = "allow_unmetered_manual"
 
 DEFAULT_NAME = "Lawn"
 DEFAULT_AREA = 100.0
@@ -50,6 +61,13 @@ DEFAULT_IRRIGATION_EFFICIENCY = 0.85
 DEFAULT_RAIN_CORRECTION = 1.0
 DEFAULT_SOIL_SENSOR_DRY = 0.0
 DEFAULT_SOIL_SENSOR_WET = 100.0
+DEFAULT_MIN_IRRIGATION_MINUTES = 5
+DEFAULT_MAX_IRRIGATION_MINUTES = 90
+DEFAULT_MAX_IRRIGATION_LITERS = 2500
+DEFAULT_FLOW_START_GRACE = 180
+DEFAULT_MIN_FLOW_L_MIN = 0.1
+DEFAULT_MAX_FLOW_L_MIN = 100
+IRRIGATION_WATCHDOG_INTERVAL = timedelta(seconds=15)
 
 UPDATE_INTERVAL = timedelta(minutes=30)
 FORECAST_CACHE_INTERVAL = timedelta(hours=1)

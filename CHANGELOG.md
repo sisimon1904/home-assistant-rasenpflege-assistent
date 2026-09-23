@@ -1,5 +1,31 @@
 # Changelog
 
+## 3.3.0
+
+### Added
+
+- Optional hardware-independent valve, water meter, and mower dock inputs.
+- An opt-in automatic irrigation switch and manual valve start/stop buttons.
+- Minimum manual runtime, target volume, maximum time and volume, startup flow
+  grace period, and configurable minimum and maximum flow thresholds.
+- A separate safety watchdog with immediate mower and meter state monitoring,
+  fail-closed restart handling, and valve closure retries.
+- Irrigation status with last measured volume and stop reason; meter supports
+  volume totals and instantaneous flow rates in common Home Assistant units.
+
+### Changed
+
+- The existing watering button starts a supervised session if a valve is
+  selected; without a valve it retains its previous recording behavior.
+- Record actual measured water only after the valve is confirmed closed;
+  ignore the optional watered binary sensor during controlled sessions.
+- Migrate existing entries to version 8 with automatic control disabled.
+
+### Fixed
+
+- Expose the seasonal temperature-outage evapotranspiration method as a valid
+  translated sensor state.
+
 ## 3.2.1
 
 ### Fixed

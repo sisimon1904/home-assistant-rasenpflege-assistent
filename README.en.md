@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.2.1 · [Changelog](CHANGELOG.md)
+Version 3.3.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -10,7 +10,8 @@ Version 3.2.1 · [Changelog](CHANGELOG.md)
 This integration evaluates lawn growth and maintenance needs using existing
 OpenWeatherMap data in Home Assistant. It calculates the grassland temperature
 sum, modeled soil moisture, and recommendations for watering, fertilizing, and
-mowing. It does not control irrigation or a robotic mower.
+mowing. It can optionally control an existing irrigation valve; it does not
+control the robotic mower.
 
 ## Installation
 
@@ -44,6 +45,41 @@ record off-to-on transitions; manual buttons remain available without them.
 Actual watering and fertilizing amounts can be recorded, and the most recent
 maintenance action can be undone.
 
+## Optional automatic irrigation
+
+Under **Configure**, select a valve `switch`, a water meter, and the mower's
+actual dock status. Supported mower inputs include `lawn_mower`, `vacuum`,
+`binary_sensor`, and custom status sensors. The mower must explicitly report
+the docked state (`docked`, `on` for a binary dock sensor, or your selected
+safe state). Missing or uncertain mower states block both automatic and
+manual valve starts.
+
+Supported meter units are **L**, **m³**, **gal**, **L/min**, **L/h**, **L/s**,
+**m³/h**, **m³/min**, and **m³/s**. Automatic starts require a working meter.
+An unmetered manual timer must be explicitly enabled and never credits an
+unmeasured amount to the soil model.
+The selected sensor must report **during watering**. A volume counter that
+only updates after the valve closes cannot enforce the no-flow interlock;
+verify reporting during a short supervised trial run.
+With multiple valves, the selected meter must measure the controlled circuit;
+a shared meter cannot attribute simultaneous watering by different circuits.
+
+With a valve configured, the existing watering button starts a supervised
+session and **Stop irrigation** closes it. A configurable minimum runtime
+applies to manual sessions unless a safety condition requires immediate
+closure. The **Automatic irrigation** switch defaults to off. When enabled,
+the integration may start at most one recommended watering per local day
+within a suitable forecast window, provided weather, observed rain, and
+meter data are reliable.
+
+An independent 15-second watchdog closes an owned valve for missing or
+implausible flow, loss of dock confirmation, maximum runtime or volume, or
+disabled automation. Persisted sessions are closed on restart rather than
+resumed. Measured water enters the soil model after confirmed valve closure.
+A device-side cutoff remains advisable: Home Assistant cannot send a shutoff
+command when it or the radio link is down. Failed shutoff commands are
+retried, but the physical valve must be checked if it does not respond.
+
 No additional OpenWeatherMap API key is needed. The integration reads existing
 entities and calls Home Assistant's `weather.get_forecasts` without requesting
 the OpenWeatherMap API directly.
@@ -57,6 +93,7 @@ the OpenWeatherMap API directly.
 | Mower status | Start, regular mowing, pause, or winter off; next mow as an attribute |
 | Modeled soil moisture | Estimated moisture, root-zone water, and water balance |
 | Watering recommendation | Timing, mm, liters, rain forecast, and suggested window |
+| Irrigation status (with valve) | Running, completed, or stopped; last measured amount and stop reason |
 | Grassland temperature sum | Vegetation indicator with completeness details |
 | Next action | One concise action recommendation |
 

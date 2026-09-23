@@ -93,6 +93,10 @@ class LawnData:
     last_maintenance_event: dict[str, Any] | None = None
     gts_complete: bool = True
     missing_temperature_days: int = 0
+    irrigation_status: str = "not_configured"
+    irrigation_enabled: bool = False
+    irrigation_liters: float | None = None
+    irrigation_reason: str | None = None
 
 
 @dataclass(slots=True)
@@ -141,6 +145,13 @@ class RuntimeState:
     configured_soil_type: str | None = None
     configured_root_depth_cm: float = 10.0
     missing_temperature_days: int = 0
+    irrigation_enabled: bool = False
+    irrigation_session: dict[str, Any] | None = None
+    irrigation_last_auto_date: str | None = None
+    irrigation_last_status: str = "idle"
+    irrigation_last_reason: str | None = None
+    irrigation_last_liters: float | None = None
+    irrigation_valve_id: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable representation."""
@@ -189,4 +200,11 @@ class RuntimeState:
             "configured_soil_type": self.configured_soil_type,
             "configured_root_depth_cm": self.configured_root_depth_cm,
             "missing_temperature_days": self.missing_temperature_days,
+            "irrigation_enabled": self.irrigation_enabled,
+            "irrigation_session": self.irrigation_session,
+            "irrigation_last_auto_date": self.irrigation_last_auto_date,
+            "irrigation_last_status": self.irrigation_last_status,
+            "irrigation_last_reason": self.irrigation_last_reason,
+            "irrigation_last_liters": self.irrigation_last_liters,
+            "irrigation_valve_id": self.irrigation_valve_id,
         }

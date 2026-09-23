@@ -39,6 +39,7 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import LawnCoordinator
+from .irrigation import IrrigationController
 
 type LawnConfigEntry = ConfigEntry[LawnCoordinator]
 
@@ -56,7 +57,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         return entry.runtime_data
 
     async def _record_watering(call: ServiceCall) -> None:
-        await _coordinator(call).async_mark_watered(call.data.get("amount_mm"))
+        coordinator = _coordinator(call)
+        if coordinator.irrigation and coordinator.irrigation.active:
+            raise ServiceValidationError(
+                "Cannot manually record water during a controlled irrigation session"
+            )
+        await coordinator.async_mark_watered(call.data.get("amount_mm"))
 
     async def _record_fertilizing(call: ServiceCall) -> None:
         await _coordinator(call).async_mark_fertilized(
@@ -111,6 +117,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
     coordinator = LawnCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
+    coordinator.irrigation = IrrigationController(hass, coordinator)
+    if coordinator.irrigation.configured:
+        await coordinator.irrigation.async_initialize()
+        await coordinator.async_request_refresh()
 
     registry = er.async_get(hass)
     for key in (
@@ -139,6 +149,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
         if action == "mowed":
             await coordinator.async_mark_mowed(deduplicate=True)
         else:
+            if coordinator.irrigation and coordinator.irrigation.active:
+                return
             await coordinator.async_mark_watered(deduplicate=True)
 
     for config_key, action in (
@@ -167,6 +179,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
 
 async def async_unload_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool:
     """Unload a config entry."""
+    if (
+        entry.runtime_data.irrigation
+        and not await entry.runtime_data.irrigation.async_shutdown()
+    ):
+        return False
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
@@ -244,4 +261,6 @@ async def async_migrate_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bo
             minor_version=0,
             unique_id=entry.entry_id,
         )
+    if entry.version == 7:
+        hass.config_entries.async_update_entry(entry, version=8, minor_version=0)
     return True

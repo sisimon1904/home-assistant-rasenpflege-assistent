@@ -369,6 +369,19 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
         },
     ),
     LawnSensorDescription(
+        key="irrigation_status",
+        translation_key="irrigation_status",
+        icon="mdi:sprinkler-variant",
+        device_class=SensorDeviceClass.ENUM,
+        options=["idle", "running", "stopping", "completed", "stopped"],
+        value_fn=lambda data: data.irrigation_status,
+        attributes_fn=lambda data: {
+            "automatic_irrigation_enabled": data.irrigation_enabled,
+            "last_irrigation_liters": data.irrigation_liters,
+            "reason": data.irrigation_reason,
+        },
+    ),
+    LawnSensorDescription(
         key="watering_amount",
         translation_key="watering_amount",
         icon="mdi:water",
@@ -530,6 +543,7 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
         options=[
             "penman_monteith_estimated_radiation",
             "hargreaves_samani",
+            "estimated_fallback",
             "unavailable",
         ],
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -583,7 +597,12 @@ async def async_setup_entry(
     )
     if deprecated:
         registry.async_remove(deprecated)
-    async_add_entities(LawnSensor(coordinator, description) for description in SENSORS)
+    async_add_entities(
+        LawnSensor(coordinator, description)
+        for description in SENSORS
+        if description.key != "irrigation_status"
+        or (coordinator.irrigation and coordinator.irrigation.configured)
+    )
 
 
 class LawnSensor(LawnEntity, SensorEntity):

@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.2.1 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.3.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -10,7 +10,8 @@ Version 3.2.1 · [Änderungsverlauf](CHANGELOG.md)
 Diese Integration bewertet Wachstum und Pflegebedarf deines Rasens aus den
 vorhandenen OpenWeatherMap-Daten in Home Assistant. Sie berechnet die
 Grünlandtemperatursumme, modellierte Bodenfeuchte sowie Empfehlungen zum
-Bewässern, Düngen und Mähen. Sie schaltet weder Bewässerung noch Mähroboter.
+Bewässern, Düngen und Mähen. Optional kann sie ein vorhandenes Bewässerungsventil
+steuern; sie schaltet den Mähroboter nicht.
 
 ## Installation
 
@@ -45,6 +46,46 @@ bewässert** protokollieren eine Aus→Ein-Flanke; ohne sie stehen die manuellen
 Schaltflächen zur Verfügung. Bewässerung und Düngung lassen sich auch mit
 tatsächlichen Mengen protokollieren und das letzte Ereignis rückgängig machen.
 
+## Optionale automatische Bewässerung
+
+Unter **Konfigurieren** können ein `switch` für das Ventil, ein Wassersensor
+und eine Entität für den tatsächlichen Mähroboterstandort ausgewählt werden.
+Unterstützt werden `lawn_mower`, `vacuum`, `binary_sensor` und frei wählbare
+Statussensoren. Der Roboter muss eindeutig an der Station gemeldet sein
+(`docked`, beim Binärsensor `on` oder der konfigurierte sichere Zustand).
+Fehlt dieser Nachweis, öffnet das Ventil weder automatisch noch manuell.
+
+Ein Wassersensor darf eine Menge in **L**, **m³** oder **gal** oder einen
+Durchfluss in **L/min**, **L/h**, **L/s**, **m³/h**, **m³/min** oder **m³/s**
+melden. Ohne Messung sind automatische Starts nicht möglich. Ein manueller
+Zeitbetrieb ohne Sensor muss ausdrücklich erlaubt werden und verbucht keine
+unbekannte Wassermenge im Bodenmodell.
+Der ausgewählte Sensor muss **während der Bewässerung** neue Werte liefern;
+ein erst nach dem Schließen aktualisierter Mengenzähler kann den fehlenden
+Durchfluss während des Betriebs nicht absichern. Prüfe dies beim Einrichten
+mit einem kurzen beaufsichtigten Probelauf.
+Bei mehreren Ventilen darf der ausgewählte Mengensensor nur den gesteuerten
+Bewässerungskreis erfassen; ein gemeinsamer Zähler für gleichzeitig laufende
+Kreise kann die verbrauchte Menge nicht eindeutig zuordnen.
+
+Mit Ventil startet die bisherige Schaltfläche **Bewässerung erfassen** eine
+Sitzung; **Bewässerung stoppen** beendet sie. Die konfigurierbare Mindestdauer
+gilt für manuelle Starts, soweit keine Sicherheitsabschaltung nötig ist.
+Die separate Entität **Automatische Bewässerung** ist anfangs ausgeschaltet.
+Sie startet höchstens eine empfohlene Bewässerung pro lokalem Tag im passenden
+Vorhersagefenster, sofern Wetter, Regenmessung und Wassersensor ausreichend
+zuverlässig sind.
+
+Ein unabhängiger 15-Sekunden-Wächter schließt das Ventil bei fehlendem,
+unplausiblem oder ausbleibendem Durchfluss, Überschreitung von Zeit oder Menge,
+Verlust des Stationsstatus oder deaktivierter Automatik. Nach Neustart wird
+eine noch gespeicherte Sitzung geschlossen statt fortgesetzt. Die tatsächlich
+gemessene Wassermenge wird erst nach bestätigtem Schließen dem Bodenmodell
+gutgeschrieben. Ein geräteseitiger Abschalttimer ist zusätzlich sinnvoll,
+weil Home Assistant bei eigener Abschaltung oder Funkverlust keine Schaltbefehle
+senden kann. Bei einem fehlgeschlagenen Schließversuch versucht die Integration
+es erneut; prüfe in diesem Fall das Ventil vor Ort.
+
 Die Integration benötigt keinen weiteren OpenWeatherMap-API-Schlüssel. Sie
 liest vorhandene Entitäten und ruft Vorhersagen über Home Assistants
 `weather.get_forecasts` ab, ohne OpenWeatherMap direkt anzufragen.
@@ -58,6 +99,7 @@ liest vorhandene Entitäten und ruft Vorhersagen über Home Assistants
 | Mähroboterstatus | Start, regelmäßiges Mähen, Pause oder Winterabschaltung; nächstes Mähen als Attribut |
 | Modellierte Bodenfeuchte | Geschätzte Feuchte, Wasservorrat und Wasserbilanz |
 | Bewässerungsempfehlung | Zeitpunkt, mm, Liter, Regenprognose und empfohlenes Zeitfenster |
+| Bewässerungsstatus (mit Ventil) | Laufend, abgeschlossen oder gestoppt; letzte gemessene Menge und Stoppgrund |
 | Grünlandtemperatursumme | Vegetationsindikator mit Angaben zur Vollständigkeit |
 | Nächste Aktion | Kompakte Handlungsempfehlung |
 

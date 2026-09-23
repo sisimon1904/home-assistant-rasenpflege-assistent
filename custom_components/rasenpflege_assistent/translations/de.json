@@ -4,13 +4,24 @@
     "step": {
       "user": {
         "title": "Rasen einrichten",
-        "description": "Wähle deine bereits eingerichtete OpenWeatherMap-Wetterentität aus. Der Assistent gibt ausschließlich Empfehlungen und steuert keine Bewässerung.",
+        "description": "Wähle deine OpenWeatherMap-Wetterentität aus. Die optionale Ventilsteuerung bleibt bis zur Einrichtung und Freigabe deaktiviert.",
         "data": {
           "name": "Name",
           "weather_entity": "OpenWeatherMap-Wetterentität",
           "temperature_entity": "Außentemperatursensor (optional)",
           "mowed_entity": "Binärsensor „Rasen wurde gemäht“ (optional)",
           "watered_entity": "Binärsensor „Rasen wurde bewässert“ (optional)",
+          "irrigation_valve": "Schalter für Bewässerungsventil (optional)",
+          "irrigation_flow": "Durchfluss- oder Wassermengensensor (optional)",
+          "mower_location": "Mähroboterposition oder Stationsstatus (mit Ventil erforderlich)",
+          "mower_safe_state": "Zustand für Roboter an der Station",
+          "allow_unmetered_manual": "Manuellen Zeitbetrieb ohne Wassersensor erlauben",
+          "min_irrigation_minutes": "Mindestdauer manueller Bewässerung (Minuten)",
+          "max_irrigation_minutes": "Maximale Bewässerungsdauer (Minuten)",
+          "max_irrigation_liters": "Maximale Wassermenge je Vorgang (Liter)",
+          "flow_start_grace_seconds": "Anlaufzeit für Durchfluss (Sekunden)",
+          "min_flow_l_min": "Minimaler Durchfluss (L/min)",
+          "max_flow_l_min": "Maximaler Durchfluss (L/min)",
           "precipitation_entity": "Sensor für gefallenen Niederschlag (optional)",
           "precipitation_mode": "Art des Niederschlagssensors",
           "soil_moisture_entity": "Physischer Bodenfeuchtesensor (optional)",
@@ -37,6 +48,12 @@
           "temperature_entity": "Dieser Sensor hat Vorrang. Wenn er nicht ausgewählt oder nicht verfügbar ist, wird automatisch die aktuelle Temperatur von OpenWeatherMap verwendet.",
           "mowed_entity": "Eine Aus→Ein-Flanke protokolliert das Mähen und bestätigt den Saisonstart. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
           "watered_entity": "Eine Aus→Ein-Flanke protokolliert die Bewässerung und aktualisiert das Bodenmodell. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
+          "irrigation_valve": "Wähle einen steuerbaren Schalter. Mit Ventil startet die bisherige Schaltfläche eine überwachte Bewässerung.",
+          "irrigation_flow": "Wähle einen Sensor in L, m³, L/min, L/h, L/s oder m³/h. Automatische Bewässerung benötigt einen funktionierenden Sensor.",
+          "mower_location": "Wähle einen lawn_mower, vacuum, Binär- oder Statussensor. Das Ventil öffnet nur bei eindeutig bestätigtem Stationszustand.",
+          "mower_safe_state": "Für lawn_mower/vacuum docked, für einen Stations-Binärsensor on oder den exakten Zustand eines eigenen Sensors verwenden.",
+          "allow_unmetered_manual": "Die manuelle Bewässerung läuft nur für die Mindestdauer; dem Bodenmodell wird ohne Messung kein Wasser gutgeschrieben. Automatische Starts brauchen weiterhin einen Sensor.",
+          "flow_start_grace_seconds": "Ohne plausiblen positiven Durchfluss wird nach dieser Zeit abgeschaltet. Sicherheit hat Vorrang vor der Mindestdauer.",
           "precipitation_entity": "Akzeptiert Niederschlagsmenge oder Niederschlagsintensität. Ohne Sensor wird kein Regen in das Bodenmodell eingetragen; Vorhersagen dienen nur der Empfehlung.",
           "precipitation_mode": "Automatisch verwendet Einheit und Zustandsklasse. Bei einem mehrdeutigen Sensorwert in mm kann die Art fest vorgegeben werden.",
           "soil_moisture_entity": "Gleicht den modellierten Bodenspeicher höchstens alle sechs Stunden sanft mit dem gemessenen Prozentwert ab. Ohne Sensor arbeitet das Modell unverändert weiter.",
@@ -58,7 +75,12 @@
       "weather_data_unavailable": "Die OpenWeatherMap-Entität liefert keine aktuelle Temperatur. Verwende möglichst den Modus v3.0 und prüfe, ob die Entität verfügbar ist.",
       "name_already_configured": "Ein anderer Rasen verwendet bereits diesen Namen.",
       "name_required": "Gib einen Namen für den Rasen ein.",
-      "soil_sensor_range_invalid": "Die Nassreferenz muss größer als die Trockenreferenz sein."
+      "soil_sensor_range_invalid": "Die Nassreferenz muss größer als die Trockenreferenz sein.",
+      "mower_required": "Wähle für das Ventil einen zuverlässigen Stationsstatus des Mähroboters.",
+      "flow_required": "Wähle einen Wassersensor oder erlaube ausdrücklich den manuellen Zeitbetrieb.",
+      "valve_already_used": "Ein anderer Rasen steuert dieses Ventil bereits.",
+      "maximum_below_minimum": "Der Maximalwert muss über dem Minimalwert liegen.",
+      "safe_state_required": "Gib den Zustand für einen an der Station befindlichen Roboter ein."
     },
     "abort": {
       "already_configured": "Ein Rasen mit diesem Namen ist bereits eingerichtet."
@@ -75,6 +97,17 @@
           "temperature_entity": "Außentemperatursensor (optional)",
           "mowed_entity": "Binärsensor „Rasen wurde gemäht“ (optional)",
           "watered_entity": "Binärsensor „Rasen wurde bewässert“ (optional)",
+          "irrigation_valve": "Schalter für Bewässerungsventil (optional)",
+          "irrigation_flow": "Durchfluss- oder Wassermengensensor (optional)",
+          "mower_location": "Mähroboterposition oder Stationsstatus (mit Ventil erforderlich)",
+          "mower_safe_state": "Zustand für Roboter an der Station",
+          "allow_unmetered_manual": "Manuellen Zeitbetrieb ohne Wassersensor erlauben",
+          "min_irrigation_minutes": "Mindestdauer manueller Bewässerung (Minuten)",
+          "max_irrigation_minutes": "Maximale Bewässerungsdauer (Minuten)",
+          "max_irrigation_liters": "Maximale Wassermenge je Vorgang (Liter)",
+          "flow_start_grace_seconds": "Anlaufzeit für Durchfluss (Sekunden)",
+          "min_flow_l_min": "Minimaler Durchfluss (L/min)",
+          "max_flow_l_min": "Maximaler Durchfluss (L/min)",
           "precipitation_entity": "Sensor für gefallenen Niederschlag (optional)",
           "precipitation_mode": "Art des Niederschlagssensors",
           "soil_moisture_entity": "Physischer Bodenfeuchtesensor (optional)",
@@ -95,6 +128,17 @@
           "rain_correction": "Korrekturfaktor für gemessenen Regen",
           "soil_sensor_dry": "Trockenreferenz des Bodensensors",
           "soil_sensor_wet": "Nassreferenz des Bodensensors"
+        },
+        "data_description": {
+          "irrigation_valve": "Wähle einen Schalter für die überwachte Ventilsteuerung. Ohne Schalter bleibt die bisherige Erfassungsfunktion des Buttons erhalten.",
+          "irrigation_flow": "Wähle einen während der Bewässerung aktualisierten Sensor in L, m³, L/min, L/h, L/s oder m³/h. Automatische Starts brauchen Messwerte.",
+          "mower_location": "Wähle einen Mähroboter, Staubsauger, Stations-Binärsensor oder eigenen Statussensor. Das Ventil öffnet nur bei sicherem Stationszustand.",
+          "mower_safe_state": "Beim eigenen Statussensor den Wert für sicher angedockt eintragen. Mähroboter/Staubsauger verwenden docked, Stations-Binärsensoren on.",
+          "allow_unmetered_manual": "Der manuelle Zeitbetrieb nimmt keine ungemessene Wassermenge für das Bodenmodell an.",
+          "min_irrigation_minutes": "Gilt für manuelle Starts, sofern kein Sicherheitsgrund früheres Schließen verlangt.",
+          "max_irrigation_minutes": "Sicherheitsgrenze für jede Bewässerung.",
+          "max_irrigation_liters": "Sicherheitsgrenze, die Vorrang vor der Mindestdauer hat.",
+          "flow_start_grace_seconds": "Maximale Zeit ohne plausiblen positiven Wasserdurchfluss."
         }
       }
     },
@@ -103,7 +147,12 @@
       "weather_data_unavailable": "Die OpenWeatherMap-Entität liefert keine aktuelle Temperatur. Verwende möglichst den Modus v3.0 und prüfe, ob die Entität verfügbar ist.",
       "name_already_configured": "Ein anderer Rasen verwendet bereits diesen Namen.",
       "name_required": "Gib einen Namen für den Rasen ein.",
-      "soil_sensor_range_invalid": "Die Nassreferenz muss größer als die Trockenreferenz sein."
+      "soil_sensor_range_invalid": "Die Nassreferenz muss größer als die Trockenreferenz sein.",
+      "mower_required": "Wähle für das Ventil einen zuverlässigen Stationsstatus des Mähroboters.",
+      "flow_required": "Wähle einen Wassersensor oder erlaube ausdrücklich den manuellen Zeitbetrieb.",
+      "valve_already_used": "Ein anderer Rasen steuert dieses Ventil bereits.",
+      "maximum_below_minimum": "Der Maximalwert muss über dem Minimalwert liegen.",
+      "safe_state_required": "Gib den Zustand für einen an der Station befindlichen Roboter ein."
     }
   },
   "selector": {
@@ -116,6 +165,10 @@
   },
   "entity": {
     "sensor": {
+      "irrigation_status": {
+        "name": "Bewässerungsstatus",
+        "state": {"idle": "Bereit", "running": "Bewässerung läuft", "stopping": "Ventil wird geschlossen", "completed": "Abgeschlossen", "stopped": "Abgebrochen"}
+      },
       "status": {
         "name": "Pflegestatus",
         "state": {
@@ -226,8 +279,13 @@
     "button": {
       "mark_mowing_started": {"name": "Mähen protokollieren"},
       "mark_watered": {"name": "Bewässerung protokollieren"},
+      "start_irrigation": {"name": "Bewässerung starten"},
+      "stop_irrigation": {"name": "Bewässerung stoppen"},
       "mark_fertilized": {"name": "Düngung protokollieren"},
       "undo_last_action": {"name": "Letzte Pflegemaßnahme rückgängig machen"}
+    },
+    "switch": {
+      "automatic_irrigation": {"name": "Automatische Bewässerung"}
     }
   },
   "issues": {
