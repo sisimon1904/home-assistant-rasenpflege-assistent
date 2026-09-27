@@ -112,6 +112,14 @@
           "sun_exposure": "Sonnenlage",
           "lawn_type": "Rasennutzung",
           "soil_type": "Bodenart"
+        },
+        "data_description": {
+          "name": "Anzeigename dieses Rasens und seines Home-Assistant-Geräts.",
+          "weather_entity": "Wähle die Wetterentität der installierten OpenWeatherMap-Integration. Aktuelles Wetter und Vorhersagen werden über Home Assistant gelesen.",
+          "area": "Rasenfläche in Quadratmetern; daraus werden die Wassermenge in Litern und die gesamte Düngermenge berechnet.",
+          "sun_exposure": "Wähle die übliche Sonnenlage. Sie beeinflusst die geschätzte Verdunstung und den Wasserbedarf.",
+          "lawn_type": "Wähle die typische Nutzung des Rasens. Sie beeinflusst die Pflegeempfehlungen.",
+          "soil_type": "Wähle die vorherrschende Bodenart. Sie bestimmt die modellierte Wasserspeicherkapazität."
         }
       },
       "sensors": {
@@ -171,7 +179,9 @@
           "min_irrigation_minutes": "Gilt für manuelle Starts, sofern kein Sicherheitsgrund früheres Schließen verlangt.",
           "max_irrigation_minutes": "Sicherheitsgrenze für jede Bewässerung.",
           "max_irrigation_liters": "Sicherheitsgrenze, die Vorrang vor der Mindestdauer hat.",
-          "flow_start_grace_seconds": "Maximale Zeit ohne plausiblen positiven Wasserdurchfluss."
+          "flow_start_grace_seconds": "Maximale Zeit ohne plausiblen positiven Wasserdurchfluss.",
+          "min_flow_l_min": "Kleinster plausibler Durchfluss bei geöffnetem Rasenventil. Geringere Werte bestätigen keine Wasserabgabe.",
+          "max_flow_l_min": "Höhere Durchflusswerte gelten als unplausibel und schließen das Rasenventil."
         }
       },
       "model": {
@@ -209,7 +219,9 @@
         },
         "data_description": {
           "initial_gts": "Bei einer Installation mitten im Jahr kann hier ein bekannter Startwert eingetragen werden. Ab dem nächsten 1. Januar zählt die Integration automatisch ab 0.",
-          "initial_soil_moisture": "Startwert des virtuellen Bodenspeichers. Für normalen lehmigen Boden sind 70 % ein sinnvoller Anfangswert."
+          "initial_soil_moisture": "Startwert des virtuellen Bodenspeichers. Für normalen lehmigen Boden sind 70 % ein sinnvoller Anfangswert.",
+          "last_watering": "Korrigiere das Datum der letzten Bewässerung, wenn die automatische Erkennung oder manuelle Erfassung sie verpasst hat.",
+          "last_fertilizing": "Korrigiere das Datum der letzten Düngung."
         }
       }
     },

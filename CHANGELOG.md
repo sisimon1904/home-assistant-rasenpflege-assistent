@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.4.1
+
+### Fixed
+
+- Include the required English translation file for the custom integration so
+  Home Assistant can show translated settings labels and descriptions.
+- Add explanatory descriptions for every setting on the new options pages in
+  English and German.
+- Verify both languages through Home Assistant's translation loader.
+
 ## 3.4.0
 
 ### Added

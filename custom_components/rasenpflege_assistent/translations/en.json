@@ -112,6 +112,14 @@
           "sun_exposure": "Sun exposure",
           "lawn_type": "Lawn use",
           "soil_type": "Soil type"
+        },
+        "data_description": {
+          "name": "Displayed name for this lawn and its Home Assistant device.",
+          "weather_entity": "Select the weather entity from the installed OpenWeatherMap integration. Current conditions and forecasts are read through Home Assistant.",
+          "area": "The lawn area in square meters, used to calculate watering liters and total fertilizer mass.",
+          "sun_exposure": "Choose the usual sunlight exposure; it affects estimated evaporation and watering needs.",
+          "lawn_type": "Choose how the lawn is used; this affects care recommendations.",
+          "soil_type": "Choose the dominant soil type; it sets the modeled water storage capacity."
         }
       },
       "sensors": {
@@ -171,7 +179,9 @@
           "min_irrigation_minutes": "Applies to manual starts unless a safety condition requires earlier shutdown.",
           "max_irrigation_minutes": "Safety limit for every irrigation session.",
           "max_irrigation_liters": "Safety limit that overrides the manual minimum runtime.",
-          "flow_start_grace_seconds": "Maximum time without a plausible positive water-flow reading."
+          "flow_start_grace_seconds": "Maximum time without a plausible positive water-flow reading.",
+          "min_flow_l_min": "Smallest plausible flow while the lawn valve is open. Lower readings do not confirm water delivery.",
+          "max_flow_l_min": "Flow above this value is treated as implausible and closes the lawn valve."
         }
       },
       "model": {
@@ -209,7 +219,9 @@
         },
         "data_description": {
           "initial_gts": "If installing during the year, enter a known starting value here. From the next January 1, the integration starts automatically at 0.",
-          "initial_soil_moisture": "Starting value of the virtual soil reservoir. For normal loamy soil, 70% is a reasonable initial estimate."
+          "initial_soil_moisture": "Starting value of the virtual soil reservoir. For normal loamy soil, 70% is a reasonable initial estimate.",
+          "last_watering": "Correct the most recent watering date if it was missed by automatic detection or manual recording.",
+          "last_fertilizing": "Correct the date of the most recent fertilizer application."
         }
       }
     },
