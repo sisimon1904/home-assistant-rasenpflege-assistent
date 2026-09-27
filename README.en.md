@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.3.0 · [Changelog](CHANGELOG.md)
+Version 3.3.1 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -61,13 +61,19 @@ unmeasured amount to the soil model.
 The selected sensor must report **during watering**. A volume counter that
 only updates after the valve closes cannot enforce the no-flow interlock;
 verify reporting during a short supervised trial run.
-With multiple valves, the selected meter must measure the controlled circuit;
-a shared meter cannot attribute simultaneous watering by different circuits.
+A shared water meter is supported: all consumption while the lawn valve is
+reported open is attributed to the lawn, including any simultaneous use by
+other consumers. Consumption with the lawn valve closed is ignored. An optional
+second `switch` or `binary_sensor` can report a competing valve. If it opens,
+the lawn valve closes and the session pauses; an unavailable configured input
+also closes the lawn valve. An omitted input is assumed closed. The integration
+only reads this second valve; it never switches it.
 
 With a valve configured, the existing watering button starts a supervised
 session and **Stop irrigation** closes it. A configurable minimum runtime
 applies to manual sessions unless a safety condition requires immediate
-closure. The **Automatic irrigation** switch defaults to off. When enabled,
+closure. Pauses count towards the maximum overall runtime and only resume
+after renewed safety checks. The **Automatic irrigation** switch defaults to off. When enabled,
 the integration may start at most one recommended watering per local day
 within a suitable forecast window, provided weather, observed rain, and
 meter data are reliable.
@@ -76,6 +82,10 @@ An independent 15-second watchdog closes an owned valve for missing or
 implausible flow, loss of dock confirmation, maximum runtime or volume, or
 disabled automation. Persisted sessions are closed on restart rather than
 resumed. Measured water enters the soil model after confirmed valve closure.
+Unmetered manual sessions record a watering date, but do not invent water
+volume. Following measured rain or watering, mowing is deferred until at
+least the following local day and twelve hours after the wetting event;
+leaf wetness is estimated rather than measured.
 A device-side cutoff remains advisable: Home Assistant cannot send a shutoff
 command when it or the radio link is down. Failed shutoff commands are
 retried, but the physical valve must be checked if it does not respond.
@@ -90,10 +100,11 @@ the OpenWeatherMap API directly.
 | --- | --- |
 | Growth status | Dormancy, awakening, growth, autumn, or drought; color as `icon_color` attribute |
 | Care status | Priority action with fertilizer type, NPK, dose, and product amount as attributes |
-| Mower status | Start, regular mowing, pause, or winter off; next mow as an attribute |
+| Mower status | Start, regular mowing, wet-grass pause, or winter off; next mow as an attribute |
 | Modeled soil moisture | Estimated moisture, root-zone water, and water balance |
 | Watering recommendation | Timing, mm, liters, rain forecast, and suggested window |
-| Irrigation status (with valve) | Running, completed, or stopped; last measured amount and stop reason |
+| Irrigation status (with valve) | Running, paused, completed, or stopped; last measured amount and stop reason |
+| Irrigation diagnostics (with valve) | Start eligibility, both valve states, mower dock, meter freshness, runtime, target, and stop reason |
 | Grassland temperature sum | Vegetation indicator with completeness details |
 | Next action | One concise action recommendation |
 

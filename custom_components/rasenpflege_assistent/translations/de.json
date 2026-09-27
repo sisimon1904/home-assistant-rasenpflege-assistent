@@ -13,6 +13,7 @@
           "watered_entity": "Binärsensor „Rasen wurde bewässert“ (optional)",
           "irrigation_valve": "Schalter für Bewässerungsventil (optional)",
           "irrigation_flow": "Durchfluss- oder Wassermengensensor (optional)",
+          "other_valve": "Zweites Ventil oder Ventilstatus (optional)",
           "mower_location": "Mähroboterposition oder Stationsstatus (mit Ventil erforderlich)",
           "mower_safe_state": "Zustand für Roboter an der Station",
           "allow_unmetered_manual": "Manuellen Zeitbetrieb ohne Wassersensor erlauben",
@@ -49,7 +50,8 @@
           "mowed_entity": "Eine Aus→Ein-Flanke protokolliert das Mähen und bestätigt den Saisonstart. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
           "watered_entity": "Eine Aus→Ein-Flanke protokolliert die Bewässerung und aktualisiert das Bodenmodell. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
           "irrigation_valve": "Wähle einen steuerbaren Schalter. Mit Ventil startet die bisherige Schaltfläche eine überwachte Bewässerung.",
-          "irrigation_flow": "Wähle einen Sensor in L, m³, L/min, L/h, L/s oder m³/h. Automatische Bewässerung benötigt einen funktionierenden Sensor.",
+          "irrigation_flow": "Wähle einen Sensor in L, m³, L/min, L/h, L/s oder m³/h. Bei einem gemeinsamen Zähler wird Verbrauch während der Bewässerung dem Rasen zugeordnet.",
+          "other_valve": "Wenn dieses zweite Ventil öffnet, pausiert die Rasenbewässerung. Ohne Auswahl gilt das zweite Ventil als geschlossen. Der Zustand muss bei Auswahl zuverlässig verfügbar sein.",
           "mower_location": "Wähle einen lawn_mower, vacuum, Binär- oder Statussensor. Das Ventil öffnet nur bei eindeutig bestätigtem Stationszustand.",
           "mower_safe_state": "Für lawn_mower/vacuum docked, für einen Stations-Binärsensor on oder den exakten Zustand eines eigenen Sensors verwenden.",
           "allow_unmetered_manual": "Die manuelle Bewässerung läuft nur für die Mindestdauer; dem Bodenmodell wird ohne Messung kein Wasser gutgeschrieben. Automatische Starts brauchen weiterhin einen Sensor.",
@@ -79,6 +81,7 @@
       "mower_required": "Wähle für das Ventil einen zuverlässigen Stationsstatus des Mähroboters.",
       "flow_required": "Wähle einen Wassersensor oder erlaube ausdrücklich den manuellen Zeitbetrieb.",
       "valve_already_used": "Ein anderer Rasen steuert dieses Ventil bereits.",
+      "other_valve_same": "Das zweite Ventil darf nicht das Rasenventil sein.",
       "maximum_below_minimum": "Der Maximalwert muss über dem Minimalwert liegen.",
       "safe_state_required": "Gib den Zustand für einen an der Station befindlichen Roboter ein."
     },
@@ -99,6 +102,7 @@
           "watered_entity": "Binärsensor „Rasen wurde bewässert“ (optional)",
           "irrigation_valve": "Schalter für Bewässerungsventil (optional)",
           "irrigation_flow": "Durchfluss- oder Wassermengensensor (optional)",
+          "other_valve": "Zweites Ventil oder Ventilstatus (optional)",
           "mower_location": "Mähroboterposition oder Stationsstatus (mit Ventil erforderlich)",
           "mower_safe_state": "Zustand für Roboter an der Station",
           "allow_unmetered_manual": "Manuellen Zeitbetrieb ohne Wassersensor erlauben",
@@ -132,6 +136,7 @@
         "data_description": {
           "irrigation_valve": "Wähle einen Schalter für die überwachte Ventilsteuerung. Ohne Schalter bleibt die bisherige Erfassungsfunktion des Buttons erhalten.",
           "irrigation_flow": "Wähle einen während der Bewässerung aktualisierten Sensor in L, m³, L/min, L/h, L/s oder m³/h. Automatische Starts brauchen Messwerte.",
+          "other_valve": "Optionales zweites Ventil: Bei offenem Ventil pausiert die Bewässerung. Ist der konfigurierte Zustand unbekannt, wird vorsichtshalber abgeschaltet.",
           "mower_location": "Wähle einen Mähroboter, Staubsauger, Stations-Binärsensor oder eigenen Statussensor. Das Ventil öffnet nur bei sicherem Stationszustand.",
           "mower_safe_state": "Beim eigenen Statussensor den Wert für sicher angedockt eintragen. Mähroboter/Staubsauger verwenden docked, Stations-Binärsensoren on.",
           "allow_unmetered_manual": "Der manuelle Zeitbetrieb nimmt keine ungemessene Wassermenge für das Bodenmodell an.",
@@ -151,6 +156,7 @@
       "mower_required": "Wähle für das Ventil einen zuverlässigen Stationsstatus des Mähroboters.",
       "flow_required": "Wähle einen Wassersensor oder erlaube ausdrücklich den manuellen Zeitbetrieb.",
       "valve_already_used": "Ein anderer Rasen steuert dieses Ventil bereits.",
+      "other_valve_same": "Das zweite Ventil darf nicht das Rasenventil sein.",
       "maximum_below_minimum": "Der Maximalwert muss über dem Minimalwert liegen.",
       "safe_state_required": "Gib den Zustand für einen an der Station befindlichen Roboter ein."
     }
@@ -165,9 +171,13 @@
   },
   "entity": {
     "sensor": {
+      "irrigation_readiness": {
+        "name": "Bewässerung – Diagnose",
+        "state": {"ready": "Start möglich", "running": "Bewässerung läuft", "paused": "Pausiert", "stopping": "Ventil wird geschlossen", "completed": "Abgeschlossen", "stopped": "Gestoppt", "mower_not_docked": "Mäher nicht angedockt", "valve_not_closed": "Rasenventil nicht geschlossen", "other_valve_open": "Zweites Ventil geöffnet", "other_valve_unavailable": "Zweites Ventil nicht verfügbar", "meter_unavailable": "Wasserzähler nicht verfügbar", "not_configured": "Nicht eingerichtet"}
+      },
       "irrigation_status": {
         "name": "Bewässerungsstatus",
-        "state": {"idle": "Bereit", "running": "Bewässerung läuft", "stopping": "Ventil wird geschlossen", "completed": "Abgeschlossen", "stopped": "Abgebrochen"}
+        "state": {"idle": "Bereit", "running": "Bewässerung läuft", "stopping": "Ventil wird geschlossen", "completed": "Abgeschlossen", "stopped": "Abgebrochen", "paused": "Pausiert – zweites Ventil geöffnet"}
       },
       "status": {
         "name": "Pflegestatus",
@@ -222,6 +232,7 @@
           "mow_less": "Seltener mähen",
           "reduce_mowing": "Mähhäufigkeit im Herbst reduzieren",
           "pause_drought": "Wegen Trockenstress pausieren",
+          "pause_wet": "Wegen nassem Rasen pausieren",
           "wait_to_mow": "Bis zum nächsten Mähtermin warten"
         }
       },
@@ -289,6 +300,7 @@
     }
   },
   "issues": {
+    "irrigation_valve_stuck": {"title": "Rasenventil schließt nicht", "description": "Das gesteuerte Bewässerungsventil meldet nach einem Abschaltbefehl weiterhin keinen geschlossenen Zustand. Prüfe das Ventil und die Verbindung sofort; die Integration versucht das Schließen erneut."},
     "temperature_unavailable": {
       "title": "Außentemperatur nicht verfügbar",
       "description": "Weder der ausgewählte Außensensor noch die OpenWeatherMap-Wetterentität liefert aktuell eine gültige Temperatur. Prüfe beide Entitäten."

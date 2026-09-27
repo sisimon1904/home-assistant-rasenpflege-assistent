@@ -42,6 +42,7 @@ from .const import (
     CONF_MOWER_LOCATION,
     CONF_MOWER_SAFE_STATE,
     CONF_NAME,
+    CONF_OTHER_VALVE,
     CONF_PRECIPITATION_ENTITY,
     CONF_PRECIPITATION_MODE,
     CONF_RAIN_CORRECTION,
@@ -93,7 +94,7 @@ def _select(translation_key: str, options: list[str]) -> selector.SelectSelector
     )
 
 
-def _schema() -> vol.Schema:
+def _schema(*, show_watered: bool = True) -> vol.Schema:
     """Return the shared setup/options schema."""
     return vol.Schema(
         {
@@ -109,11 +110,20 @@ def _schema() -> vol.Schema:
             vol.Optional(CONF_MOWED_ENTITY): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="binary_sensor")
             ),
-            vol.Optional(CONF_WATERED_ENTITY): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="binary_sensor")
+            **(
+                {
+                    vol.Optional(CONF_WATERED_ENTITY): selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="binary_sensor")
+                    )
+                }
+                if show_watered
+                else {}
             ),
             vol.Optional(CONF_IRRIGATION_VALVE): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="switch")
+            ),
+            vol.Optional(CONF_OTHER_VALVE): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["switch", "binary_sensor"])
             ),
             vol.Optional(CONF_IRRIGATION_FLOW): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="sensor")
@@ -224,7 +234,7 @@ def _schema() -> vol.Schema:
                     max=100,
                     step=1,
                     unit_of_measurement="%",
-                    mode=selector.NumberSelectorMode.SLIDER,
+                    mode=selector.NumberSelectorMode.BOX,
                 )
             ),
             vol.Required(
@@ -252,7 +262,7 @@ def _schema() -> vol.Schema:
                     min=0.5,
                     max=1.0,
                     step=0.05,
-                    mode=selector.NumberSelectorMode.SLIDER,
+                    mode=selector.NumberSelectorMode.BOX,
                 )
             ),
             vol.Required(
@@ -262,7 +272,7 @@ def _schema() -> vol.Schema:
                     min=0.5,
                     max=1.5,
                     step=0.05,
-                    mode=selector.NumberSelectorMode.SLIDER,
+                    mode=selector.NumberSelectorMode.BOX,
                 )
             ),
             vol.Required(
@@ -326,6 +336,10 @@ def _validate_irrigation(user_input: dict[str, Any]) -> dict[str, str]:
             CONF_ALLOW_UNMETERED_MANUAL
         ):
             errors[CONF_IRRIGATION_FLOW] = "flow_required"
+    if user_input.get(CONF_OTHER_VALVE) and user_input.get(
+        CONF_OTHER_VALVE
+    ) == user_input.get(CONF_IRRIGATION_VALVE):
+        errors[CONF_OTHER_VALVE] = "other_valve_same"
     if user_input.get(
         CONF_MIN_IRRIGATION_MINUTES, DEFAULT_MIN_IRRIGATION_MINUTES
     ) >= user_input.get(CONF_MAX_IRRIGATION_MINUTES, DEFAULT_MAX_IRRIGATION_MINUTES):
@@ -359,7 +373,7 @@ def _validate_unique_valve(
 class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Lawn Care Assistant."""
 
-    VERSION = 8
+    VERSION = 9
     MINOR_VERSION = 0
 
     async def async_step_user(
@@ -367,6 +381,8 @@ class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Handle the initial setup step."""
         if user_input is not None:
+            if user_input.get(CONF_IRRIGATION_VALVE):
+                user_input.pop(CONF_WATERED_ENTITY, None)
             errors = {
                 **_validate_openweathermap_entities(self.hass, user_input),
                 **_validate_calibration(user_input),
@@ -404,6 +420,8 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
     ) -> ConfigFlowResult:
         """Manage integration options."""
         if user_input is not None:
+            if user_input.get(CONF_IRRIGATION_VALVE):
+                user_input[CONF_WATERED_ENTITY] = None
             errors = {
                 **_validate_openweathermap_entities(self.hass, user_input),
                 **_validate_calibration(user_input),
@@ -419,7 +437,12 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
                 current = {**self.config_entry.data, **user_input}
                 return self.async_show_form(
                     step_id="init",
-                    data_schema=self.add_suggested_values_to_schema(_schema(), current),
+                    data_schema=self.add_suggested_values_to_schema(
+                        _schema(
+                            show_watered=not bool(user_input.get(CONF_IRRIGATION_VALVE))
+                        ),
+                        current,
+                    ),
                     errors=errors,
                 )
             options = dict(user_input)
@@ -428,6 +451,7 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
             options.setdefault(CONF_MOWED_ENTITY, None)
             options.setdefault(CONF_WATERED_ENTITY, None)
             options.setdefault(CONF_IRRIGATION_VALVE, None)
+            options.setdefault(CONF_OTHER_VALVE, None)
             options.setdefault(CONF_IRRIGATION_FLOW, None)
             options.setdefault(CONF_MOWER_LOCATION, None)
             options.setdefault(CONF_PRECIPITATION_ENTITY, None)
@@ -444,5 +468,8 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
         current = {**self.config_entry.data, **self.config_entry.options}
         return self.async_show_form(
             step_id="init",
-            data_schema=self.add_suggested_values_to_schema(_schema(), current),
+            data_schema=self.add_suggested_values_to_schema(
+                _schema(show_watered=not bool(current.get(CONF_IRRIGATION_VALVE))),
+                current,
+            ),
         )

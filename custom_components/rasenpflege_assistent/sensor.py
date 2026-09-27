@@ -132,6 +132,7 @@ MOWER_COLORS = {
     "mow_less": "orange",
     "reduce_mowing": "orange",
     "pause_drought": "red",
+    "pause_wet": "light-blue",
     "wait_to_mow": "grey",
 }
 
@@ -261,6 +262,7 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             "mow_less",
             "reduce_mowing",
             "pause_drought",
+            "pause_wet",
             "wait_to_mow",
         ],
         value_fn=lambda data: data.mower_status,
@@ -278,6 +280,8 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             ATTR_NEXT_MOWING_DATE: (
                 data.next_mowing_date.isoformat() if data.next_mowing_date else None
             ),
+            "wet_until": data.mower_wet_until,
+            "wet_reason": data.mower_wet_reason,
         },
     ),
     LawnSensorDescription(
@@ -373,13 +377,35 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
         translation_key="irrigation_status",
         icon="mdi:sprinkler-variant",
         device_class=SensorDeviceClass.ENUM,
-        options=["idle", "running", "stopping", "completed", "stopped"],
+        options=["idle", "running", "paused", "stopping", "completed", "stopped"],
         value_fn=lambda data: data.irrigation_status,
         attributes_fn=lambda data: {
             "automatic_irrigation_enabled": data.irrigation_enabled,
             "last_irrigation_liters": data.irrigation_liters,
             "reason": data.irrigation_reason,
         },
+    ),
+    LawnSensorDescription(
+        key="irrigation_readiness",
+        translation_key="irrigation_readiness",
+        icon="mdi:water-check-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        device_class=SensorDeviceClass.ENUM,
+        options=[
+            "ready",
+            "running",
+            "paused",
+            "stopping",
+            "completed",
+            "stopped",
+            "mower_not_docked",
+            "valve_not_closed",
+            "other_valve_open",
+            "other_valve_unavailable",
+            "meter_unavailable",
+            "not_configured",
+        ],
+        value_fn=lambda data: "not_configured",
     ),
     LawnSensorDescription(
         key="watering_amount",
@@ -600,7 +626,7 @@ async def async_setup_entry(
     async_add_entities(
         LawnSensor(coordinator, description)
         for description in SENSORS
-        if description.key != "irrigation_status"
+        if description.key not in {"irrigation_status", "irrigation_readiness"}
         or (coordinator.irrigation and coordinator.irrigation.configured)
     )
 
@@ -620,9 +646,13 @@ class LawnSensor(LawnEntity, SensorEntity):
     @property
     def native_value(self) -> Any:
         """Return the sensor value."""
+        if self.entity_description.key == "irrigation_readiness":
+            return self.coordinator.irrigation.readiness()
         return self.entity_description.value_fn(self.coordinator.data)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return useful recommendation details."""
+        if self.entity_description.key == "irrigation_readiness":
+            return self.coordinator.irrigation.diagnostic_attributes()
         return self.entity_description.attributes_fn(self.coordinator.data)

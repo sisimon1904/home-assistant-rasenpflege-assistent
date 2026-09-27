@@ -127,3 +127,51 @@ async def test_local_midnight_is_day_boundary(
     )
     coordinator._roll_day_and_sample(dt_util.as_local(now).date(), 15)
     assert coordinator._state.sample_date == "2026-07-21"
+
+
+async def test_mower_waits_until_next_day_and_twelve_hours_after_watering(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """Watering just before local midnight must not permit mowing at midnight."""
+    await hass.config.async_set_time_zone("Europe/Berlin")
+    coordinator = _coordinator(hass)
+    event = datetime(2026, 9, 24, 21, 50, tzinfo=timezone.utc)
+    coordinator._state = RuntimeState(
+        year=2026,
+        gts=500,
+        sample_date="2026-09-24",
+        last_watering_at=event.isoformat(),
+    )
+    mower = {"status": "mow_regularly", "next_date": None}
+    until, reason = coordinator._pause_mower_when_wet(
+        event + timedelta(minutes=10), mower
+    )
+    assert mower["status"] == "pause_wet"
+    assert reason == "watering"
+    assert until == event + timedelta(hours=12)
+    assert mower["next_date"] == date(2026, 9, 25)
+    mower = {"status": "mow_regularly", "next_date": None}
+    assert coordinator._pause_mower_when_wet(until, mower) == (None, None)
+    assert mower["status"] == "mow_regularly"
+
+
+async def test_mower_wet_pause_uses_latest_measured_rain_or_watering(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """A later rain event extends the pause even after watering."""
+    coordinator = _coordinator(hass)
+    event = datetime(2026, 9, 24, 8, tzinfo=timezone.utc)
+    coordinator._state = RuntimeState(
+        year=2026,
+        gts=500,
+        sample_date="2026-09-24",
+        last_watering_at=event.isoformat(),
+        last_wet_rain_at=(event + timedelta(hours=14)).isoformat(),
+    )
+    mower = {"status": "start_mower", "next_date": None}
+    until, reason = coordinator._pause_mower_when_wet(
+        event + timedelta(hours=15), mower
+    )
+    assert reason == "rain"
+    assert until == event + timedelta(hours=26)
+    assert mower["status"] == "pause_wet"

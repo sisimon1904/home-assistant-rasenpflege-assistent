@@ -1,5 +1,38 @@
 # Changelog
 
+## 3.3.1
+
+### Added
+
+- Optional read-only competing-valve input with safe pause and guarded resume.
+- Live irrigation diagnostics with start blockers, meter freshness, runtime,
+  valve states, and the last shutdown reason.
+- Mowing pause after observed rain or recorded watering until the following
+  local day and at least twelve hours after the wetting event.
+- An actionable Home Assistant repair issue if the controlled valve fails to
+  report closed after shutdown.
+
+### Changed
+
+- Replace numeric configuration sliders with precise value boxes.
+- Hide the optional watered binary input whenever a controlled valve is used.
+- Attribute shared-meter changes only while the lawn valve is open; do not
+  treat unrelated consumption while closed as a fault or lawn irrigation.
+- Count competing-valve pauses toward the maximum session duration, and mark
+  unmetered manual watering as wet without inventing a measured volume.
+
+### Fixed
+
+- Enforce the mower safety interlock even before the valve reports opened.
+- Evaluate delayed cumulative meter updates over their real change interval.
+- Permit quiet meters to start, then demand live flow within the safety grace
+  period; refresh live irrigation entities without extra weather API polling.
+- Bound valve service-call waits so a stalled device cannot hold the safety
+  watchdog indefinitely; retry failed closure and expose a repair issue.
+- Keep delayed shared-meter updates after valve closure out of the soil model.
+- Preserve the original valve and meter across options reloads, and watch for
+  a late valve-open report after a restart or valve reconfiguration.
+
 ## 3.3.0
 
 ### Added

@@ -31,4 +31,13 @@ async def async_get_config_entry_diagnostics(
         "config_entry_version": entry.version,
         "data": data,
         "last_update_success": coordinator.last_update_success,
+        "irrigation": (
+            {
+                "readiness": coordinator.irrigation.readiness(),
+                **coordinator.irrigation.diagnostic_attributes(),
+                "automatic_enabled": coordinator._state.irrigation_enabled,
+            }
+            if coordinator.irrigation and coordinator.irrigation.configured
+            else None
+        ),
     }

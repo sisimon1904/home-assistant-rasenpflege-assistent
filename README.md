@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.3.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.3.1 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -42,8 +42,9 @@ sie einen aktiven OpenWeatherMap-Regensensor derselben Wetterkonfiguration.
 
 Ein physischer Bodenfeuchtesensor lässt sich mit Trocken- und Nassreferenzen
 kalibrieren. Optionale Binärsensoren für **Rasen wurde gemäht** und **Rasen wurde
-bewässert** protokollieren eine Aus→Ein-Flanke; ohne sie stehen die manuellen
-Schaltflächen zur Verfügung. Bewässerung und Düngung lassen sich auch mit
+bewässert** protokollieren eine Aus→Ein-Flanke. Bei eingerichtetem Ventil wird
+der Eingang „Rasen wurde bewässert“ ausgeblendet; ohne Ventil stehen die manuellen
+Schaltflächen zur Verfügung. Bewässerung und Düngung lassen sich mit
 tatsächlichen Mengen protokollieren und das letzte Ereignis rückgängig machen.
 
 ## Optionale automatische Bewässerung
@@ -64,14 +65,21 @@ Der ausgewählte Sensor muss **während der Bewässerung** neue Werte liefern;
 ein erst nach dem Schließen aktualisierter Mengenzähler kann den fehlenden
 Durchfluss während des Betriebs nicht absichern. Prüfe dies beim Einrichten
 mit einem kurzen beaufsichtigten Probelauf.
-Bei mehreren Ventilen darf der ausgewählte Mengensensor nur den gesteuerten
-Bewässerungskreis erfassen; ein gemeinsamer Zähler für gleichzeitig laufende
-Kreise kann die verbrauchte Menge nicht eindeutig zuordnen.
+Ein gemeinsamer Zähler ist erlaubt. Die Integration ordnet dessen Zunahme
+während der Öffnung des Rasenventils der Bewässerung zu. Verbrauch anderer
+Abnehmer im gleichen Zeitraum wird dabei mitgezählt. Bei geschlossenem
+Rasenventil wird der Zähler ignoriert. Optional kann der Zustand eines zweiten
+Ventils (`switch` oder `binary_sensor`) ausgewählt werden: Ist es offen,
+pausiert die Rasenbewässerung; ist sein Zustand unbekannt, schließt das
+Rasenventil. Ohne Auswahl gilt das zweite Ventil als geschlossen. Die
+Integration schaltet das zweite Ventil nicht selbst.
 
 Mit Ventil startet die bisherige Schaltfläche **Bewässerung erfassen** eine
 Sitzung; **Bewässerung stoppen** beendet sie. Die konfigurierbare Mindestdauer
 gilt für manuelle Starts, soweit keine Sicherheitsabschaltung nötig ist.
-Die separate Entität **Automatische Bewässerung** ist anfangs ausgeschaltet.
+Pausen zählen zur maximalen Gesamtdauer und enden erst nach erneuter Prüfung
+der Sicherheitsbedingungen. Die separate Entität **Automatische Bewässerung**
+ist anfangs ausgeschaltet.
 Sie startet höchstens eine empfohlene Bewässerung pro lokalem Tag im passenden
 Vorhersagefenster, sofern Wetter, Regenmessung und Wassersensor ausreichend
 zuverlässig sind.
@@ -81,7 +89,12 @@ unplausiblem oder ausbleibendem Durchfluss, Überschreitung von Zeit oder Menge,
 Verlust des Stationsstatus oder deaktivierter Automatik. Nach Neustart wird
 eine noch gespeicherte Sitzung geschlossen statt fortgesetzt. Die tatsächlich
 gemessene Wassermenge wird erst nach bestätigtem Schließen dem Bodenmodell
-gutgeschrieben. Ein geräteseitiger Abschalttimer ist zusätzlich sinnvoll,
+gutgeschrieben. Der manuelle Zeitbetrieb ohne Messgerät protokolliert den
+Bewässerungstag, ohne dem Bodenmodell eine ungemessene Menge gutzuschreiben.
+Nach ausreichend gemessenem Regen oder einer Bewässerung empfiehlt der
+Mähroboterstatus frühestens am nächsten lokalen Tag und nach zwölf Stunden
+wieder das Mähen; ein Blattnässesensor ist dafür nicht vorhanden.
+Ein geräteseitiger Abschalttimer ist zusätzlich sinnvoll,
 weil Home Assistant bei eigener Abschaltung oder Funkverlust keine Schaltbefehle
 senden kann. Bei einem fehlgeschlagenen Schließversuch versucht die Integration
 es erneut; prüfe in diesem Fall das Ventil vor Ort.
@@ -96,10 +109,11 @@ liest vorhandene Entitäten und ruft Vorhersagen über Home Assistants
 | --- | --- |
 | Wachstumsstatus | Winterruhe, Erwachen, Wachstum, Herbst oder Trockenstress; Symbolfarbe als Attribut `icon_color` |
 | Pflegestatus | Wichtigster Pflegebedarf mit Düngeempfehlung, NPK, Dosis und Produktmenge als Attributen |
-| Mähroboterstatus | Start, regelmäßiges Mähen, Pause oder Winterabschaltung; nächstes Mähen als Attribut |
+| Mähroboterstatus | Start, regelmäßiges Mähen, Pause bei nassem Rasen oder Winterabschaltung; frühester Mähzeitpunkt als Attribut |
 | Modellierte Bodenfeuchte | Geschätzte Feuchte, Wasservorrat und Wasserbilanz |
 | Bewässerungsempfehlung | Zeitpunkt, mm, Liter, Regenprognose und empfohlenes Zeitfenster |
-| Bewässerungsstatus (mit Ventil) | Laufend, abgeschlossen oder gestoppt; letzte gemessene Menge und Stoppgrund |
+| Bewässerungsstatus (mit Ventil) | Laufend, wegen zweitem Ventil pausiert, abgeschlossen oder gestoppt; letzte gemessene Menge und Stoppgrund |
+| Bewässerung – Diagnose (mit Ventil) | Startfreigabe, beide Ventilzustände, Mäherstandort, Zählerwert und Alter, Laufzeit, Zielmenge und Abschaltgrund |
 | Grünlandtemperatursumme | Vegetationsindikator mit Angaben zur Vollständigkeit |
 | Nächste Aktion | Kompakte Handlungsempfehlung |
 

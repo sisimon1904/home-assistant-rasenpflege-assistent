@@ -128,6 +128,7 @@ async def test_no_flow_stops_without_adding_assumed_water(
     await controller.async_start(manual=True)
     session = controller.state.irrigation_session
     session["started_at"] = (dt_util.now() - timedelta(minutes=4)).isoformat()
+    session["segment_started_at"] = session["started_at"]
     await controller.async_check()
     assert hass.states.get("switch.garden_water").state == "off"
     assert controller.state.irrigation_last_reason == "no_flow"
@@ -149,6 +150,9 @@ async def test_target_volume_waits_for_minimum_runtime_and_records_once(
     assert controller.state.irrigation_session["liters"] == 10
     assert controller.state.irrigation_session["target_liters"] == 0
     controller.state.irrigation_session["started_at"] = (
+        dt_util.now() - timedelta(minutes=6)
+    ).isoformat()
+    controller.state.irrigation_session["segment_started_at"] = (
         dt_util.now() - timedelta(minutes=6)
     ).isoformat()
     await controller.async_check()
@@ -188,11 +192,18 @@ async def test_manual_timer_without_meter_never_credits_unmeasured_water(
     controller.state.irrigation_session["started_at"] = (
         dt_util.now() - timedelta(minutes=6)
     ).isoformat()
+    controller.state.irrigation_session["segment_started_at"] = (
+        dt_util.now() - timedelta(minutes=6)
+    ).isoformat()
     await controller.async_check()
     assert not controller.active
     assert controller.state.irrigation_last_liters is None
     assert controller.state.soil_water_mm == 10
-    assert controller.state.last_watering is None
+    assert (
+        controller.state.last_watering
+        == dt_util.as_local(dt_util.now()).date().isoformat()
+    )
+    assert controller.state.last_watering_at is not None
 
 
 async def test_automatic_start_requires_reliable_inputs_and_runs_once(
@@ -282,3 +293,215 @@ async def test_delayed_valve_open_is_closed_after_failed_start(
     hass.states.async_set("switch.garden_water", "on")
     await controller._async_close_late_open()
     assert hass.states.get("switch.garden_water").state == "off"
+
+
+async def test_shared_meter_is_ignored_while_valve_closed(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """Other consumers can change a shared meter without watering this lawn."""
+    controller = _controller(hass)
+    hass.states.async_set(
+        "sensor.garden_water_liters", "45", {"unit_of_measurement": "L"}
+    )
+    await controller.async_check()
+    assert controller.state.last_watering is None
+    assert controller.state.irrigation_last_liters is None
+    assert not controller.active
+
+
+async def test_mower_leaving_before_valve_reports_open_forces_closure(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """An asynchronous valve report must not defer the mower safety guard."""
+    controller = _controller(hass)
+    hass.states.async_set("lawn_mower.garden", "docked")
+
+    async def _no_report(_call):
+        pass
+
+    hass.services.async_register("switch", "turn_on", _no_report)
+    await controller.async_start(manual=True)
+    hass.states.async_set("lawn_mower.garden", "mowing")
+    await controller.async_check()
+    assert not controller.active
+    assert controller.state.irrigation_last_reason == "mower_left_dock"
+
+
+async def test_other_valve_pauses_and_resumes_without_counting_other_consumption(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """Only open lawn-valve segments count shared-meter increments."""
+    controller = _controller(hass, other_valve="switch.other_water")
+    hass.states.async_set("lawn_mower.garden", "docked")
+    hass.states.async_set("switch.other_water", "on")
+    with pytest.raises(ServiceValidationError):
+        await controller.async_start(manual=True)
+    hass.states.async_set("switch.other_water", "off")
+    await controller.async_start(manual=True)
+    hass.states.async_set(
+        "sensor.garden_water_liters", "5", {"unit_of_measurement": "L"}
+    )
+    await controller.async_check()
+    hass.states.async_set("switch.other_water", "on")
+    await controller.async_check()
+    assert controller.active
+    assert controller.state.irrigation_last_status == "paused"
+    assert hass.states.get("switch.garden_water").state == "off"
+    assert controller.state.irrigation_session["liters"] == 5
+    hass.states.async_set(
+        "sensor.garden_water_liters", "25", {"unit_of_measurement": "L"}
+    )
+    await controller.async_check()
+    assert controller.state.irrigation_session["liters"] == 5
+    hass.states.async_set("switch.other_water", "off")
+    await controller._async_maybe_resume()
+    assert hass.states.get("switch.garden_water").state == "on"
+    hass.states.async_set(
+        "sensor.garden_water_liters", "30", {"unit_of_measurement": "L"}
+    )
+    await controller.async_check()
+    assert controller.state.irrigation_session["liters"] == 10
+    await controller.async_stop()
+    assert controller.state.irrigation_last_liters == 10
+    assert controller.state.soil_water_mm == pytest.approx(10.085)
+
+
+async def test_volume_counter_spike_is_averaged_over_actual_counter_interval(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """A counter reporting once per minute must not look four times faster."""
+    controller = _controller(hass, max_flow_l_min=100)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await controller.async_start(manual=True)
+    session = controller.state.irrigation_session
+    session["last_volume_change_at"] = (
+        dt_util.now() - timedelta(minutes=1)
+    ).isoformat()
+    session["last_meter_at"] = (dt_util.now() - timedelta(seconds=15)).isoformat()
+    hass.states.async_set(
+        "sensor.garden_water_liters", "40", {"unit_of_measurement": "L"}
+    )
+    await controller.async_check()
+    assert controller.active
+    assert session["liters"] == 40
+
+
+async def test_unknown_competing_valve_blocks_water(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """Only an explicitly closed configured valve permits watering."""
+    controller = _controller(hass, other_valve="switch.other_water")
+    hass.states.async_set("lawn_mower.garden", "docked")
+    hass.states.async_set("switch.other_water", "unavailable")
+    with pytest.raises(ServiceValidationError):
+        await controller.async_start(manual=True)
+    assert controller.readiness() == "other_valve_unavailable"
+
+
+async def test_competing_valve_unknown_while_running_closes_lawn_valve(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """A lost configured interlock closes the owned valve without resuming."""
+    controller = _controller(hass, other_valve="switch.other_water")
+    hass.states.async_set("lawn_mower.garden", "docked")
+    hass.states.async_set("switch.other_water", "off")
+    await controller.async_start(manual=True)
+    hass.states.async_set("switch.other_water", "unavailable")
+    await controller.async_check()
+    assert hass.states.get("switch.garden_water").state == "off"
+    assert not controller.active
+    assert controller.state.irrigation_last_reason == "other_valve_unavailable"
+
+
+async def test_pause_counts_towards_hard_maximum_runtime(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """An open competing valve must never prolong the owned session."""
+    controller = _controller(
+        hass, other_valve="switch.other_water", max_irrigation_minutes=5
+    )
+    hass.states.async_set("lawn_mower.garden", "docked")
+    hass.states.async_set("switch.other_water", "off")
+    await controller.async_start(manual=True)
+    hass.states.async_set("switch.other_water", "on")
+    await controller.async_check()
+    controller.state.irrigation_session["started_at"] = (
+        dt_util.now() - timedelta(minutes=6)
+    ).isoformat()
+    await controller.async_check()
+    assert not controller.active
+    assert controller.state.irrigation_last_reason == "maximum_runtime"
+
+
+async def test_timer_under_one_minute_does_not_record_wet_lawn(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """A short manual abort must not create an unmeasured watering event."""
+    controller = _controller(hass, irrigation_flow=None, allow_unmetered_manual=True)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await controller.async_start(manual=True)
+    await controller.async_stop()
+    assert controller.state.last_watering_at is None
+    assert controller.state.last_watering is None
+
+
+async def test_live_meter_update_does_not_poll_weather(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """Live irrigation telemetry uses coordinator listeners, not OWM refresh."""
+    controller = _controller(hass)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    controller.coordinator.data = LawnData()
+    await controller.async_start(manual=True)
+    controller.coordinator.async_request_refresh.reset_mock()
+    hass.states.async_set(
+        "sensor.garden_water_liters", "5", {"unit_of_measurement": "L"}
+    )
+    await controller.async_check()
+    assert controller.coordinator.data.irrigation_liters == 5
+    controller.coordinator.async_request_refresh.assert_not_awaited()
+
+
+async def test_late_old_valve_open_after_reconfigure_is_closed(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """Remember original valve ownership across a controller reload."""
+    controller = _controller(hass)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await controller.async_start(manual=True)
+    entry = controller.coordinator.config_entry
+    entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        entry, options={**entry.options, "irrigation_valve": None}
+    )
+    await controller.async_stop("integration_unloaded")
+    restored = IrrigationController(hass, controller.coordinator)
+    await restored.async_initialize()
+    hass.states.async_set("switch.garden_water", "on")
+    await hass.async_block_till_done()
+    assert hass.states.get("switch.garden_water").state == "off"
+    assert await restored.async_shutdown()
+
+
+async def test_failed_valve_closure_retries_and_clears_repair(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """A stuck valve stays owned and produces an actionable repair until off."""
+    from homeassistant.helpers import issue_registry as ir
+
+    controller = _controller(hass)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await controller.async_start(manual=True)
+
+    async def _ignore_off(_call):
+        return None
+
+    hass.services.async_register("switch", "turn_off", _ignore_off)
+    await controller.async_stop()
+    issue_id = f"{controller.coordinator.config_entry.entry_id}_irrigation_valve_stuck"
+    assert controller.active
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    hass.states.async_set("switch.garden_water", "off")
+    await controller.async_check()
+    assert not controller.active
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None

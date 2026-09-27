@@ -13,6 +13,7 @@
           "watered_entity": "Lawn was watered binary sensor (optional)",
           "irrigation_valve": "Irrigation valve switch (optional)",
           "irrigation_flow": "Water flow or volume sensor (optional)",
+          "other_valve": "Other valve or valve status (optional)",
           "mower_location": "Mower position or dock status (required with valve)",
           "mower_safe_state": "State confirming the mower is docked",
           "allow_unmetered_manual": "Allow manual timer without water meter",
@@ -49,7 +50,8 @@
           "mowed_entity": "An off-to-on transition records mowing and acknowledges the mowing season. Without a selection, use the manual button.",
           "watered_entity": "An off-to-on transition records watering and updates the soil model. Without a selection, use the manual button.",
           "irrigation_valve": "Select a controllable switch. With a valve, the existing watering button starts a supervised session.",
-          "irrigation_flow": "Select a sensor in L, m³, L/min, L/h, L/s or m³/h. Automatic watering requires a working sensor.",
+          "irrigation_flow": "Select a sensor in L, m³, L/min, L/h, L/s or m³/h. Shared-meter usage during an active session is attributed to the lawn.",
+          "other_valve": "When this competing valve opens, lawn irrigation pauses. If omitted it is assumed closed; a configured valve must report its state reliably.",
           "mower_location": "Select a lawn_mower, vacuum, binary sensor or status sensor. Valve starts only when the selected entity explicitly reports the safe state.",
           "mower_safe_state": "Use docked for lawn_mower/vacuum, on for a binary dock sensor, or the exact state of a custom sensor.",
           "allow_unmetered_manual": "Manual watering runs for the minimum time only, with no measured water added to the soil model. Automatic starts still require a sensor.",
@@ -79,6 +81,7 @@
       "mower_required": "Select a reliable dock status before configuring a valve.",
       "flow_required": "Select a water meter or explicitly allow manual timer mode.",
       "valve_already_used": "Another lawn already controls this valve.",
+      "other_valve_same": "The other valve must differ from the lawn valve.",
       "maximum_below_minimum": "Maximum must be greater than minimum.",
       "safe_state_required": "Enter a state confirming the mower is at the dock."
     },
@@ -99,6 +102,7 @@
           "watered_entity": "Lawn was watered binary sensor (optional)",
           "irrigation_valve": "Irrigation valve switch (optional)",
           "irrigation_flow": "Water flow or volume sensor (optional)",
+          "other_valve": "Other valve or valve status (optional)",
           "mower_location": "Mower position or dock status (required with valve)",
           "mower_safe_state": "State confirming the mower is docked",
           "allow_unmetered_manual": "Allow manual timer without water meter",
@@ -131,7 +135,8 @@
         },
         "data_description": {
           "irrigation_valve": "Select a switch to enable supervised valve control. Without a switch, the watering button retains its recording behavior.",
-          "irrigation_flow": "Select a live meter in L, m³, L/min, L/h, L/s or m³/h. Automatic starts require valid readings during watering.",
+          "irrigation_flow": "Select a live meter in L, m³, L/min, L/h, L/s or m³/h. A shared meter is attributed only while the lawn valve is open.",
+          "other_valve": "Optional competing valve: irrigation pauses while open and closes if its configured state becomes unknown.",
           "mower_location": "Select a mower entity, vacuum, dock binary sensor, or custom status sensor. Valve starts only if the mower is confirmed docked.",
           "mower_safe_state": "For custom status sensors, enter the value that means safely docked. Lawn mower/vacuum use docked; binary dock sensors use on.",
           "allow_unmetered_manual": "An explicit time-only manual mode does not infer an unmeasured water volume.",
@@ -151,6 +156,7 @@
       "mower_required": "Select a reliable dock status before configuring a valve.",
       "flow_required": "Select a water meter or explicitly allow manual timer mode.",
       "valve_already_used": "Another lawn already controls this valve.",
+      "other_valve_same": "The other valve must differ from the lawn valve.",
       "maximum_below_minimum": "Maximum must be greater than minimum.",
       "safe_state_required": "Enter a state confirming the mower is at the dock."
     }
@@ -165,9 +171,13 @@
   },
   "entity": {
     "sensor": {
+      "irrigation_readiness": {
+        "name": "Irrigation diagnostics",
+        "state": {"ready": "Ready to start", "running": "Running", "paused": "Paused", "stopping": "Closing valve", "completed": "Completed", "stopped": "Stopped", "mower_not_docked": "Mower not docked", "valve_not_closed": "Lawn valve not closed", "other_valve_open": "Other valve open", "other_valve_unavailable": "Other valve unavailable", "meter_unavailable": "Water meter unavailable", "not_configured": "Not configured"}
+      },
       "irrigation_status": {
         "name": "Irrigation status",
-        "state": {"idle": "Idle", "running": "Watering", "stopping": "Closing valve", "completed": "Completed", "stopped": "Stopped"}
+        "state": {"idle": "Idle", "running": "Watering", "stopping": "Closing valve", "completed": "Completed", "stopped": "Stopped", "paused": "Paused – other valve open"}
       },
       "status": {
         "name": "Care status",
@@ -222,6 +232,7 @@
           "mow_less": "Mow less frequently",
           "reduce_mowing": "Reduce mowing for autumn",
           "pause_drought": "Pause due to drought stress",
+          "pause_wet": "Pause because the lawn is wet",
           "wait_to_mow": "Wait until the next mowing date"
         }
       },
@@ -289,6 +300,7 @@
     }
   },
   "issues": {
+    "irrigation_valve_stuck": {"title": "Lawn irrigation valve failed to close", "description": "The controlled valve has not reported closed after a stop command. Check the physical valve and its connection immediately; the integration will retry closing it."},
     "temperature_unavailable": {
       "title": "Outdoor temperature unavailable",
       "description": "Neither the selected outdoor sensor nor the OpenWeatherMap weather entity currently provides a valid temperature. Check both entities."

@@ -40,7 +40,7 @@ def _input(weather_entity: str) -> dict:
 
 
 async def test_user_flow(hass: HomeAssistant, enable_custom_integrations: None) -> None:
-    """A valid OpenWeatherMap entity creates a version 8 entry."""
+    """A valid OpenWeatherMap entity creates a version 9 entry."""
     registry = er.async_get(hass)
     entity = registry.async_get_or_create(
         "weather",
@@ -64,7 +64,7 @@ async def test_user_flow(hass: HomeAssistant, enable_custom_integrations: None) 
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "Back lawn"
-    assert result["version"] == 8
+    assert result["version"] == 9
     assert result["data"]["name"] == "Back lawn"
     assert flow.context["unique_id"]
 
@@ -104,10 +104,27 @@ async def test_migrate_version_six_entry(hass: HomeAssistant) -> None:
     )
     entry.add_to_hass(hass)
     assert await async_migrate_entry(hass, entry)
-    assert entry.version == 8
+    assert entry.version == 9
     assert entry.unique_id == entry.entry_id
     assert entry.data["root_depth_cm"] == 10
     assert entry.options["rain_correction"] == 1.0
+
+
+async def test_migrate_version_eight_preserves_valve_and_automation(
+    hass: HomeAssistant,
+) -> None:
+    """Existing users keep the configured valve and automation preference."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"irrigation_valve": "switch.garden_water"},
+        options={"irrigation_flow": "sensor.shared_water"},
+        version=8,
+    )
+    entry.add_to_hass(hass)
+    assert await async_migrate_entry(hass, entry)
+    assert entry.version == 9
+    assert entry.data["irrigation_valve"] == "switch.garden_water"
+    assert entry.options["irrigation_flow"] == "sensor.shared_water"
 
 
 async def test_valve_requires_mower_guard(
@@ -143,3 +160,20 @@ async def test_same_valve_cannot_be_owned_by_two_lawns(hass: HomeAssistant) -> N
         "irrigation_valve": "valve_already_used"
     }
     assert not _validate_unique_valve(hass, settings, existing.entry_id)
+
+
+def test_irrigation_options_hide_recorded_watering_and_show_numeric_values() -> None:
+    """A controlled valve has one watering input; numeric options are editable."""
+    from homeassistant.helpers.selector import NumberSelectorMode
+
+    from custom_components.rasenpflege_assistent.config_flow import _schema
+
+    full = {key.schema: value for key, value in _schema().schema.items()}
+    valve = {
+        key.schema: value for key, value in _schema(show_watered=False).schema.items()
+    }
+    assert "watered_entity" in full
+    assert "watered_entity" not in valve
+    assert "other_valve" in valve
+    for name in ("initial_soil_moisture", "irrigation_efficiency", "rain_correction"):
+        assert valve[name].config["mode"] == NumberSelectorMode.BOX

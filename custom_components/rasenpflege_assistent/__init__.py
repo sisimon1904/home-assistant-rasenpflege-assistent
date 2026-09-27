@@ -118,7 +118,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
     coordinator.irrigation = IrrigationController(hass, coordinator)
-    if coordinator.irrigation.configured:
+    if (
+        coordinator.irrigation.configured
+        or coordinator.irrigation.active
+        or coordinator._state.irrigation_recent_valve_id
+    ):
         await coordinator.irrigation.async_initialize()
         await coordinator.async_request_refresh()
 
@@ -263,4 +267,6 @@ async def async_migrate_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bo
         )
     if entry.version == 7:
         hass.config_entries.async_update_entry(entry, version=8, minor_version=0)
+    if entry.version == 8:
+        hass.config_entries.async_update_entry(entry, version=9, minor_version=0)
     return True

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from statistics import fmean
 from typing import Any
 
@@ -208,6 +208,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 water_model_version=int(stored.get("water_model_version", 1)),
                 canopy_storage_mm=float(stored.get("canopy_storage_mm", 0.0)),
                 last_rain_at=stored.get("last_rain_at"),
+                last_wet_rain_at=stored.get("last_wet_rain_at"),
+                last_watering_at=stored.get("last_watering_at"),
                 configured_soil_type=stored.get("configured_soil_type"),
                 configured_root_depth_cm=float(
                     stored.get("configured_root_depth_cm", root_depth)
@@ -220,6 +222,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 irrigation_last_reason=stored.get("irrigation_last_reason"),
                 irrigation_last_liters=stored.get("irrigation_last_liters"),
                 irrigation_valve_id=stored.get("irrigation_valve_id"),
+                irrigation_recent_valve_id=stored.get("irrigation_recent_valve_id"),
+                irrigation_recent_until=stored.get("irrigation_recent_until"),
             )
             if not stored.get("local_day_model", False):
                 # Earlier releases stored UTC-based partial days. They cannot be
@@ -322,6 +326,44 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
     def _age_minutes(now, timestamp) -> int:
         """Return a non-negative age in full minutes."""
         return max(0, int((now - timestamp).total_seconds() / 60))
+
+    def _pause_mower_when_wet(
+        self, now: datetime, mower: dict[str, Any]
+    ) -> tuple[datetime | None, str | None]:
+        """Defer mowing until the next local day and twelve hours after wetting."""
+        assert self._state is not None
+        wet_until: datetime | None = None
+        wet_reason: str | None = None
+        for timestamp, reason in (
+            (self._state.last_wet_rain_at, "rain"),
+            (self._state.last_watering_at, "watering"),
+        ):
+            event_at = dt_util.parse_datetime(timestamp or "")
+            if event_at is None:
+                continue
+            local_event = dt_util.as_local(event_at)
+            next_local_day = dt_util.start_of_local_day(local_event + timedelta(days=1))
+            candidate = max(
+                dt_util.as_utc(next_local_day), event_at + timedelta(hours=12)
+            )
+            if wet_until is None or candidate > wet_until:
+                wet_until, wet_reason = candidate, reason
+        if (
+            wet_until is not None
+            and now < wet_until
+            and mower["status"]
+            in {"start_mower", "mow_regularly", "mow_less", "reduce_mowing"}
+        ):
+            mower["status"] = "pause_wet"
+            mower["next_date"] = max(
+                mower["next_date"] or dt_util.as_local(now).date(),
+                dt_util.as_local(wet_until).date(),
+            )
+        return (
+            (wet_until, wet_reason)
+            if wet_until is not None and now < wet_until
+            else (None, None)
+        )
 
     def _read_temperature(self, now) -> tuple[float | None, str, int | None]:
         """Read the selected outdoor sensor, falling back to OpenWeatherMap."""
@@ -915,6 +957,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 self._state.canopy_storage_mm + balance["interception_mm"],
             )
             self._state.last_rain_at = now.isoformat()
+            if self._state.daily_rain_mm >= 0.5:
+                self._state.last_wet_rain_at = now.isoformat()
         self._state.soil_water_mm = balance["water_mm"]
         local_midnight = dt_util.as_utc(
             dt_util.start_of_local_day(dt_util.as_local(now))
@@ -1129,6 +1173,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             last_mowing=last_mowing,
             today=today,
         )
+        wet_until, wet_reason = self._pause_mower_when_wet(now, mower)
 
         watering = watering_recommendation(
             today=today,
@@ -1302,6 +1347,10 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             temperature_source=temperature_source,
             growth_status=growth,
             mower_status=mower["status"],
+            mower_wet_until=(
+                wet_until.isoformat() if wet_until and now < wet_until else None
+            ),
+            mower_wet_reason=(wet_reason if wet_until and now < wet_until else None),
             mower_start_recommended=mower["status"] == "start_mower",
             mower_can_be_switched_off=mower["status"] == "winter_off",
             mowing_interval_days=mower["interval"],
@@ -1414,7 +1463,11 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         return False
 
     async def async_mark_watered(
-        self, amount_mm: float | None = None, *, deduplicate: bool = False
+        self,
+        amount_mm: float | None = None,
+        *,
+        deduplicate: bool = False,
+        was_wet: bool = False,
     ) -> None:
         """Record watering and add the calculated or configured amount."""
         assert self._state is not None
@@ -1424,6 +1477,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             return
         previous = {
             "last_watering": self._state.last_watering,
+            "last_watering_at": self._state.last_watering_at,
             "soil_water_mm": self._state.soil_water_mm,
         }
         self._state.last_watering = dt_util.as_local(dt_util.now()).date().isoformat()
@@ -1443,6 +1497,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 )
             )
         assumed_mm = max(0.0, float(assumed_mm))
+        if assumed_mm > 0 or was_wet:
+            self._state.last_watering_at = dt_util.now().isoformat()
         old_water = float(self._state.soil_water_mm or 0.0)
         effective_amount = assumed_mm * float(
             self.settings.get(CONF_IRRIGATION_EFFICIENCY, DEFAULT_IRRIGATION_EFFICIENCY)
@@ -1505,6 +1561,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             "details", {}
         ):
             self._state.last_watering = event.get("previous", {}).get("last_watering")
+            self._state.last_watering_at = event.get("previous", {}).get(
+                "last_watering_at"
+            )
             applied_mm = max(0.0, float(event["details"]["applied_mm"]))
             self._state.soil_water_mm = max(
                 0.0, float(self._state.soil_water_mm or 0.0) - applied_mm
