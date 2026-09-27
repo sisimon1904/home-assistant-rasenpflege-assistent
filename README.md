@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.3.2 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.4.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -35,6 +35,13 @@ neu starten. Updates per HACS erfordern veröffentlichte GitHub-Releases.
 
 Pro Rasen lassen sich Fläche, Nutzung, Bodenart, Sonnenlage, Wurzeltiefe,
 Gefälle, Verdichtung, Bewässerungseffizienz und Regenkorrektur einstellen.
+Bei der Ersteinrichtung genügen Name, OpenWeatherMap-Wetterentität und die
+grundlegenden Rasendaten. **Konfigurieren** öffnet danach die getrennten Seiten
+**Grundeinstellungen**, **Eingangssensoren**, **Bewässerung**, **Boden- und
+Wassermodell** und **Pflegeverlauf**. Mit Ventil erscheint zusätzlich
+**Bewässerung – Sicherheit**. Die Dauer und andere Zahlen werden in Feldern
+mit sichtbaren Werten eingegeben. Während eine Bewässerung läuft oder pausiert,
+muss sie vor einer Konfigurationsänderung gestoppt werden.
 Optional sind Außentemperatur, Niederschlag, Bodentemperatur und Bodenfeuchte
 als separate Sensoren wählbar. Fehlt ein Außentemperatursensor, verwendet die
 Integration OpenWeatherMap. Ohne ausdrücklich ausgewählten Regensensor sucht
@@ -80,9 +87,10 @@ gilt für manuelle Starts, soweit keine Sicherheitsabschaltung nötig ist.
 Pausen zählen zur maximalen Gesamtdauer und enden erst nach erneuter Prüfung
 der Sicherheitsbedingungen. Die separate Entität **Automatische Bewässerung**
 ist anfangs ausgeschaltet.
-Sie startet höchstens eine empfohlene Bewässerung pro lokalem Tag im passenden
+Sie startet nach einer erfolgreichen Bewässerung nicht erneut am selben lokalen
+Tag. Nach einem Start ohne gemessenes Wasser kann sie nach 30 Minuten im passenden
 Vorhersagefenster, sofern Wetter, Regenmessung und Wassersensor ausreichend
-zuverlässig sind.
+zuverlässig sind, erneut versuchen.
 
 Ein unabhängiger 15-Sekunden-Wächter schließt das Ventil bei fehlendem,
 unplausiblem oder ausbleibendem Durchfluss, Überschreitung von Zeit oder Menge,
@@ -114,6 +122,7 @@ liest vorhandene Entitäten und ruft Vorhersagen über Home Assistants
 | Bewässerungsempfehlung | Zeitpunkt, mm, Liter, Regenprognose und empfohlenes Zeitfenster |
 | Bewässerungsstatus (mit Ventil) | Laufend, wegen zweitem Ventil pausiert, abgeschlossen oder gestoppt; letzte gemessene Menge und Stoppgrund |
 | Bewässerung – Diagnose (mit Ventil) | Startfreigabe, beide Ventilzustände, Mäherstandort, Zählerwert und Alter, Laufzeit, Zielmenge und Abschaltgrund |
+| Automatische Bewässerung – Entscheidung (mit Ventil) | Übersetzter Grund, weshalb ein automatischer Start möglich oder blockiert ist; gegebenenfalls Zeitpunkt des nächsten Versuchs |
 | Grünlandtemperatursumme | Vegetationsindikator mit Angaben zur Vollständigkeit |
 | Nächste Aktion | Kompakte Handlungsempfehlung |
 

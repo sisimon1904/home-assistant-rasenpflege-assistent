@@ -887,6 +887,8 @@ def next_lawn_action(
         return "fertilize_lawn"
     if mower_status in {"mow_regularly", "mow_less", "reduce_mowing"}:
         return "mow_lawn"
+    if mower_status == "pause_wet":
+        return "wait_to_mow"
     if mower_status == "collecting_data":
         return "collecting_data"
     return "no_action"

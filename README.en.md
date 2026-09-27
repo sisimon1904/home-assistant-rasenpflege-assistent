@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.3.2 · [Changelog](CHANGELOG.md)
+Version 3.4.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -33,8 +33,14 @@ HACS updates require published GitHub releases.
 ## Settings and data sources
 
 Each lawn has configurable area, use, soil type, sun exposure, root depth,
-slope, compaction, irrigation efficiency, and rain correction. Outdoor
-temperature, observed rainfall, soil temperature, and soil moisture can use
+slope, compaction, irrigation efficiency, and rain correction.
+Initial setup only asks for the name, OpenWeatherMap weather entity, and basic
+lawn properties. **Configure** then offers separate pages for **Basic settings**,
+**Input sensors**, **Irrigation hardware**, **Soil and water model**, and
+**Maintenance history**. **Irrigation safety** appears once a valve is selected.
+Duration and other numeric values use visible entry boxes. Stop any running or
+paused irrigation session before saving settings.
+Outdoor temperature, observed rainfall, soil temperature, and soil moisture can use
 optional separate sensors. Without a separate outdoor temperature sensor, the
 integration uses OpenWeatherMap. Without a chosen rain sensor, it searches for
 an active OpenWeatherMap rain sensor belonging to the weather configuration.
@@ -74,9 +80,9 @@ session and **Stop irrigation** closes it. A configurable minimum runtime
 applies to manual sessions unless a safety condition requires immediate
 closure. Pauses count towards the maximum overall runtime and only resume
 after renewed safety checks. The **Automatic irrigation** switch defaults to off. When enabled,
-the integration may start at most one recommended watering per local day
-within a suitable forecast window, provided weather, observed rain, and
-meter data are reliable.
+the integration does not start another session on the same local day after
+water was delivered. A failed start without measured water may be retried after
+30 minutes within a suitable forecast window when the inputs remain reliable.
 
 An independent 15-second watchdog closes an owned valve for missing or
 implausible flow, loss of dock confirmation, maximum runtime or volume, or
@@ -105,6 +111,7 @@ the OpenWeatherMap API directly.
 | Watering recommendation | Timing, mm, liters, rain forecast, and suggested window |
 | Irrigation status (with valve) | Running, paused, completed, or stopped; last measured amount and stop reason |
 | Irrigation diagnostics (with valve) | Start eligibility, both valve states, mower dock, meter freshness, runtime, target, and stop reason |
+| Automatic irrigation decision (with valve) | Translated reason an automatic start is possible or blocked, with the next attempt time when known |
 | Grassland temperature sum | Vegetation indicator with completeness details |
 | Next action | One concise action recommendation |
 

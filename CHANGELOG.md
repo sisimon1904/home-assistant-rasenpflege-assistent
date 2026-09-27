@@ -1,5 +1,31 @@
 # Changelog
 
+## 3.4.0
+
+### Added
+
+- Short initial setup and separate options pages for basic settings, sensors,
+  irrigation hardware, safety limits, soil modeling, and maintenance history.
+- Translated diagnostic sensor explaining the current automatic irrigation
+  decision and the next available start when known.
+- Persisted irrigation active and paused durations and a shared-meter
+  measurement-gap flag for diagnostics.
+
+### Changed
+
+- Stop irrigation before saving a settings page so a reload cannot interrupt
+  an owned watering session.
+- Defer mowing in the next-action sensor while the lawn is estimated wet.
+- Permit another automatic attempt after a 30-minute cooldown when a failed
+  attempt delivered no measured water.
+
+### Fixed
+
+- Ignore stale positive flow-rate readings left by another water consumer.
+- Avoid attributing ambiguous shared-meter updates when a competing valve opens.
+- Record sufficiently long time-only watering even if another valve paused it.
+- Extend the delayed valve closure guard after a failed open or restart.
+
 ## 3.3.2
 
 ### Fixed

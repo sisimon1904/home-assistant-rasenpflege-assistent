@@ -224,6 +224,16 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 irrigation_valve_id=stored.get("irrigation_valve_id"),
                 irrigation_recent_valve_id=stored.get("irrigation_recent_valve_id"),
                 irrigation_recent_until=stored.get("irrigation_recent_until"),
+                irrigation_retry_after=stored.get("irrigation_retry_after"),
+                irrigation_last_active_seconds=stored.get(
+                    "irrigation_last_active_seconds"
+                ),
+                irrigation_last_paused_seconds=stored.get(
+                    "irrigation_last_paused_seconds"
+                ),
+                irrigation_last_measurement_gap=bool(
+                    stored.get("irrigation_last_measurement_gap", False)
+                ),
             )
             if not stored.get("local_day_model", False):
                 # Earlier releases stored UTC-based partial days. They cannot be

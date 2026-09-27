@@ -211,6 +211,7 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             "fertilize_lawn",
             "start_mower",
             "mow_lawn",
+            "wait_to_mow",
             "winterize_mower",
             "no_action",
         ],
@@ -404,6 +405,36 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             "other_valve_unavailable",
             "meter_unavailable",
             "not_configured",
+        ],
+        value_fn=lambda data: "not_configured",
+    ),
+    LawnSensorDescription(
+        key="irrigation_auto_decision",
+        translation_key="irrigation_auto_decision",
+        icon="mdi:water-clock-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        device_class=SensorDeviceClass.ENUM,
+        options=[
+            "ready",
+            "not_configured",
+            "automation_disabled",
+            "session_active",
+            "mower_not_docked",
+            "valve_not_closed",
+            "other_valve_open",
+            "other_valve_unavailable",
+            "meter_unavailable",
+            "meter_required",
+            "waiting_for_weather",
+            "rain_unavailable",
+            "weather_unavailable",
+            "low_confidence",
+            "already_watered_today",
+            "retry_cooldown",
+            "watering_not_due",
+            "no_suitable_window",
+            "waiting_for_window",
+            "window_expired",
         ],
         value_fn=lambda data: "not_configured",
     ),
@@ -626,7 +657,8 @@ async def async_setup_entry(
     async_add_entities(
         LawnSensor(coordinator, description)
         for description in SENSORS
-        if description.key not in {"irrigation_status", "irrigation_readiness"}
+        if description.key
+        not in {"irrigation_status", "irrigation_readiness", "irrigation_auto_decision"}
         or (coordinator.irrigation and coordinator.irrigation.configured)
     )
 
@@ -648,6 +680,8 @@ class LawnSensor(LawnEntity, SensorEntity):
         """Return the sensor value."""
         if self.entity_description.key == "irrigation_readiness":
             return self.coordinator.irrigation.readiness()
+        if self.entity_description.key == "irrigation_auto_decision":
+            return self.coordinator.irrigation.automatic_blocker() or "ready"
         return self.entity_description.value_fn(self.coordinator.data)
 
     @property
@@ -655,4 +689,7 @@ class LawnSensor(LawnEntity, SensorEntity):
         """Return useful recommendation details."""
         if self.entity_description.key == "irrigation_readiness":
             return self.coordinator.irrigation.diagnostic_attributes()
+        if self.entity_description.key == "irrigation_auto_decision":
+            details = self.coordinator.irrigation.diagnostic_attributes()
+            return {"next_automatic_start": details["next_automatic_start"]}
         return self.entity_description.attributes_fn(self.coordinator.data)

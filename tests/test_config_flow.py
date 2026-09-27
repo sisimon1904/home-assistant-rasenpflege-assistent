@@ -10,6 +10,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.rasenpflege_assistent import async_migrate_entry
 from custom_components.rasenpflege_assistent.config_flow import (
+    GENERAL_FIELDS,
     LawnCareConfigFlow,
     LawnCareOptionsFlow,
     _validate_unique_valve,
@@ -56,6 +57,11 @@ async def test_user_flow(hass: HomeAssistant, enable_custom_integrations: None) 
     flow.context = {"source": config_entries.SOURCE_USER}
     result = await flow.async_step_user()
     assert result["type"] is FlowResultType.FORM
+    assert {key.schema for key in result["data_schema"].schema} == set(GENERAL_FIELDS)
+    weather_field = next(
+        key for key in result["data_schema"].schema if key.schema == "weather_entity"
+    )
+    assert weather_field.description["suggested_value"] == entity.entity_id
 
     with patch(
         "custom_components.rasenpflege_assistent.async_setup_entry",
@@ -67,6 +73,7 @@ async def test_user_flow(hass: HomeAssistant, enable_custom_integrations: None) 
     assert result["title"] == "Back lawn"
     assert result["version"] == 9
     assert result["data"]["name"] == "Back lawn"
+    assert "irrigation_valve" not in result["data"]
     assert flow.context["unique_id"]
 
 
@@ -74,22 +81,24 @@ async def test_invalid_soil_sensor_calibration(
     hass: HomeAssistant, enable_custom_integrations: None
 ) -> None:
     """Wet calibration must be greater than the dry reference."""
-    registry = er.async_get(hass)
-    entity = registry.async_get_or_create(
-        "weather",
-        "openweathermap",
-        "test-weather-invalid",
-        suggested_object_id="openweathermap_invalid",
+    entry = MockConfigEntry(
+        domain=DOMAIN, data=_input("weather.openweathermap"), version=9
     )
-    hass.states.async_set(entity.entity_id, "sunny", {"temperature": 20})
-    flow = LawnCareConfigFlow()
+    entry.add_to_hass(hass)
+    flow = LawnCareOptionsFlow()
     flow.hass = hass
-    flow.context = {"source": config_entries.SOURCE_USER}
-    result = await flow.async_step_user()
-    user_input = _input(entity.entity_id)
-    user_input["soil_sensor_dry"] = 60
-    user_input["soil_sensor_wet"] = 40
-    result = await flow.async_step_user(user_input)
+    flow.handler = entry.entry_id
+    user_input = {
+        "soil_sensor_dry": 60,
+        "soil_sensor_wet": 40,
+        "root_depth_cm": 10,
+        "slope": "flat",
+        "compaction": "normal",
+        "default_watering_amount": 15,
+        "irrigation_efficiency": 0.85,
+        "rain_correction": 1.0,
+    }
+    result = await flow.async_step_model(user_input)
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"soil_sensor_wet": "soil_sensor_range_invalid"}
 
@@ -132,20 +141,20 @@ async def test_valve_requires_mower_guard(
     hass: HomeAssistant, enable_custom_integrations: None
 ) -> None:
     """An irrigator cannot be configured without a verified mower input."""
-    registry = er.async_get(hass)
-    weather = registry.async_get_or_create(
-        "weather", "openweathermap", "test-guarded-weather"
+    entry = MockConfigEntry(
+        domain=DOMAIN, data=_input("weather.openweathermap"), version=9
     )
-    hass.states.async_set(weather.entity_id, "sunny", {"temperature": 20})
-    flow = LawnCareConfigFlow()
+    entry.add_to_hass(hass)
+    flow = LawnCareOptionsFlow()
     flow.hass = hass
-    flow.context = {"source": config_entries.SOURCE_USER}
+    flow.handler = entry.entry_id
     payload = {
-        **_input(weather.entity_id),
         "irrigation_valve": "switch.garden_water",
         "irrigation_flow": "sensor.garden_liters",
+        "mower_safe_state": "docked",
+        "allow_unmetered_manual": False,
     }
-    result = await flow.async_step_user(payload)
+    result = await flow.async_step_irrigation(payload)
     assert result["errors"]["mower_location"] == "mower_required"
 
 
@@ -200,7 +209,11 @@ async def test_options_form_prefills_saved_irrigation_times(
     entry = MockConfigEntry(
         domain=DOMAIN,
         data=_input("weather.openweathermap"),
-        options={"min_irrigation_minutes": 12, "max_irrigation_minutes": 75},
+        options={
+            "irrigation_valve": "switch.garden_water",
+            "min_irrigation_minutes": 12,
+            "max_irrigation_minutes": 75,
+        },
         version=9,
     )
     entry.add_to_hass(hass)
@@ -208,9 +221,90 @@ async def test_options_form_prefills_saved_irrigation_times(
     flow.hass = hass
     flow.handler = entry.entry_id
 
-    result = await flow.async_step_init()
+    menu = await flow.async_step_init()
+    assert menu["type"] is FlowResultType.MENU
+    assert "safety" in menu["menu_options"]
+    result = await flow.async_step_safety()
 
     assert result["type"] is FlowResultType.FORM
     markers = {key.schema: key for key in result["data_schema"].schema}
     assert markers["min_irrigation_minutes"].description["suggested_value"] == 12
     assert markers["max_irrigation_minutes"].description["suggested_value"] == 75
+
+
+async def test_saving_one_settings_page_preserves_other_pages(
+    hass: HomeAssistant,
+) -> None:
+    """Editing a model value leaves the configured valve and sensors untouched."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_input("weather.openweathermap"),
+        options={
+            "irrigation_valve": "switch.garden_water",
+            "irrigation_flow": "sensor.shared_meter",
+            "mower_location": "lawn_mower.garden",
+            "temperature_entity": "sensor.outside",
+            "root_depth_cm": 11,
+        },
+        version=9,
+    )
+    entry.add_to_hass(hass)
+    flow = LawnCareOptionsFlow()
+    flow.hass = hass
+    flow.handler = entry.entry_id
+
+    result = await flow.async_step_model({"root_depth_cm": 12})
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["root_depth_cm"] == 12
+    assert result["data"]["irrigation_valve"] == "switch.garden_water"
+    assert result["data"]["irrigation_flow"] == "sensor.shared_meter"
+    assert result["data"]["temperature_entity"] == "sensor.outside"
+
+
+async def test_saving_settings_while_irrigating_is_rejected(
+    hass: HomeAssistant,
+) -> None:
+    """A settings reload must not interrupt an active valve session."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, data=_input("weather.openweathermap"), version=9
+    )
+    entry.add_to_hass(hass)
+    entry.runtime_data = type(
+        "Runtime", (), {"irrigation": type("Valve", (), {"active": True})()}
+    )()
+    flow = LawnCareOptionsFlow()
+    flow.hass = hass
+    flow.handler = entry.entry_id
+
+    result = await flow.async_step_maintenance({"last_watering": "2026-09-20"})
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"]["base"] == "irrigation_active"
+
+
+async def test_clearing_optional_sensor_keeps_irrigation_settings(
+    hass: HomeAssistant,
+) -> None:
+    """Removing a sensor on its page does not erase a saved valve or limits."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_input("weather.openweathermap"),
+        options={
+            "temperature_entity": "sensor.old_temperature",
+            "irrigation_valve": "switch.garden_water",
+            "max_irrigation_minutes": 72,
+        },
+        version=9,
+    )
+    entry.add_to_hass(hass)
+    flow = LawnCareOptionsFlow()
+    flow.hass = hass
+    flow.handler = entry.entry_id
+
+    result = await flow.async_step_sensors({"precipitation_mode": "auto"})
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["temperature_entity"] is None
+    assert result["data"]["irrigation_valve"] == "switch.garden_water"
+    assert result["data"]["max_irrigation_minutes"] == 72

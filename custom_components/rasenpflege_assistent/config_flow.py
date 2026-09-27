@@ -82,6 +82,56 @@ from .const import (
     DOMAIN,
 )
 
+GENERAL_FIELDS = (
+    CONF_NAME,
+    CONF_WEATHER_ENTITY,
+    CONF_AREA,
+    CONF_SUN_EXPOSURE,
+    CONF_LAWN_TYPE,
+    CONF_SOIL_TYPE,
+)
+SENSOR_FIELDS = (
+    CONF_TEMPERATURE_ENTITY,
+    CONF_MOWED_ENTITY,
+    CONF_WATERED_ENTITY,
+    CONF_PRECIPITATION_ENTITY,
+    CONF_PRECIPITATION_MODE,
+    CONF_SOIL_MOISTURE_ENTITY,
+    CONF_SOIL_TEMPERATURE_ENTITY,
+)
+IRRIGATION_FIELDS = (
+    CONF_IRRIGATION_VALVE,
+    CONF_OTHER_VALVE,
+    CONF_IRRIGATION_FLOW,
+    CONF_MOWER_LOCATION,
+    CONF_MOWER_SAFE_STATE,
+    CONF_ALLOW_UNMETERED_MANUAL,
+)
+SAFETY_FIELDS = (
+    CONF_MIN_IRRIGATION_MINUTES,
+    CONF_MAX_IRRIGATION_MINUTES,
+    CONF_MAX_IRRIGATION_LITERS,
+    CONF_FLOW_START_GRACE,
+    CONF_MIN_FLOW_L_MIN,
+    CONF_MAX_FLOW_L_MIN,
+)
+MODEL_FIELDS = (
+    CONF_DEFAULT_WATERING_AMOUNT,
+    CONF_ROOT_DEPTH,
+    CONF_SLOPE,
+    CONF_COMPACTION,
+    CONF_IRRIGATION_EFFICIENCY,
+    CONF_RAIN_CORRECTION,
+    CONF_SOIL_SENSOR_DRY,
+    CONF_SOIL_SENSOR_WET,
+)
+MAINTENANCE_FIELDS = (
+    CONF_LAST_WATERING,
+    CONF_LAST_FERTILIZING,
+    CONF_INITIAL_GTS,
+    CONF_INITIAL_SOIL_MOISTURE,
+)
+
 
 def _select(translation_key: str, options: list[str]) -> selector.SelectSelector:
     """Build a translated dropdown with stable machine values."""
@@ -94,9 +144,11 @@ def _select(translation_key: str, options: list[str]) -> selector.SelectSelector
     )
 
 
-def _schema(*, show_watered: bool = True) -> vol.Schema:
-    """Return the shared setup/options schema."""
-    return vol.Schema(
+def _schema(
+    *, show_watered: bool = True, fields: tuple[str, ...] | None = None
+) -> vol.Schema:
+    """Return the fields needed by a setup or options page."""
+    schema = vol.Schema(
         {
             vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
             vol.Required(CONF_WEATHER_ENTITY): selector.EntitySelector(
@@ -323,6 +375,15 @@ def _schema(*, show_watered: bool = True) -> vol.Schema:
             ),
         }
     )
+    if fields is None:
+        return schema
+    return vol.Schema(
+        {
+            marker: value
+            for marker, value in schema.schema.items()
+            if marker.schema in fields
+        }
+    )
 
 
 def _validate_openweathermap_entities(
@@ -343,8 +404,8 @@ def _validate_openweathermap_entities(
 
 def _validate_calibration(user_input: dict[str, Any]) -> dict[str, str]:
     """Validate optional model calibration bounds."""
-    if float(user_input[CONF_SOIL_SENSOR_WET]) <= float(
-        user_input[CONF_SOIL_SENSOR_DRY]
+    if float(user_input.get(CONF_SOIL_SENSOR_WET, DEFAULT_SOIL_SENSOR_WET)) <= float(
+        user_input.get(CONF_SOIL_SENSOR_DRY, DEFAULT_SOIL_SENSOR_DRY)
     ):
         return {CONF_SOIL_SENSOR_WET: "soil_sensor_range_invalid"}
     return {}
@@ -405,27 +466,51 @@ class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Handle the initial setup step."""
         if user_input is not None:
-            if user_input.get(CONF_IRRIGATION_VALVE):
-                user_input.pop(CONF_WATERED_ENTITY, None)
             errors = {
                 **_validate_openweathermap_entities(self.hass, user_input),
-                **_validate_calibration(user_input),
-                **_validate_irrigation(user_input),
-                **_validate_unique_valve(self.hass, user_input),
             }
             name = user_input[CONF_NAME].strip()
             if not name:
                 errors[CONF_NAME] = "name_required"
             if errors:
                 return self.async_show_form(
-                    step_id="user", data_schema=_schema(), errors=errors
+                    step_id="user",
+                    data_schema=self.add_suggested_values_to_schema(
+                        _schema(fields=GENERAL_FIELDS), user_input
+                    ),
+                    errors=errors,
                 )
             await self.async_set_unique_id(uuid4().hex)
             return self.async_create_entry(
-                title=name, data={**user_input, CONF_NAME: name}
+                title=name,
+                data={
+                    **{
+                        key: user_input[key]
+                        for key in GENERAL_FIELDS
+                        if key in user_input
+                    },
+                    CONF_NAME: name,
+                },
             )
 
-        return self.async_show_form(step_id="user", data_schema=_schema())
+        weather_entities = [
+            entity.entity_id
+            for entity in er.async_get(self.hass).entities.values()
+            if entity.domain == "weather"
+            and entity.platform == "openweathermap"
+            and self.hass.states.get(entity.entity_id) is not None
+        ]
+        suggested = (
+            {CONF_WEATHER_ENTITY: weather_entities[0]}
+            if len(weather_entities) == 1
+            else {}
+        )
+        return self.async_show_form(
+            step_id="user",
+            data_schema=self.add_suggested_values_to_schema(
+                _schema(fields=GENERAL_FIELDS), suggested
+            ),
+        )
 
     @staticmethod
     @callback
@@ -439,61 +524,96 @@ class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class LawnCareOptionsFlow(OptionsFlowWithReload):
     """Handle editable Lawn Care Assistant settings."""
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Manage integration options."""
-        if user_input is not None:
-            if user_input.get(CONF_IRRIGATION_VALVE):
-                user_input[CONF_WATERED_ENTITY] = None
-            errors = {
-                **_validate_openweathermap_entities(self.hass, user_input),
-                **_validate_calibration(user_input),
-                **_validate_irrigation(user_input),
-                **_validate_unique_valve(
-                    self.hass, user_input, self.config_entry.entry_id
-                ),
-            }
-            new_name = user_input[CONF_NAME].strip()
-            if not new_name:
-                errors[CONF_NAME] = "name_required"
-            if errors:
-                current = {**self.config_entry.data, **user_input}
-                return self.async_show_form(
-                    step_id="init",
-                    data_schema=self.add_suggested_values_to_schema(
-                        _schema(
-                            show_watered=not bool(user_input.get(CONF_IRRIGATION_VALVE))
-                        ),
-                        current,
-                    ),
-                    errors=errors,
-                )
-            options = dict(user_input)
-            options[CONF_NAME] = new_name
-            options.setdefault(CONF_TEMPERATURE_ENTITY, None)
-            options.setdefault(CONF_MOWED_ENTITY, None)
-            options.setdefault(CONF_WATERED_ENTITY, None)
-            options.setdefault(CONF_IRRIGATION_VALVE, None)
-            options.setdefault(CONF_OTHER_VALVE, None)
-            options.setdefault(CONF_IRRIGATION_FLOW, None)
-            options.setdefault(CONF_MOWER_LOCATION, None)
-            options.setdefault(CONF_PRECIPITATION_ENTITY, None)
-            options.setdefault(CONF_SOIL_MOISTURE_ENTITY, None)
-            options.setdefault(CONF_SOIL_TEMPERATURE_ENTITY, None)
-            options.setdefault(CONF_LAST_WATERING, None)
-            options.setdefault(CONF_LAST_FERTILIZING, None)
-            self.hass.config_entries.async_update_entry(
-                self.config_entry,
-                title=new_name,
-            )
-            return self.async_create_entry(data=options)
+    async def async_step_init(self, user_input=None) -> ConfigFlowResult:
+        """Offer short, independent settings pages."""
+        choices = ["general", "sensors", "irrigation", "model", "maintenance"]
+        if self._current_settings().get(CONF_IRRIGATION_VALVE):
+            choices.insert(3, "safety")
+        return self.async_show_menu(step_id="init", menu_options=choices)
 
-        current = {**self.config_entry.data, **self.config_entry.options}
-        return self.async_show_form(
-            step_id="init",
-            data_schema=self.add_suggested_values_to_schema(
-                _schema(show_watered=not bool(current.get(CONF_IRRIGATION_VALVE))),
-                current,
-            ),
+    def _current_settings(self) -> dict[str, Any]:
+        return {**self.config_entry.data, **self.config_entry.options}
+
+    async def _section(
+        self,
+        step_id: str,
+        fields: tuple[str, ...],
+        user_input: dict[str, Any] | None,
+    ) -> ConfigFlowResult:
+        current = self._current_settings()
+        show_watered = not bool(current.get(CONF_IRRIGATION_VALVE))
+        if step_id == "irrigation" and user_input is not None:
+            show_watered = not bool(user_input.get(CONF_IRRIGATION_VALVE))
+        schema = _schema(fields=fields, show_watered=show_watered)
+        if user_input is None:
+            return self.async_show_form(
+                step_id=step_id,
+                data_schema=self.add_suggested_values_to_schema(schema, current),
+            )
+
+        updates = dict(user_input)
+        for marker in schema.schema:
+            if isinstance(marker, vol.Optional) and marker.schema not in updates:
+                updates[marker.schema] = None
+        merged = {**current, **updates}
+        if merged.get(CONF_IRRIGATION_VALVE):
+            updates[CONF_WATERED_ENTITY] = None
+            merged[CONF_WATERED_ENTITY] = None
+        errors: dict[str, str] = {}
+        if step_id == "general":
+            errors.update(_validate_openweathermap_entities(self.hass, merged))
+            if not merged[CONF_NAME].strip():
+                errors[CONF_NAME] = "name_required"
+        elif step_id == "model":
+            errors.update(_validate_calibration(merged))
+        elif step_id in {"irrigation", "safety"}:
+            errors.update(_validate_irrigation(merged))
+            if step_id == "irrigation":
+                errors.update(
+                    _validate_unique_valve(
+                        self.hass, merged, self.config_entry.entry_id
+                    )
+                )
+        errors = {
+            key if key == "base" or key in fields else "base": value
+            for key, value in errors.items()
+        }
+        irrigation = getattr(
+            getattr(self.config_entry, "runtime_data", None), "irrigation", None
         )
+        if irrigation is not None and irrigation.active:
+            errors["base"] = "irrigation_active"
+        if errors:
+            return self.async_show_form(
+                step_id=step_id,
+                data_schema=self.add_suggested_values_to_schema(schema, merged),
+                errors=errors,
+            )
+
+        if step_id == "general":
+            updates[CONF_NAME] = merged[CONF_NAME].strip()
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, title=updates[CONF_NAME]
+            )
+        return self.async_create_entry(data={**self.config_entry.options, **updates})
+
+    async def async_step_general(self, user_input=None) -> ConfigFlowResult:
+        return await self._section("general", GENERAL_FIELDS, user_input)
+
+    async def async_step_sensors(self, user_input=None) -> ConfigFlowResult:
+        fields = SENSOR_FIELDS
+        if self._current_settings().get(CONF_IRRIGATION_VALVE):
+            fields = tuple(key for key in fields if key != CONF_WATERED_ENTITY)
+        return await self._section("sensors", fields, user_input)
+
+    async def async_step_irrigation(self, user_input=None) -> ConfigFlowResult:
+        return await self._section("irrigation", IRRIGATION_FIELDS, user_input)
+
+    async def async_step_safety(self, user_input=None) -> ConfigFlowResult:
+        return await self._section("safety", SAFETY_FIELDS, user_input)
+
+    async def async_step_model(self, user_input=None) -> ConfigFlowResult:
+        return await self._section("model", MODEL_FIELDS, user_input)
+
+    async def async_step_maintenance(self, user_input=None) -> ConfigFlowResult:
+        return await self._section("maintenance", MAINTENANCE_FIELDS, user_input)

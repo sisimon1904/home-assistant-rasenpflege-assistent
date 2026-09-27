@@ -93,38 +93,92 @@
     "step": {
       "init": {
         "title": "Edit lawn settings",
-        "description": "Changes are applied immediately after saving.",
+        "menu_options": {
+          "general": "Basic settings",
+          "sensors": "Input sensors",
+          "irrigation": "Irrigation hardware",
+          "safety": "Irrigation safety",
+          "model": "Soil and water model",
+          "maintenance": "Maintenance history"
+        }
+      },
+      "general": {
+        "title": "Basic settings",
+        "description": "Name, weather, area and lawn type.",
         "data": {
           "name": "Name",
           "weather_entity": "OpenWeatherMap weather entity",
+          "area": "Lawn area",
+          "sun_exposure": "Sun exposure",
+          "lawn_type": "Lawn use",
+          "soil_type": "Soil type"
+        }
+      },
+      "sensors": {
+        "title": "Input sensors",
+        "description": "Optional temperature, rain, mowing and soil sensors.",
+        "data": {
           "temperature_entity": "Outdoor temperature sensor (optional)",
           "mowed_entity": "Lawn was mowed binary sensor (optional)",
           "watered_entity": "Lawn was watered binary sensor (optional)",
+          "precipitation_entity": "Observed precipitation sensor (optional)",
+          "precipitation_mode": "Precipitation sensor type",
+          "soil_moisture_entity": "Physical soil moisture sensor (optional)",
+          "soil_temperature_entity": "Soil temperature sensor (optional)"
+        },
+        "data_description": {
+          "temperature_entity": "This sensor has priority. If it is not selected or is unavailable, the current OpenWeatherMap temperature is used automatically.",
+          "mowed_entity": "An off-to-on transition records mowing and acknowledges the mowing season. Without a selection, use the manual button.",
+          "watered_entity": "An off-to-on transition records watering and updates the soil model. Without a selection, use the manual button.",
+          "precipitation_entity": "Accepts precipitation depth or precipitation intensity. Without a sensor, no rain is added to the soil model; forecasts are used only for recommendations.",
+          "precipitation_mode": "Automatic uses the unit and state class. Select a fixed type if your sensor reports an ambiguous value in mm.",
+          "soil_moisture_entity": "Gently calibrates the modeled soil reservoir toward the measured percentage every six hours. Without a sensor, the model continues independently.",
+          "soil_temperature_entity": "When selected, soil temperature takes priority for vegetation-state decisions."
+        }
+      },
+      "irrigation": {
+        "title": "Irrigation hardware",
+        "description": "Valve, shared meter, competing valve and mower dock.",
+        "data": {
           "irrigation_valve": "Irrigation valve switch (optional)",
-          "irrigation_flow": "Water flow or volume sensor (optional)",
           "other_valve": "Other valve or valve status (optional)",
+          "irrigation_flow": "Water flow or volume sensor (optional)",
           "mower_location": "Mower position or dock status (required with valve)",
           "mower_safe_state": "State confirming the mower is docked",
-          "allow_unmetered_manual": "Allow manual timer without water meter",
+          "allow_unmetered_manual": "Allow manual timer without water meter"
+        },
+        "data_description": {
+          "irrigation_valve": "Select a switch to enable supervised valve control. Without a switch, the watering button retains its recording behavior.",
+          "other_valve": "Optional competing valve: irrigation pauses while open and closes if its configured state becomes unknown.",
+          "irrigation_flow": "Select a live meter in L, m³, L/min, L/h, L/s or m³/h. A shared meter is attributed only while the lawn valve is open.",
+          "mower_location": "Select a mower entity, vacuum, dock binary sensor, or custom status sensor. Valve starts only if the mower is confirmed docked.",
+          "mower_safe_state": "For custom status sensors, enter the value that means safely docked. Lawn mower/vacuum use docked; binary dock sensors use on.",
+          "allow_unmetered_manual": "An explicit time-only manual mode does not infer an unmeasured water volume."
+        }
+      },
+      "safety": {
+        "title": "Irrigation safety",
+        "description": "Safety limits and manual watering duration.",
+        "data": {
           "min_irrigation_minutes": "Minimum manual watering time (minutes)",
           "max_irrigation_minutes": "Maximum watering time (minutes)",
           "max_irrigation_liters": "Maximum water per session (liters)",
           "flow_start_grace_seconds": "Flow startup grace period (seconds)",
           "min_flow_l_min": "Minimum water flow (L/min)",
-          "max_flow_l_min": "Maximum water flow (L/min)",
-          "precipitation_entity": "Observed precipitation sensor (optional)",
-          "precipitation_mode": "Precipitation sensor type",
-          "soil_moisture_entity": "Physical soil moisture sensor (optional)",
-          "soil_temperature_entity": "Soil temperature sensor (optional)",
+          "max_flow_l_min": "Maximum water flow (L/min)"
+        },
+        "data_description": {
+          "min_irrigation_minutes": "Applies to manual starts unless a safety condition requires earlier shutdown.",
+          "max_irrigation_minutes": "Safety limit for every irrigation session.",
+          "max_irrigation_liters": "Safety limit that overrides the manual minimum runtime.",
+          "flow_start_grace_seconds": "Maximum time without a plausible positive water-flow reading."
+        }
+      },
+      "model": {
+        "title": "Soil and water model",
+        "description": "Infiltration and soil moisture calibration.",
+        "data": {
           "default_watering_amount": "Default recorded watering amount",
-          "area": "Lawn area",
-          "sun_exposure": "Sun exposure",
-          "lawn_type": "Lawn use",
-          "soil_type": "Soil type",
-          "last_watering": "Correct last watering date",
-          "last_fertilizing": "Correct last fertilizing date",
-          "initial_gts": "Correct current grassland temperature sum",
-          "initial_soil_moisture": "Recalibrate modeled soil moisture",
           "root_depth_cm": "Effective root depth",
           "slope": "Surface slope",
           "compaction": "Soil compaction",
@@ -134,16 +188,28 @@
           "soil_sensor_wet": "Soil sensor wet reference"
         },
         "data_description": {
-          "irrigation_valve": "Select a switch to enable supervised valve control. Without a switch, the watering button retains its recording behavior.",
-          "irrigation_flow": "Select a live meter in L, m³, L/min, L/h, L/s or m³/h. A shared meter is attributed only while the lawn valve is open.",
-          "other_valve": "Optional competing valve: irrigation pauses while open and closes if its configured state becomes unknown.",
-          "mower_location": "Select a mower entity, vacuum, dock binary sensor, or custom status sensor. Valve starts only if the mower is confirmed docked.",
-          "mower_safe_state": "For custom status sensors, enter the value that means safely docked. Lawn mower/vacuum use docked; binary dock sensors use on.",
-          "allow_unmetered_manual": "An explicit time-only manual mode does not infer an unmeasured water volume.",
-          "min_irrigation_minutes": "Applies to manual starts unless a safety condition requires earlier shutdown.",
-          "max_irrigation_minutes": "Safety limit for every irrigation session.",
-          "max_irrigation_liters": "Safety limit that overrides the manual minimum runtime.",
-          "flow_start_grace_seconds": "Maximum time without a plausible positive water-flow reading."
+          "default_watering_amount": "Amount added to the soil model when watering is recorded and no calculated recommendation is available.",
+          "root_depth_cm": "Effective depth of the active lawn root zone. Ten centimeters preserves the previous model behavior.",
+          "slope": "A steeper surface reduces infiltration during intense rain.",
+          "compaction": "Compacted soil accepts water more slowly and produces more runoff.",
+          "irrigation_efficiency": "Fraction of applied irrigation that reaches the modeled root zone.",
+          "rain_correction": "Corrects systematic over- or underestimation of the observed rain source. 1.0 leaves it unchanged.",
+          "soil_sensor_dry": "Raw percentage shown by the physical sensor in dry soil.",
+          "soil_sensor_wet": "Raw percentage shown by the physical sensor near field capacity. Must be greater than the dry reference."
+        }
+      },
+      "maintenance": {
+        "title": "Maintenance history",
+        "description": "Correct dates and initial model values.",
+        "data": {
+          "last_watering": "Correct last watering date",
+          "last_fertilizing": "Correct last fertilizing date",
+          "initial_gts": "Correct current grassland temperature sum",
+          "initial_soil_moisture": "Recalibrate modeled soil moisture"
+        },
+        "data_description": {
+          "initial_gts": "If installing during the year, enter a known starting value here. From the next January 1, the integration starts automatically at 0.",
+          "initial_soil_moisture": "Starting value of the virtual soil reservoir. For normal loamy soil, 70% is a reasonable initial estimate."
         }
       }
     },
@@ -158,26 +224,84 @@
       "valve_already_used": "Another lawn already controls this valve.",
       "other_valve_same": "The other valve must differ from the lawn valve.",
       "maximum_below_minimum": "Maximum must be greater than minimum.",
-      "safe_state_required": "Enter a state confirming the mower is at the dock."
+      "safe_state_required": "Enter a state confirming the mower is at the dock.",
+      "irrigation_active": "Stop irrigation before changing settings."
     }
   },
   "selector": {
-    "sun_exposure": {"options": {"sunny": "Sunny", "partial_shade": "Partial shade", "shade": "Shade"}},
-    "lawn_type": {"options": {"family": "Family lawn", "play": "Heavily used play lawn", "ornamental": "Ornamental lawn", "shade": "Shade lawn"}},
-    "soil_type": {"options": {"sandy": "Sandy", "loamy": "Balanced loam", "clayey": "Clayey"}},
-    "precipitation_mode": {"options": {"auto": "Automatic", "rate": "Rate (for example mm/h)", "cumulative": "Cumulative total", "increment": "Amount per state update"}},
-    "slope": {"options": {"flat": "Flat", "gentle": "Gentle slope", "steep": "Steep slope"}},
-    "compaction": {"options": {"normal": "Normal", "compacted": "Compacted"}}
+    "sun_exposure": {
+      "options": {
+        "sunny": "Sunny",
+        "partial_shade": "Partial shade",
+        "shade": "Shade"
+      }
+    },
+    "lawn_type": {
+      "options": {
+        "family": "Family lawn",
+        "play": "Heavily used play lawn",
+        "ornamental": "Ornamental lawn",
+        "shade": "Shade lawn"
+      }
+    },
+    "soil_type": {
+      "options": {
+        "sandy": "Sandy",
+        "loamy": "Balanced loam",
+        "clayey": "Clayey"
+      }
+    },
+    "precipitation_mode": {
+      "options": {
+        "auto": "Automatic",
+        "rate": "Rate (for example mm/h)",
+        "cumulative": "Cumulative total",
+        "increment": "Amount per state update"
+      }
+    },
+    "slope": {
+      "options": {
+        "flat": "Flat",
+        "gentle": "Gentle slope",
+        "steep": "Steep slope"
+      }
+    },
+    "compaction": {
+      "options": {
+        "normal": "Normal",
+        "compacted": "Compacted"
+      }
+    }
   },
   "entity": {
     "sensor": {
       "irrigation_readiness": {
         "name": "Irrigation diagnostics",
-        "state": {"ready": "Ready to start", "running": "Running", "paused": "Paused", "stopping": "Closing valve", "completed": "Completed", "stopped": "Stopped", "mower_not_docked": "Mower not docked", "valve_not_closed": "Lawn valve not closed", "other_valve_open": "Other valve open", "other_valve_unavailable": "Other valve unavailable", "meter_unavailable": "Water meter unavailable", "not_configured": "Not configured"}
+        "state": {
+          "ready": "Ready to start",
+          "running": "Running",
+          "paused": "Paused",
+          "stopping": "Closing valve",
+          "completed": "Completed",
+          "stopped": "Stopped",
+          "mower_not_docked": "Mower not docked",
+          "valve_not_closed": "Lawn valve not closed",
+          "other_valve_open": "Other valve open",
+          "other_valve_unavailable": "Other valve unavailable",
+          "meter_unavailable": "Water meter unavailable",
+          "not_configured": "Not configured"
+        }
       },
       "irrigation_status": {
         "name": "Irrigation status",
-        "state": {"idle": "Idle", "running": "Watering", "stopping": "Closing valve", "completed": "Completed", "stopped": "Stopped", "paused": "Paused – other valve open"}
+        "state": {
+          "idle": "Idle",
+          "running": "Watering",
+          "stopping": "Closing valve",
+          "completed": "Completed",
+          "stopped": "Stopped",
+          "paused": "Paused – other valve open"
+        }
       },
       "status": {
         "name": "Care status",
@@ -205,7 +329,8 @@
           "start_mower": "Start mower",
           "mow_lawn": "Mow lawn",
           "winterize_mower": "Switch mower off for winter",
-          "no_action": "No action required"
+          "no_action": "No action required",
+          "wait_to_mow": "Wait for the lawn to dry before mowing"
         }
       },
       "growth_status": {
@@ -236,8 +361,12 @@
           "wait_to_mow": "Wait until the next mowing date"
         }
       },
-      "soil_moisture": {"name": "Modeled soil moisture"},
-      "gts": {"name": "Grassland temperature sum"},
+      "soil_moisture": {
+        "name": "Modeled soil moisture"
+      },
+      "gts": {
+        "name": "Grassland temperature sum"
+      },
       "watering_recommendation": {
         "name": "Watering recommendation",
         "state": {
@@ -248,29 +377,63 @@
           "not_due": "Soil moisture sufficient"
         }
       },
-      "watering_amount": {"name": "Recommended water amount"},
-      "fertilizer_amount": {"name": "Recommended fertilizer amount"},
+      "watering_amount": {
+        "name": "Recommended water amount"
+      },
+      "fertilizer_amount": {
+        "name": "Recommended fertilizer amount"
+      },
       "data_quality": {
         "name": "Data quality",
-        "state": {"good": "Good", "limited": "Limited", "insufficient": "Insufficient"}
+        "state": {
+          "good": "Good",
+          "limited": "Limited",
+          "insufficient": "Insufficient"
+        }
       },
       "soil_model_confidence": {
         "name": "Soil model confidence",
-        "state": {"high": "High", "medium": "Medium", "low": "Low"}
+        "state": {
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        }
       },
       "watering_confidence": {
         "name": "Watering confidence",
-        "state": {"high": "High", "medium": "Medium", "low": "Low"}
+        "state": {
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        }
       },
-      "forecast_age": {"name": "Forecast age"},
-      "forecast_coverage": {"name": "Forecast coverage"},
-      "forecast_rain_24h": {"name": "Forecast rain 24 hours"},
-      "forecast_rain_72h": {"name": "Forecast rain 72 hours"},
-      "observed_rain_today": {"name": "Observed rain today"},
-      "temperature_source": {"name": "Temperature source"},
-      "precipitation_source": {"name": "Precipitation source"},
-      "soil_water": {"name": "Modeled soil water"},
-      "daily_evapotranspiration": {"name": "Evapotranspiration today"},
+      "forecast_age": {
+        "name": "Forecast age"
+      },
+      "forecast_coverage": {
+        "name": "Forecast coverage"
+      },
+      "forecast_rain_24h": {
+        "name": "Forecast rain 24 hours"
+      },
+      "forecast_rain_72h": {
+        "name": "Forecast rain 72 hours"
+      },
+      "observed_rain_today": {
+        "name": "Observed rain today"
+      },
+      "temperature_source": {
+        "name": "Temperature source"
+      },
+      "precipitation_source": {
+        "name": "Precipitation source"
+      },
+      "soil_water": {
+        "name": "Modeled soil water"
+      },
+      "daily_evapotranspiration": {
+        "name": "Evapotranspiration today"
+      },
       "evapotranspiration_method": {
         "name": "Evapotranspiration method",
         "state": {
@@ -280,27 +443,77 @@
           "unavailable": "Unavailable"
         }
       },
-      "last_soil_update": {"name": "Last soil model update"},
-      "last_calculation": {"name": "Last calculation"}
+      "last_soil_update": {
+        "name": "Last soil model update"
+      },
+      "last_calculation": {
+        "name": "Last calculation"
+      },
+      "irrigation_auto_decision": {
+        "name": "Automatic irrigation decision",
+        "state": {
+          "ready": "Ready to start",
+          "not_configured": "No valve configured",
+          "automation_disabled": "Automatic irrigation is off",
+          "session_active": "Watering session in progress",
+          "mower_not_docked": "Mower is not confirmed docked",
+          "valve_not_closed": "Lawn valve is not closed",
+          "other_valve_open": "Other valve is open",
+          "other_valve_unavailable": "Other valve status unavailable",
+          "meter_unavailable": "Water meter unavailable",
+          "meter_required": "Water meter required for automatic watering",
+          "waiting_for_weather": "Waiting for weather data",
+          "rain_unavailable": "Observed rain is unavailable",
+          "weather_unavailable": "Weather or forecast is unavailable",
+          "low_confidence": "Weather or soil model confidence is too low",
+          "already_watered_today": "Lawn already watered today",
+          "retry_cooldown": "Waiting before retry after an unsuccessful start",
+          "watering_not_due": "Watering is not due",
+          "no_suitable_window": "No suitable watering window",
+          "waiting_for_window": "Waiting for the watering window",
+          "window_expired": "Watering window has ended"
+        }
+      }
     },
     "binary_sensor": {
-      "watering_due": {"name": "Watering due (legacy)"},
-      "fertilizing_due": {"name": "Fertilizing due (legacy)"}
+      "watering_due": {
+        "name": "Watering due (legacy)"
+      },
+      "fertilizing_due": {
+        "name": "Fertilizing due (legacy)"
+      }
     },
     "button": {
-      "mark_mowing_started": {"name": "Record mowing"},
-      "mark_watered": {"name": "Record watering"},
-      "start_irrigation": {"name": "Start irrigation"},
-      "stop_irrigation": {"name": "Stop irrigation"},
-      "mark_fertilized": {"name": "Record fertilizing"},
-      "undo_last_action": {"name": "Undo last maintenance action"}
+      "mark_mowing_started": {
+        "name": "Record mowing"
+      },
+      "mark_watered": {
+        "name": "Record watering"
+      },
+      "start_irrigation": {
+        "name": "Start irrigation"
+      },
+      "stop_irrigation": {
+        "name": "Stop irrigation"
+      },
+      "mark_fertilized": {
+        "name": "Record fertilizing"
+      },
+      "undo_last_action": {
+        "name": "Undo last maintenance action"
+      }
     },
     "switch": {
-      "automatic_irrigation": {"name": "Automatic irrigation"}
+      "automatic_irrigation": {
+        "name": "Automatic irrigation"
+      }
     }
   },
   "issues": {
-    "irrigation_valve_stuck": {"title": "Lawn irrigation valve failed to close", "description": "The controlled valve has not reported closed after a stop command. Check the physical valve and its connection immediately; the integration will retry closing it."},
+    "irrigation_valve_stuck": {
+      "title": "Lawn irrigation valve failed to close",
+      "description": "The controlled valve has not reported closed after a stop command. Check the physical valve and its connection immediately; the integration will retry closing it."
+    },
     "temperature_unavailable": {
       "title": "Outdoor temperature unavailable",
       "description": "Neither the selected outdoor sensor nor the OpenWeatherMap weather entity currently provides a valid temperature. Check both entities."
@@ -331,28 +544,53 @@
       "name": "Record watering",
       "description": "Record watering with an optional actual water depth.",
       "fields": {
-        "config_entry_id": {"name": "Lawn", "description": "Lawn configuration to update."},
-        "amount_mm": {"name": "Water depth", "description": "Actual applied water depth in millimeters."}
+        "config_entry_id": {
+          "name": "Lawn",
+          "description": "Lawn configuration to update."
+        },
+        "amount_mm": {
+          "name": "Water depth",
+          "description": "Actual applied water depth in millimeters."
+        }
       }
     },
     "record_fertilizing": {
       "name": "Record fertilizing",
       "description": "Record a fertilizer application with optional product details.",
       "fields": {
-        "config_entry_id": {"name": "Lawn", "description": "Lawn configuration to update."},
-        "product_npk": {"name": "Product NPK", "description": "NPK declaration of the applied product."},
-        "amount_kg": {"name": "Product amount", "description": "Applied product amount in kilograms."}
+        "config_entry_id": {
+          "name": "Lawn",
+          "description": "Lawn configuration to update."
+        },
+        "product_npk": {
+          "name": "Product NPK",
+          "description": "NPK declaration of the applied product."
+        },
+        "amount_kg": {
+          "name": "Product amount",
+          "description": "Applied product amount in kilograms."
+        }
       }
     },
     "record_mowing": {
       "name": "Record mowing",
       "description": "Record that the lawn was mowed.",
-      "fields": {"config_entry_id": {"name": "Lawn", "description": "Lawn configuration to update."}}
+      "fields": {
+        "config_entry_id": {
+          "name": "Lawn",
+          "description": "Lawn configuration to update."
+        }
+      }
     },
     "undo_last_action": {
       "name": "Undo last maintenance action",
       "description": "Undo the most recently recorded watering, fertilizing, or mowing event.",
-      "fields": {"config_entry_id": {"name": "Lawn", "description": "Lawn configuration to update."}}
+      "fields": {
+        "config_entry_id": {
+          "name": "Lawn",
+          "description": "Lawn configuration to update."
+        }
+      }
     }
   }
 }

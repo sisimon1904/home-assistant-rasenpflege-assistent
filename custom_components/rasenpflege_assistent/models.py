@@ -158,6 +158,10 @@ class RuntimeState:
     irrigation_valve_id: str | None = None
     irrigation_recent_valve_id: str | None = None
     irrigation_recent_until: str | None = None
+    irrigation_retry_after: str | None = None
+    irrigation_last_active_seconds: float | None = None
+    irrigation_last_paused_seconds: float | None = None
+    irrigation_last_measurement_gap: bool = False
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable representation."""
@@ -217,4 +221,8 @@ class RuntimeState:
             "irrigation_valve_id": self.irrigation_valve_id,
             "irrigation_recent_valve_id": self.irrigation_recent_valve_id,
             "irrigation_recent_until": self.irrigation_recent_until,
+            "irrigation_retry_after": self.irrigation_retry_after,
+            "irrigation_last_active_seconds": self.irrigation_last_active_seconds,
+            "irrigation_last_paused_seconds": self.irrigation_last_paused_seconds,
+            "irrigation_last_measurement_gap": self.irrigation_last_measurement_gap,
         }

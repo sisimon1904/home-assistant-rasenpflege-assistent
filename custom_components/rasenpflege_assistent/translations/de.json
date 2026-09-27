@@ -93,38 +93,92 @@
     "step": {
       "init": {
         "title": "Raseneinstellungen bearbeiten",
-        "description": "Änderungen werden nach dem Speichern sofort übernommen.",
+        "menu_options": {
+          "general": "Grundeinstellungen",
+          "sensors": "Eingangssensoren",
+          "irrigation": "Bewässerung",
+          "safety": "Bewässerung – Sicherheit",
+          "model": "Boden- und Wassermodell",
+          "maintenance": "Pflegeverlauf"
+        }
+      },
+      "general": {
+        "title": "Grundeinstellungen",
+        "description": "Name, Wetter, Fläche und Rasenart.",
         "data": {
           "name": "Name",
           "weather_entity": "OpenWeatherMap-Wetterentität",
+          "area": "Rasenfläche",
+          "sun_exposure": "Sonnenlage",
+          "lawn_type": "Rasennutzung",
+          "soil_type": "Bodenart"
+        }
+      },
+      "sensors": {
+        "title": "Eingangssensoren",
+        "description": "Optionale Temperatur-, Regen-, Mäh- und Bodensensoren.",
+        "data": {
           "temperature_entity": "Außentemperatursensor (optional)",
           "mowed_entity": "Binärsensor „Rasen wurde gemäht“ (optional)",
           "watered_entity": "Binärsensor „Rasen wurde bewässert“ (optional)",
+          "precipitation_entity": "Sensor für gefallenen Niederschlag (optional)",
+          "precipitation_mode": "Art des Niederschlagssensors",
+          "soil_moisture_entity": "Physischer Bodenfeuchtesensor (optional)",
+          "soil_temperature_entity": "Bodentemperatursensor (optional)"
+        },
+        "data_description": {
+          "temperature_entity": "Dieser Sensor hat Vorrang. Wenn er nicht ausgewählt oder nicht verfügbar ist, wird automatisch die aktuelle Temperatur von OpenWeatherMap verwendet.",
+          "mowed_entity": "Eine Aus→Ein-Flanke protokolliert das Mähen und bestätigt den Saisonstart. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
+          "watered_entity": "Eine Aus→Ein-Flanke protokolliert die Bewässerung und aktualisiert das Bodenmodell. Ohne Auswahl verwendest du die manuelle Schaltfläche.",
+          "precipitation_entity": "Akzeptiert Niederschlagsmenge oder Niederschlagsintensität. Ohne Sensor wird kein Regen in das Bodenmodell eingetragen; Vorhersagen dienen nur der Empfehlung.",
+          "precipitation_mode": "Automatisch verwendet Einheit und Zustandsklasse. Bei einem mehrdeutigen Sensorwert in mm kann die Art fest vorgegeben werden.",
+          "soil_moisture_entity": "Gleicht den modellierten Bodenspeicher höchstens alle sechs Stunden sanft mit dem gemessenen Prozentwert ab. Ohne Sensor arbeitet das Modell unverändert weiter.",
+          "soil_temperature_entity": "Wenn ausgewählt, hat die Bodentemperatur bei der Bestimmung des Vegetationszustands Vorrang."
+        }
+      },
+      "irrigation": {
+        "title": "Bewässerung",
+        "description": "Ventil, gemeinsamer Zähler, zweites Ventil und Mäherstation.",
+        "data": {
           "irrigation_valve": "Schalter für Bewässerungsventil (optional)",
-          "irrigation_flow": "Durchfluss- oder Wassermengensensor (optional)",
           "other_valve": "Zweites Ventil oder Ventilstatus (optional)",
+          "irrigation_flow": "Durchfluss- oder Wassermengensensor (optional)",
           "mower_location": "Mähroboterposition oder Stationsstatus (mit Ventil erforderlich)",
           "mower_safe_state": "Zustand für Roboter an der Station",
-          "allow_unmetered_manual": "Manuellen Zeitbetrieb ohne Wassersensor erlauben",
+          "allow_unmetered_manual": "Manuellen Zeitbetrieb ohne Wassersensor erlauben"
+        },
+        "data_description": {
+          "irrigation_valve": "Wähle einen Schalter für die überwachte Ventilsteuerung. Ohne Schalter bleibt die bisherige Erfassungsfunktion des Buttons erhalten.",
+          "other_valve": "Optionales zweites Ventil: Bei offenem Ventil pausiert die Bewässerung. Ist der konfigurierte Zustand unbekannt, wird vorsichtshalber abgeschaltet.",
+          "irrigation_flow": "Wähle einen während der Bewässerung aktualisierten Sensor in L, m³, L/min, L/h, L/s oder m³/h. Automatische Starts brauchen Messwerte.",
+          "mower_location": "Wähle einen Mähroboter, Staubsauger, Stations-Binärsensor oder eigenen Statussensor. Das Ventil öffnet nur bei sicherem Stationszustand.",
+          "mower_safe_state": "Beim eigenen Statussensor den Wert für sicher angedockt eintragen. Mähroboter/Staubsauger verwenden docked, Stations-Binärsensoren on.",
+          "allow_unmetered_manual": "Der manuelle Zeitbetrieb nimmt keine ungemessene Wassermenge für das Bodenmodell an."
+        }
+      },
+      "safety": {
+        "title": "Bewässerung – Sicherheit",
+        "description": "Sicherheitsgrenzen und manuelle Bewässerungsdauer.",
+        "data": {
           "min_irrigation_minutes": "Mindestdauer manueller Bewässerung (Minuten)",
           "max_irrigation_minutes": "Maximale Bewässerungsdauer (Minuten)",
           "max_irrigation_liters": "Maximale Wassermenge je Vorgang (Liter)",
           "flow_start_grace_seconds": "Anlaufzeit für Durchfluss (Sekunden)",
           "min_flow_l_min": "Minimaler Durchfluss (L/min)",
-          "max_flow_l_min": "Maximaler Durchfluss (L/min)",
-          "precipitation_entity": "Sensor für gefallenen Niederschlag (optional)",
-          "precipitation_mode": "Art des Niederschlagssensors",
-          "soil_moisture_entity": "Physischer Bodenfeuchtesensor (optional)",
-          "soil_temperature_entity": "Bodentemperatursensor (optional)",
+          "max_flow_l_min": "Maximaler Durchfluss (L/min)"
+        },
+        "data_description": {
+          "min_irrigation_minutes": "Gilt für manuelle Starts, sofern kein Sicherheitsgrund früheres Schließen verlangt.",
+          "max_irrigation_minutes": "Sicherheitsgrenze für jede Bewässerung.",
+          "max_irrigation_liters": "Sicherheitsgrenze, die Vorrang vor der Mindestdauer hat.",
+          "flow_start_grace_seconds": "Maximale Zeit ohne plausiblen positiven Wasserdurchfluss."
+        }
+      },
+      "model": {
+        "title": "Boden- und Wassermodell",
+        "description": "Versickerung und Kalibrierung der Bodenfeuchte.",
+        "data": {
           "default_watering_amount": "Standardmenge einer protokollierten Bewässerung",
-          "area": "Rasenfläche",
-          "sun_exposure": "Sonnenlage",
-          "lawn_type": "Rasennutzung",
-          "soil_type": "Bodenart",
-          "last_watering": "Datum der letzten Bewässerung korrigieren",
-          "last_fertilizing": "Datum der letzten Düngung korrigieren",
-          "initial_gts": "Aktuelle Grünlandtemperatursumme korrigieren",
-          "initial_soil_moisture": "Modellierte Bodenfeuchte neu kalibrieren",
           "root_depth_cm": "Wirksame Wurzeltiefe",
           "slope": "Oberflächengefälle",
           "compaction": "Bodenverdichtung",
@@ -134,16 +188,28 @@
           "soil_sensor_wet": "Nassreferenz des Bodensensors"
         },
         "data_description": {
-          "irrigation_valve": "Wähle einen Schalter für die überwachte Ventilsteuerung. Ohne Schalter bleibt die bisherige Erfassungsfunktion des Buttons erhalten.",
-          "irrigation_flow": "Wähle einen während der Bewässerung aktualisierten Sensor in L, m³, L/min, L/h, L/s oder m³/h. Automatische Starts brauchen Messwerte.",
-          "other_valve": "Optionales zweites Ventil: Bei offenem Ventil pausiert die Bewässerung. Ist der konfigurierte Zustand unbekannt, wird vorsichtshalber abgeschaltet.",
-          "mower_location": "Wähle einen Mähroboter, Staubsauger, Stations-Binärsensor oder eigenen Statussensor. Das Ventil öffnet nur bei sicherem Stationszustand.",
-          "mower_safe_state": "Beim eigenen Statussensor den Wert für sicher angedockt eintragen. Mähroboter/Staubsauger verwenden docked, Stations-Binärsensoren on.",
-          "allow_unmetered_manual": "Der manuelle Zeitbetrieb nimmt keine ungemessene Wassermenge für das Bodenmodell an.",
-          "min_irrigation_minutes": "Gilt für manuelle Starts, sofern kein Sicherheitsgrund früheres Schließen verlangt.",
-          "max_irrigation_minutes": "Sicherheitsgrenze für jede Bewässerung.",
-          "max_irrigation_liters": "Sicherheitsgrenze, die Vorrang vor der Mindestdauer hat.",
-          "flow_start_grace_seconds": "Maximale Zeit ohne plausiblen positiven Wasserdurchfluss."
+          "default_watering_amount": "Diese Menge wird dem Bodenmodell hinzugefügt, wenn eine Bewässerung ohne berechnete Empfehlung protokolliert wird.",
+          "root_depth_cm": "Wirksame Tiefe der aktiven Rasenwurzeln. Zehn Zentimeter erhalten das bisherige Modellverhalten.",
+          "slope": "Ein stärkeres Gefälle verringert bei intensivem Regen die Versickerung.",
+          "compaction": "Verdichteter Boden nimmt Wasser langsamer auf und erzeugt mehr Oberflächenabfluss.",
+          "irrigation_efficiency": "Anteil der ausgebrachten Bewässerung, der den modellierten Wurzelraum erreicht.",
+          "rain_correction": "Korrigiert eine systematische Über- oder Unterschätzung der Regenquelle. 1,0 verändert den Wert nicht.",
+          "soil_sensor_dry": "Rohwert des physischen Sensors bei trockenem Boden.",
+          "soil_sensor_wet": "Rohwert des physischen Sensors nahe der Feldkapazität. Er muss größer als die Trockenreferenz sein."
+        }
+      },
+      "maintenance": {
+        "title": "Pflegeverlauf",
+        "description": "Daten und Anfangswerte des Modells korrigieren.",
+        "data": {
+          "last_watering": "Datum der letzten Bewässerung korrigieren",
+          "last_fertilizing": "Datum der letzten Düngung korrigieren",
+          "initial_gts": "Aktuelle Grünlandtemperatursumme korrigieren",
+          "initial_soil_moisture": "Modellierte Bodenfeuchte neu kalibrieren"
+        },
+        "data_description": {
+          "initial_gts": "Bei einer Installation mitten im Jahr kann hier ein bekannter Startwert eingetragen werden. Ab dem nächsten 1. Januar zählt die Integration automatisch ab 0.",
+          "initial_soil_moisture": "Startwert des virtuellen Bodenspeichers. Für normalen lehmigen Boden sind 70 % ein sinnvoller Anfangswert."
         }
       }
     },
@@ -158,26 +224,84 @@
       "valve_already_used": "Ein anderer Rasen steuert dieses Ventil bereits.",
       "other_valve_same": "Das zweite Ventil darf nicht das Rasenventil sein.",
       "maximum_below_minimum": "Der Maximalwert muss über dem Minimalwert liegen.",
-      "safe_state_required": "Gib den Zustand für einen an der Station befindlichen Roboter ein."
+      "safe_state_required": "Gib den Zustand für einen an der Station befindlichen Roboter ein.",
+      "irrigation_active": "Bewässerung vor dem Ändern der Einstellungen stoppen."
     }
   },
   "selector": {
-    "sun_exposure": {"options": {"sunny": "Sonnig", "partial_shade": "Halbschatten", "shade": "Schatten"}},
-    "lawn_type": {"options": {"family": "Familienrasen", "play": "Stark beanspruchter Spielrasen", "ornamental": "Zierrasen", "shade": "Schattenrasen"}},
-    "soil_type": {"options": {"sandy": "Sandig", "loamy": "Lehmig und ausgewogen", "clayey": "Tonig"}},
-    "precipitation_mode": {"options": {"auto": "Automatisch", "rate": "Rate (zum Beispiel mm/h)", "cumulative": "Kumulativer Gesamtwert", "increment": "Menge je Zustandsänderung"}},
-    "slope": {"options": {"flat": "Eben", "gentle": "Leichtes Gefälle", "steep": "Starkes Gefälle"}},
-    "compaction": {"options": {"normal": "Normal", "compacted": "Verdichtet"}}
+    "sun_exposure": {
+      "options": {
+        "sunny": "Sonnig",
+        "partial_shade": "Halbschatten",
+        "shade": "Schatten"
+      }
+    },
+    "lawn_type": {
+      "options": {
+        "family": "Familienrasen",
+        "play": "Stark beanspruchter Spielrasen",
+        "ornamental": "Zierrasen",
+        "shade": "Schattenrasen"
+      }
+    },
+    "soil_type": {
+      "options": {
+        "sandy": "Sandig",
+        "loamy": "Lehmig und ausgewogen",
+        "clayey": "Tonig"
+      }
+    },
+    "precipitation_mode": {
+      "options": {
+        "auto": "Automatisch",
+        "rate": "Rate (zum Beispiel mm/h)",
+        "cumulative": "Kumulativer Gesamtwert",
+        "increment": "Menge je Zustandsänderung"
+      }
+    },
+    "slope": {
+      "options": {
+        "flat": "Eben",
+        "gentle": "Leichtes Gefälle",
+        "steep": "Starkes Gefälle"
+      }
+    },
+    "compaction": {
+      "options": {
+        "normal": "Normal",
+        "compacted": "Verdichtet"
+      }
+    }
   },
   "entity": {
     "sensor": {
       "irrigation_readiness": {
         "name": "Bewässerung – Diagnose",
-        "state": {"ready": "Start möglich", "running": "Bewässerung läuft", "paused": "Pausiert", "stopping": "Ventil wird geschlossen", "completed": "Abgeschlossen", "stopped": "Gestoppt", "mower_not_docked": "Mäher nicht angedockt", "valve_not_closed": "Rasenventil nicht geschlossen", "other_valve_open": "Zweites Ventil geöffnet", "other_valve_unavailable": "Zweites Ventil nicht verfügbar", "meter_unavailable": "Wasserzähler nicht verfügbar", "not_configured": "Nicht eingerichtet"}
+        "state": {
+          "ready": "Start möglich",
+          "running": "Bewässerung läuft",
+          "paused": "Pausiert",
+          "stopping": "Ventil wird geschlossen",
+          "completed": "Abgeschlossen",
+          "stopped": "Gestoppt",
+          "mower_not_docked": "Mäher nicht angedockt",
+          "valve_not_closed": "Rasenventil nicht geschlossen",
+          "other_valve_open": "Zweites Ventil geöffnet",
+          "other_valve_unavailable": "Zweites Ventil nicht verfügbar",
+          "meter_unavailable": "Wasserzähler nicht verfügbar",
+          "not_configured": "Nicht eingerichtet"
+        }
       },
       "irrigation_status": {
         "name": "Bewässerungsstatus",
-        "state": {"idle": "Bereit", "running": "Bewässerung läuft", "stopping": "Ventil wird geschlossen", "completed": "Abgeschlossen", "stopped": "Abgebrochen", "paused": "Pausiert – zweites Ventil geöffnet"}
+        "state": {
+          "idle": "Bereit",
+          "running": "Bewässerung läuft",
+          "stopping": "Ventil wird geschlossen",
+          "completed": "Abgeschlossen",
+          "stopped": "Abgebrochen",
+          "paused": "Pausiert – zweites Ventil geöffnet"
+        }
       },
       "status": {
         "name": "Pflegestatus",
@@ -205,7 +329,8 @@
           "start_mower": "Mähroboter starten",
           "mow_lawn": "Rasen mähen",
           "winterize_mower": "Mähroboter für den Winter abschalten",
-          "no_action": "Keine Aktion erforderlich"
+          "no_action": "Keine Aktion erforderlich",
+          "wait_to_mow": "Mit Mähen warten, bis der Rasen trocken ist"
         }
       },
       "growth_status": {
@@ -236,8 +361,12 @@
           "wait_to_mow": "Bis zum nächsten Mähtermin warten"
         }
       },
-      "soil_moisture": {"name": "Modellierte Bodenfeuchte"},
-      "gts": {"name": "Grünlandtemperatursumme"},
+      "soil_moisture": {
+        "name": "Modellierte Bodenfeuchte"
+      },
+      "gts": {
+        "name": "Grünlandtemperatursumme"
+      },
       "watering_recommendation": {
         "name": "Bewässerungsempfehlung",
         "state": {
@@ -248,29 +377,63 @@
           "not_due": "Bodenfeuchte ausreichend"
         }
       },
-      "watering_amount": {"name": "Empfohlene Wassermenge"},
-      "fertilizer_amount": {"name": "Empfohlene Düngermenge"},
+      "watering_amount": {
+        "name": "Empfohlene Wassermenge"
+      },
+      "fertilizer_amount": {
+        "name": "Empfohlene Düngermenge"
+      },
       "data_quality": {
         "name": "Datenqualität",
-        "state": {"good": "Gut", "limited": "Eingeschränkt", "insufficient": "Unzureichend"}
+        "state": {
+          "good": "Gut",
+          "limited": "Eingeschränkt",
+          "insufficient": "Unzureichend"
+        }
       },
       "soil_model_confidence": {
         "name": "Vertrauen in das Bodenmodell",
-        "state": {"high": "Hoch", "medium": "Mittel", "low": "Niedrig"}
+        "state": {
+          "high": "Hoch",
+          "medium": "Mittel",
+          "low": "Niedrig"
+        }
       },
       "watering_confidence": {
         "name": "Vertrauen in die Bewässerungsempfehlung",
-        "state": {"high": "Hoch", "medium": "Mittel", "low": "Niedrig"}
+        "state": {
+          "high": "Hoch",
+          "medium": "Mittel",
+          "low": "Niedrig"
+        }
       },
-      "forecast_age": {"name": "Alter der Wettervorhersage"},
-      "forecast_coverage": {"name": "Abgedeckter Vorhersagezeitraum"},
-      "forecast_rain_24h": {"name": "Vorhergesagter Regen 24 Stunden"},
-      "forecast_rain_72h": {"name": "Vorhergesagter Regen 72 Stunden"},
-      "observed_rain_today": {"name": "Beobachteter Regen heute"},
-      "temperature_source": {"name": "Temperaturquelle"},
-      "precipitation_source": {"name": "Niederschlagsquelle"},
-      "soil_water": {"name": "Modellierter Bodenwasservorrat"},
-      "daily_evapotranspiration": {"name": "Verdunstung heute"},
+      "forecast_age": {
+        "name": "Alter der Wettervorhersage"
+      },
+      "forecast_coverage": {
+        "name": "Abgedeckter Vorhersagezeitraum"
+      },
+      "forecast_rain_24h": {
+        "name": "Vorhergesagter Regen 24 Stunden"
+      },
+      "forecast_rain_72h": {
+        "name": "Vorhergesagter Regen 72 Stunden"
+      },
+      "observed_rain_today": {
+        "name": "Beobachteter Regen heute"
+      },
+      "temperature_source": {
+        "name": "Temperaturquelle"
+      },
+      "precipitation_source": {
+        "name": "Niederschlagsquelle"
+      },
+      "soil_water": {
+        "name": "Modellierter Bodenwasservorrat"
+      },
+      "daily_evapotranspiration": {
+        "name": "Verdunstung heute"
+      },
       "evapotranspiration_method": {
         "name": "Verdunstungsverfahren",
         "state": {
@@ -280,27 +443,77 @@
           "unavailable": "Nicht verfügbar"
         }
       },
-      "last_soil_update": {"name": "Letzte Aktualisierung des Bodenmodells"},
-      "last_calculation": {"name": "Letzte Berechnung"}
+      "last_soil_update": {
+        "name": "Letzte Aktualisierung des Bodenmodells"
+      },
+      "last_calculation": {
+        "name": "Letzte Berechnung"
+      },
+      "irrigation_auto_decision": {
+        "name": "Automatische Bewässerung – Entscheidung",
+        "state": {
+          "ready": "Start möglich",
+          "not_configured": "Kein Ventil eingerichtet",
+          "automation_disabled": "Automatische Bewässerung ist aus",
+          "session_active": "Bewässerung läuft",
+          "mower_not_docked": "Mäher ist nicht an der Station",
+          "valve_not_closed": "Rasenventil ist nicht geschlossen",
+          "other_valve_open": "Zweites Ventil ist offen",
+          "other_valve_unavailable": "Status des zweiten Ventils fehlt",
+          "meter_unavailable": "Wasserzähler nicht verfügbar",
+          "meter_required": "Wasserzähler für Automatik erforderlich",
+          "waiting_for_weather": "Warte auf Wetterdaten",
+          "rain_unavailable": "Gemessener Regen fehlt",
+          "weather_unavailable": "Wetter oder Vorhersage fehlt",
+          "low_confidence": "Wetter- oder Bodenmodelldaten zu unsicher",
+          "already_watered_today": "Rasen wurde heute bereits bewässert",
+          "retry_cooldown": "Wartezeit nach fehlgeschlagenem Start",
+          "watering_not_due": "Bewässerung ist nicht fällig",
+          "no_suitable_window": "Kein geeignetes Bewässerungsfenster",
+          "waiting_for_window": "Warte auf das Bewässerungsfenster",
+          "window_expired": "Bewässerungsfenster ist abgelaufen"
+        }
+      }
     },
     "binary_sensor": {
-      "watering_due": {"name": "Bewässerung fällig (veraltet)"},
-      "fertilizing_due": {"name": "Düngung fällig (veraltet)"}
+      "watering_due": {
+        "name": "Bewässerung fällig (veraltet)"
+      },
+      "fertilizing_due": {
+        "name": "Düngung fällig (veraltet)"
+      }
     },
     "button": {
-      "mark_mowing_started": {"name": "Mähen protokollieren"},
-      "mark_watered": {"name": "Bewässerung protokollieren"},
-      "start_irrigation": {"name": "Bewässerung starten"},
-      "stop_irrigation": {"name": "Bewässerung stoppen"},
-      "mark_fertilized": {"name": "Düngung protokollieren"},
-      "undo_last_action": {"name": "Letzte Pflegemaßnahme rückgängig machen"}
+      "mark_mowing_started": {
+        "name": "Mähen protokollieren"
+      },
+      "mark_watered": {
+        "name": "Bewässerung protokollieren"
+      },
+      "start_irrigation": {
+        "name": "Bewässerung starten"
+      },
+      "stop_irrigation": {
+        "name": "Bewässerung stoppen"
+      },
+      "mark_fertilized": {
+        "name": "Düngung protokollieren"
+      },
+      "undo_last_action": {
+        "name": "Letzte Pflegemaßnahme rückgängig machen"
+      }
     },
     "switch": {
-      "automatic_irrigation": {"name": "Automatische Bewässerung"}
+      "automatic_irrigation": {
+        "name": "Automatische Bewässerung"
+      }
     }
   },
   "issues": {
-    "irrigation_valve_stuck": {"title": "Rasenventil schließt nicht", "description": "Das gesteuerte Bewässerungsventil meldet nach einem Abschaltbefehl weiterhin keinen geschlossenen Zustand. Prüfe das Ventil und die Verbindung sofort; die Integration versucht das Schließen erneut."},
+    "irrigation_valve_stuck": {
+      "title": "Rasenventil schließt nicht",
+      "description": "Das gesteuerte Bewässerungsventil meldet nach einem Abschaltbefehl weiterhin keinen geschlossenen Zustand. Prüfe das Ventil und die Verbindung sofort; die Integration versucht das Schließen erneut."
+    },
     "temperature_unavailable": {
       "title": "Außentemperatur nicht verfügbar",
       "description": "Weder der ausgewählte Außensensor noch die OpenWeatherMap-Wetterentität liefert aktuell eine gültige Temperatur. Prüfe beide Entitäten."
@@ -331,28 +544,53 @@
       "name": "Bewässerung protokollieren",
       "description": "Protokolliert eine Bewässerung mit optionaler tatsächlicher Wassermenge.",
       "fields": {
-        "config_entry_id": {"name": "Rasen", "description": "Zu aktualisierende Rasenkonfiguration."},
-        "amount_mm": {"name": "Wassermenge", "description": "Tatsächlich ausgebrachte Wassermenge in Millimetern."}
+        "config_entry_id": {
+          "name": "Rasen",
+          "description": "Zu aktualisierende Rasenkonfiguration."
+        },
+        "amount_mm": {
+          "name": "Wassermenge",
+          "description": "Tatsächlich ausgebrachte Wassermenge in Millimetern."
+        }
       }
     },
     "record_fertilizing": {
       "name": "Düngung protokollieren",
       "description": "Protokolliert eine Düngung mit optionalen Produktangaben.",
       "fields": {
-        "config_entry_id": {"name": "Rasen", "description": "Zu aktualisierende Rasenkonfiguration."},
-        "product_npk": {"name": "Produkt-NPK", "description": "NPK-Deklaration des verwendeten Produkts."},
-        "amount_kg": {"name": "Produktmenge", "description": "Ausgebrachte Produktmenge in Kilogramm."}
+        "config_entry_id": {
+          "name": "Rasen",
+          "description": "Zu aktualisierende Rasenkonfiguration."
+        },
+        "product_npk": {
+          "name": "Produkt-NPK",
+          "description": "NPK-Deklaration des verwendeten Produkts."
+        },
+        "amount_kg": {
+          "name": "Produktmenge",
+          "description": "Ausgebrachte Produktmenge in Kilogramm."
+        }
       }
     },
     "record_mowing": {
       "name": "Mähen protokollieren",
       "description": "Protokolliert, dass der Rasen gemäht wurde.",
-      "fields": {"config_entry_id": {"name": "Rasen", "description": "Zu aktualisierende Rasenkonfiguration."}}
+      "fields": {
+        "config_entry_id": {
+          "name": "Rasen",
+          "description": "Zu aktualisierende Rasenkonfiguration."
+        }
+      }
     },
     "undo_last_action": {
       "name": "Letzte Pflegemaßnahme rückgängig machen",
       "description": "Macht die zuletzt protokollierte Bewässerung, Düngung oder Mahd rückgängig.",
-      "fields": {"config_entry_id": {"name": "Rasen", "description": "Zu aktualisierende Rasenkonfiguration."}}
+      "fields": {
+        "config_entry_id": {
+          "name": "Rasen",
+          "description": "Zu aktualisierende Rasenkonfiguration."
+        }
+      }
     }
   }
 }

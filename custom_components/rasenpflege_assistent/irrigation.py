@@ -160,6 +160,54 @@ class IrrigationController:
             return self.state.irrigation_last_status
         return self.start_blocker() or "ready"
 
+    def automatic_blocker(self) -> str | None:
+        """Explain why an automatic session cannot start right now."""
+        if not self.configured:
+            return "not_configured"
+        if not self.state.irrigation_enabled:
+            return "automation_disabled"
+        if self.active:
+            return "session_active"
+        blocker = self.start_blocker()
+        if blocker:
+            return blocker
+        data = self.coordinator.data
+        if data is None:
+            return "waiting_for_weather"
+        if not self.coordinator.settings.get(CONF_IRRIGATION_FLOW):
+            return "meter_required"
+        if data.observed_rain_today_mm is None:
+            return "rain_unavailable"
+        if data.forecast_stale or data.current_temperature is None:
+            return "weather_unavailable"
+        if data.watering_confidence == "low" or data.soil_model_confidence == "low":
+            return "low_confidence"
+        today = dt_util.as_local(dt_util.now()).date().isoformat()
+        if (
+            self.state.irrigation_last_auto_date == today
+            or self.state.last_watering == today
+        ):
+            return "already_watered_today"
+        retry_after = dt_util.parse_datetime(self.state.irrigation_retry_after or "")
+        if retry_after is not None and dt_util.now() < retry_after:
+            return "retry_cooldown"
+        if (
+            data.watering_status != "water_now"
+            or not data.watering_recommended
+            or data.watering_mm <= 0
+        ):
+            return "watering_not_due"
+        now = dt_util.now()
+        start = dt_util.parse_datetime(data.watering_window_start or "")
+        end = dt_util.parse_datetime(data.watering_window_end or "")
+        if start is None or end is None:
+            return "no_suitable_window"
+        if now < start:
+            return "waiting_for_window"
+        if now > end:
+            return "window_expired"
+        return None
+
     def diagnostic_attributes(self) -> dict[str, Any]:
         """Expose live safety inputs without additional weather requests."""
         session = self.state.irrigation_session
@@ -171,6 +219,15 @@ class IrrigationController:
             else None
         )
         return {
+            "automatic_blocker": self.automatic_blocker(),
+            "next_automatic_start": (
+                self.state.irrigation_retry_after
+                if self.automatic_blocker() == "retry_cooldown"
+                else self.coordinator.data.watering_window_start
+                if self.coordinator.data
+                and self.automatic_blocker() == "waiting_for_window"
+                else None
+            ),
             "valve_state": self._valve_state(),
             "other_valve_state": self._other_valve_state(),
             "mower_docked": self._mower_is_docked(),
@@ -194,8 +251,41 @@ class IrrigationController:
             )
             if session
             else None,
+            "session_active_seconds": round(
+                float(session.get("active_seconds", 0))
+                + (
+                    0
+                    if session.get("paused_at") or session.get("closing_reason")
+                    else (
+                        dt_util.now()
+                        - dt_util.parse_datetime(
+                            session.get("segment_started_at") or session["started_at"]
+                        )
+                    ).total_seconds()
+                )
+            )
+            if session
+            else None,
+            "session_paused_seconds": round(
+                float(session.get("paused_seconds", 0))
+                + (
+                    (
+                        dt_util.now() - dt_util.parse_datetime(session["paused_at"])
+                    ).total_seconds()
+                    if session.get("paused_at")
+                    else 0
+                )
+            )
+            if session
+            else None,
+            "session_measurement_gap": session.get("measurement_gap", False)
+            if session
+            else None,
             "last_stop_reason": self.state.irrigation_last_reason,
             "last_session_liters": self.state.irrigation_last_liters,
+            "last_active_seconds": self.state.irrigation_last_active_seconds,
+            "last_paused_seconds": self.state.irrigation_last_paused_seconds,
+            "last_measurement_gap": self.state.irrigation_last_measurement_gap,
         }
 
     def _publish_session(self) -> None:
@@ -345,12 +435,17 @@ class IrrigationController:
                 return
             if reading is not None:
                 session["meter_baseline"] = reading[1]
+            session["paused_seconds"] = (
+                float(session.get("paused_seconds", 0))
+                + (now - dt_util.parse_datetime(session["paused_at"])).total_seconds()
+            )
             session["last_meter_at"] = now.isoformat()
             session["last_volume_change_at"] = now.isoformat()
             session["last_flow_at"] = None
             session["flow_seen"] = False
             session["paused_at"] = None
             session["segment_started_at"] = now.isoformat()
+            session["segment_accounted"] = False
             session["confirmed_open"] = False
             self.state.irrigation_last_status = "running"
             self.state.irrigation_last_reason = None
@@ -382,32 +477,7 @@ class IrrigationController:
 
     async def _async_maybe_auto_start(self) -> None:
         """Start at most one well-supported recommended session per local day."""
-        data = self.coordinator.data
-        if (
-            not self.configured
-            or self.active
-            or not self.state.irrigation_enabled
-            or not self.coordinator.settings.get(CONF_IRRIGATION_FLOW)
-            or data is None
-            or data.watering_status != "water_now"
-            or not data.watering_recommended
-            or data.watering_mm <= 0
-            or data.watering_confidence == "low"
-            or data.soil_model_confidence == "low"
-            or data.forecast_stale
-            or data.current_temperature is None
-            or data.observed_rain_today_mm is None
-        ):
-            return
-        now = dt_util.now()
-        today = dt_util.as_local(now).date().isoformat()
-        if self.state.irrigation_last_auto_date == today or (
-            self.state.last_watering == today
-        ):
-            return
-        start = dt_util.parse_datetime(data.watering_window_start or "")
-        end = dt_util.parse_datetime(data.watering_window_end or "")
-        if start is None or end is None or not start <= now <= end:
+        if self.automatic_blocker() is not None:
             return
         try:
             await self.async_start(manual=False)
@@ -458,7 +528,10 @@ class IrrigationController:
                 "last_meter_at": now.isoformat(),
                 "last_volume_change_at": now.isoformat(),
                 "active_seconds": 0.0,
+                "paused_seconds": 0.0,
+                "measurement_gap": False,
                 "segment_started_at": now.isoformat(),
+                "segment_accounted": False,
                 "paused_at": None,
                 "liters": 0.0,
                 "target_liters": min(
@@ -471,6 +544,7 @@ class IrrigationController:
                 ),
                 "flow_seen": False,
                 "confirmed_open": False,
+                "ever_confirmed_open": False,
                 "last_flow_at": None,
                 "closing_reason": None,
             }
@@ -478,9 +552,9 @@ class IrrigationController:
             self.state.irrigation_last_status = "running"
             self.state.irrigation_last_reason = None
             if not manual:
-                self.state.irrigation_last_auto_date = (
-                    dt_util.as_local(now).date().isoformat()
-                )
+                self.state.irrigation_retry_after = (
+                    now + timedelta(minutes=30)
+                ).isoformat()
             await self.coordinator._store.async_save(self.state.as_dict())
             self._publish_session()
             try:
@@ -535,6 +609,7 @@ class IrrigationController:
                 return
             if valve_state == "on":
                 session["confirmed_open"] = True
+                session["ever_confirmed_open"] = True
             if valve_state == "off" and not session.get("confirmed_open"):
                 if (
                     now - dt_util.parse_datetime(session["started_at"])
@@ -620,6 +695,27 @@ class IrrigationController:
         """Close only our valve, retaining a supervised resumable session."""
         session = self.state.irrigation_session
         now = dt_util.now()
+        if self._valve_state() == "on":
+            session["confirmed_open"] = True
+            session["ever_confirmed_open"] = True
+        # A shared reading reported after the other valve opened cannot be
+        # assigned to the lawn. Keep only measurements from before that edge.
+        meter_id = session.get("meter_entity_id")
+        meter = self.hass.states.get(meter_id) if meter_id else None
+        other_id = self.coordinator.settings.get(CONF_OTHER_VALVE)
+        other = self.hass.states.get(other_id) if other_id else None
+        if session["meter_kind"] != "timer" and self._valve_state() == "on":
+            if (
+                meter
+                and other
+                and (getattr(meter, "last_reported", None) or meter.last_updated)
+                <= other.last_changed
+            ):
+                fault = self._sample_meter(session, now)
+                if fault:
+                    session["measurement_gap"] = True
+            else:
+                session["measurement_gap"] = True
         session["active_seconds"] = float(session.get("active_seconds", 0)) + max(
             0,
             (
@@ -629,6 +725,7 @@ class IrrigationController:
                 )
             ).total_seconds(),
         )
+        session["segment_accounted"] = True
         session["closing_reason"] = "other_valve_open"
         self.state.irrigation_last_status = "stopping"
         self.state.irrigation_last_reason = "other_valve_open"
@@ -698,6 +795,13 @@ class IrrigationController:
                     session["flow_seen"] = True
                     session["last_flow_at"] = now.isoformat()
         else:
+            segment_start = dt_util.parse_datetime(
+                session.get("segment_started_at") or session["started_at"]
+            )
+            if reported_at <= segment_start:
+                # An old non-zero shared-meter rate is not proof of lawn flow.
+                session["last_meter_at"] = now.isoformat()
+                return None
             if value > float(
                 self.coordinator.settings.get(
                     CONF_MAX_FLOW_L_MIN, DEFAULT_MAX_FLOW_L_MIN
@@ -714,7 +818,7 @@ class IrrigationController:
                 and value > 0
             ):
                 session["flow_seen"] = True
-                session["last_flow_at"] = now.isoformat()
+                session["last_flow_at"] = reported_at.isoformat()
             # The watchdog caps elapsed integration after process stalls.
             session["liters"] += value * min(elapsed, 30) / 60
         session["last_meter_at"] = now.isoformat()
@@ -729,6 +833,9 @@ class IrrigationController:
     async def _async_stop_locked(self, reason: str) -> None:
         """Persist the closing intent before calling the external switch."""
         session = self.state.irrigation_session
+        if self._valve_state() == "on":
+            session["confirmed_open"] = True
+            session["ever_confirmed_open"] = True
         if (
             self._valve_state() == "on"
             and not session.get("paused_at")
@@ -801,10 +908,56 @@ class IrrigationController:
         )
         self.state.irrigation_last_reason = reason
         self.state.irrigation_last_liters = liters
-        self.state.irrigation_last_auto_date = (
-            dt_util.as_local(dt_util.now()).date().isoformat()
+        if session["source"] == "auto" and liters is not None and liters > 0:
+            self.state.irrigation_last_auto_date = (
+                dt_util.as_local(dt_util.now()).date().isoformat()
+            )
+        now = dt_util.now()
+        self.state.irrigation_last_active_seconds = round(
+            float(session.get("active_seconds", 0))
+            + (
+                0
+                if session.get("paused_at") or session.get("segment_accounted")
+                else max(
+                    0,
+                    (
+                        now
+                        - dt_util.parse_datetime(
+                            session.get("segment_started_at") or session["started_at"]
+                        )
+                    ).total_seconds(),
+                )
+            ),
+            1,
         )
-        self._recent_owned_until = dt_util.now() + timedelta(minutes=2)
+        self.state.irrigation_last_paused_seconds = round(
+            float(session.get("paused_seconds", 0))
+            + (
+                (now - dt_util.parse_datetime(session["paused_at"])).total_seconds()
+                if session.get("paused_at")
+                else 0
+            ),
+            1,
+        )
+        self.state.irrigation_last_measurement_gap = bool(
+            session.get("measurement_gap")
+        )
+        guard_minutes = (
+            max(
+                10,
+                min(
+                    240,
+                    int(
+                        self.coordinator.settings.get(
+                            CONF_MAX_IRRIGATION_MINUTES, DEFAULT_MAX_IRRIGATION_MINUTES
+                        )
+                    ),
+                ),
+            )
+            if reason in {"valve_open_failed", "interrupted_by_restart"}
+            else 2
+        )
+        self._recent_owned_until = now + timedelta(minutes=guard_minutes)
         self._recent_owned_valve_id = session.get("valve_entity_id")
         self.state.irrigation_recent_valve_id = self._recent_owned_valve_id
         self.state.irrigation_recent_until = self._recent_owned_until.isoformat()
@@ -814,11 +967,11 @@ class IrrigationController:
             await self.coordinator.async_mark_watered(liters / area)
         elif (
             session["meter_kind"] == "timer"
-            and session.get("confirmed_open")
+            and (session.get("ever_confirmed_open") or session.get("confirmed_open"))
             and float(session.get("active_seconds", 0))
             + (
                 0
-                if session.get("paused_at")
+                if session.get("paused_at") or session.get("segment_accounted")
                 else (
                     dt_util.now()
                     - dt_util.parse_datetime(
