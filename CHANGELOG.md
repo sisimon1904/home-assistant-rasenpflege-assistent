@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.3.2
+
+### Fixed
+
+- Show editable numeric boxes with visible values for manual minimum and
+  maximum irrigation time in the setup and options forms.
+- Apply the same input style to maximum volume, flow startup grace period,
+  and minimum and maximum flow while preserving existing configured values.
+
 ## 3.3.1
 
 ### Added

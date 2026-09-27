@@ -137,21 +137,45 @@ def _schema(*, show_watered: bool = True) -> vol.Schema:
             vol.Optional(CONF_ALLOW_UNMETERED_MANUAL, default=False): bool,
             vol.Required(
                 CONF_MIN_IRRIGATION_MINUTES, default=DEFAULT_MIN_IRRIGATION_MINUTES
-            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=60)),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=1, max=60, step=1, mode=selector.NumberSelectorMode.BOX
+                )
+            ),
             vol.Required(
                 CONF_MAX_IRRIGATION_MINUTES, default=DEFAULT_MAX_IRRIGATION_MINUTES
-            ): vol.All(vol.Coerce(int), vol.Range(min=5, max=240)),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=5, max=240, step=1, mode=selector.NumberSelectorMode.BOX
+                )
+            ),
             vol.Required(
                 CONF_MAX_IRRIGATION_LITERS, default=DEFAULT_MAX_IRRIGATION_LITERS
-            ): vol.All(vol.Coerce(float), vol.Range(min=10, max=50000)),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=10, max=50000, step="any", mode=selector.NumberSelectorMode.BOX
+                )
+            ),
             vol.Required(
                 CONF_FLOW_START_GRACE, default=DEFAULT_FLOW_START_GRACE
-            ): vol.All(vol.Coerce(int), vol.Range(min=30, max=600)),
-            vol.Required(CONF_MIN_FLOW_L_MIN, default=DEFAULT_MIN_FLOW_L_MIN): vol.All(
-                vol.Coerce(float), vol.Range(min=0, max=100)
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=30, max=600, step=1, mode=selector.NumberSelectorMode.BOX
+                )
             ),
-            vol.Required(CONF_MAX_FLOW_L_MIN, default=DEFAULT_MAX_FLOW_L_MIN): vol.All(
-                vol.Coerce(float), vol.Range(min=1, max=1000)
+            vol.Required(
+                CONF_MIN_FLOW_L_MIN, default=DEFAULT_MIN_FLOW_L_MIN
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0, max=100, step="any", mode=selector.NumberSelectorMode.BOX
+                )
+            ),
+            vol.Required(
+                CONF_MAX_FLOW_L_MIN, default=DEFAULT_MAX_FLOW_L_MIN
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=1, max=1000, step="any", mode=selector.NumberSelectorMode.BOX
+                )
             ),
             vol.Optional(CONF_PRECIPITATION_ENTITY): selector.EntitySelector(
                 selector.EntitySelectorConfig(

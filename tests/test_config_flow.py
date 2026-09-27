@@ -11,6 +11,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.rasenpflege_assistent import async_migrate_entry
 from custom_components.rasenpflege_assistent.config_flow import (
     LawnCareConfigFlow,
+    LawnCareOptionsFlow,
     _validate_unique_valve,
 )
 from custom_components.rasenpflege_assistent.const import DOMAIN
@@ -175,5 +176,41 @@ def test_irrigation_options_hide_recorded_watering_and_show_numeric_values() -> 
     assert "watered_entity" in full
     assert "watered_entity" not in valve
     assert "other_valve" in valve
-    for name in ("initial_soil_moisture", "irrigation_efficiency", "rain_correction"):
+    for name in (
+        "initial_soil_moisture",
+        "irrigation_efficiency",
+        "rain_correction",
+        "min_irrigation_minutes",
+        "max_irrigation_minutes",
+        "max_irrigation_liters",
+        "flow_start_grace_seconds",
+        "min_flow_l_min",
+        "max_flow_l_min",
+    ):
         assert valve[name].config["mode"] == NumberSelectorMode.BOX
+    markers = {key.schema: key for key in _schema(show_watered=False).schema}
+    assert markers["min_irrigation_minutes"].default() == 5
+    assert markers["max_irrigation_minutes"].default() == 90
+
+
+async def test_options_form_prefills_saved_irrigation_times(
+    hass: HomeAssistant,
+) -> None:
+    """Saved minute values appear in the editable options form."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_input("weather.openweathermap"),
+        options={"min_irrigation_minutes": 12, "max_irrigation_minutes": 75},
+        version=9,
+    )
+    entry.add_to_hass(hass)
+    flow = LawnCareOptionsFlow()
+    flow.hass = hass
+    flow.handler = entry.entry_id
+
+    result = await flow.async_step_init()
+
+    assert result["type"] is FlowResultType.FORM
+    markers = {key.schema: key for key in result["data_schema"].schema}
+    assert markers["min_irrigation_minutes"].description["suggested_value"] == 12
+    assert markers["max_irrigation_minutes"].description["suggested_value"] == 75
