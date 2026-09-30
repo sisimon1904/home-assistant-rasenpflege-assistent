@@ -306,6 +306,8 @@ class IrrigationController:
 
     async def _async_command_valve(self, entity_id: str, *, open_valve: bool) -> None:
         """Bound slow device service calls so the watchdog can retry closure."""
+        if entity_id == self.coordinator.settings.get(CONF_OTHER_VALVE):
+            raise ServiceValidationError("The second valve is a read-only input")
         await asyncio.wait_for(
             self.hass.services.async_call(
                 "switch",
@@ -426,6 +428,15 @@ class IrrigationController:
             if self.start_blocker() is not None:
                 return
             meter_id = self.coordinator.settings.get(CONF_IRRIGATION_FLOW)
+            meter_state = self.hass.states.get(meter_id) if meter_id else None
+            if (
+                meter_state is not None
+                and "meter_unit" in session
+                and meter_state.attributes.get("unit_of_measurement")
+                != session["meter_unit"]
+            ):
+                await self._async_stop_locked("meter_unit_changed")
+                return
             reading = (
                 _meter_reading(self.hass.states.get(meter_id)) if meter_id else None
             )
@@ -460,6 +471,7 @@ class IrrigationController:
                 await self.coordinator._store.async_save(self.state.as_dict())
                 await self._async_close_locked()
                 raise
+        await self.async_check()
         await self.coordinator.async_request_refresh()
 
     async def async_set_auto_enabled(self, enabled: bool) -> None:
@@ -524,6 +536,11 @@ class IrrigationController:
                 "started_at": now.isoformat(),
                 "meter_kind": kind,
                 "meter_entity_id": meter_id,
+                "meter_unit": (
+                    meter_state.attributes.get("unit_of_measurement")
+                    if meter_state
+                    else None
+                ),
                 "meter_baseline": baseline,
                 "last_meter_at": now.isoformat(),
                 "last_volume_change_at": now.isoformat(),
@@ -568,6 +585,8 @@ class IrrigationController:
                 await self.coordinator._store.async_save(self.state.as_dict())
                 await self._async_close_locked()
                 raise
+        # Inputs can change while the opening service call is awaiting hardware.
+        await self.async_check()
         await self.coordinator.async_request_refresh()
 
     async def async_check(self) -> None:
@@ -740,6 +759,12 @@ class IrrigationController:
             CONF_IRRIGATION_FLOW
         )
         entity = self.hass.states.get(meter_id) if meter_id else None
+        if (
+            entity is not None
+            and "meter_unit" in session
+            and entity.attributes.get("unit_of_measurement") != session["meter_unit"]
+        ):
+            return "meter_unit_changed"
         reading = _meter_reading(entity)
         if reading is None or reading[0] != session["meter_kind"]:
             return "meter_unavailable"

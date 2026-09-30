@@ -99,7 +99,8 @@
           "irrigation": "Irrigation hardware",
           "safety": "Irrigation safety",
           "model": "Soil and water model",
-          "maintenance": "Maintenance history"
+          "maintenance": "Maintenance history",
+          "mowing": "Mowing"
         }
       },
       "general": {
@@ -215,13 +216,35 @@
           "last_watering": "Correct last watering date",
           "last_fertilizing": "Correct last fertilizing date",
           "initial_gts": "Correct current grassland temperature sum",
-          "initial_soil_moisture": "Recalibrate modeled soil moisture"
+          "initial_soil_moisture": "Recalibrate modeled soil moisture",
+          "last_mowing": "Correct last mowing date"
         },
         "data_description": {
           "initial_gts": "If installing during the year, enter a known starting value here. From the next January 1, the integration starts automatically at 0.",
           "initial_soil_moisture": "Starting value of the virtual soil reservoir. For normal loamy soil, 70% is a reasonable initial estimate.",
           "last_watering": "Correct the most recent watering date if it was missed by automatic detection or manual recording.",
-          "last_fertilizing": "Correct the date of the most recent fertilizer application."
+          "last_fertilizing": "Correct the date of the most recent fertilizer application.",
+          "last_mowing": "Correct the last mowing date. Since the time is unknown, local midnight is used as an estimate. Clear to remove the record."
+        }
+      },
+      "mowing": {
+        "title": "Mowing",
+        "description": "Configure intervals and optional observation. The robot is not controlled.",
+        "data": {
+          "mowing_mode": "Mowing method",
+          "mowing_interval_factor": "Mowing interval adjustment (factor)",
+          "mowing_entity": "Mower status for session detection (optional)",
+          "mowing_active_state": "State while mowing",
+          "mowing_done_state": "State after returning to dock",
+          "mowing_min_minutes": "Minimum mowing time for detection (minutes)"
+        },
+        "data_description": {
+          "mowing_mode": "Manual mower: 4/7/10 days; robot: 1/3/5 days for active/slow/autumn growth. Wet, frost and drought pauses take precedence. No mower commands are sent.",
+          "mowing_interval_factor": "1 = defaults, 0.5 = half the interval, 2 = twice the interval. The interval runs from the last recorded mowing session.",
+          "mowing_entity": "Read only. In robot mode, sufficient active mowing followed by docking is recorded as an estimate, not proof of full coverage. The mowed binary input takes precedence.",
+          "mowing_active_state": "Exact internal state, e.g. mowing; vacuum entities often use cleaning. Display translations are not state values.",
+          "mowing_done_state": "Exact internal state, normally docked. Returning for charging may also count. Use the completion binary input for reliable job completion.",
+          "mowing_min_minutes": "Only active mowing counts; pauses and return travel do not. Short starts, errors, unknown states and restarts do not confirm a session."
         }
       }
     },
@@ -237,7 +260,8 @@
       "other_valve_same": "The other valve must differ from the lawn valve.",
       "maximum_below_minimum": "Maximum must be greater than minimum.",
       "safe_state_required": "Enter a state confirming the mower is at the dock.",
-      "irrigation_active": "Stop irrigation before changing settings."
+      "irrigation_active": "Stop irrigation before changing settings.",
+      "mowing_states_invalid": "Enter distinct valid mowing and docking states; error and paused states are not allowed."
     }
   },
   "selector": {
@@ -283,6 +307,12 @@
         "normal": "Normal",
         "compacted": "Compacted"
       }
+    },
+    "mowing_mode": {
+      "options": {
+        "manual": "Manual mower",
+        "robot": "Robot mower"
+      }
     }
   },
   "entity": {
@@ -313,6 +343,14 @@
           "completed": "Completed",
           "stopped": "Stopped",
           "paused": "Paused – other valve open"
+        },
+        "state_attributes": {
+          "reason": {
+            "name": "Shutdown reason",
+            "state": {
+              "meter_unit_changed": "Meter unit changed"
+            }
+          }
         }
       },
       "status": {
@@ -370,7 +408,59 @@
           "reduce_mowing": "Reduce mowing for autumn",
           "pause_drought": "Pause due to drought stress",
           "pause_wet": "Pause because the lawn is wet",
-          "wait_to_mow": "Wait until the next mowing date"
+          "wait_to_mow": "Wait until the next mowing time",
+          "pause_frost": "Pause because of frost"
+        },
+        "state_attributes": {
+          "recommendation_reason": {
+            "name": "Recommendation reason",
+            "state": {
+              "collecting_data": "Collecting data",
+              "winter_off": "Switch off for winter",
+              "keep_off": "Keep switched off",
+              "start_mower": "Start mower again",
+              "mow_regularly": "Mow regularly – lawn is growing",
+              "mow_less": "Mow less frequently",
+              "reduce_mowing": "Reduce mowing for autumn",
+              "pause_drought": "Pause due to drought stress",
+              "pause_wet": "Pause because the lawn is wet",
+              "wait_to_mow": "Wait until the next mowing time",
+              "pause_frost": "Pause because of frost"
+            }
+          },
+          "mowing_mode": {
+            "name": "Mowing method",
+            "state": {
+              "manual": "Manual mower",
+              "robot": "Robot mower"
+            }
+          },
+          "recommendation_confidence": {
+            "name": "Recommendation confidence",
+            "state": {
+              "low": "Low",
+              "medium": "Medium (estimate)"
+            }
+          },
+          "last_mowing_source": {
+            "name": "Last mowing source",
+            "state": {
+              "manual": "Manual record",
+              "manual_correction": "Corrected date",
+              "legacy_date": "Migrated date",
+              "robot_estimate": "Estimated robot session",
+              "completion_input": "Reported by binary input"
+            }
+          },
+          "last_mowing_at": {
+            "name": "Last mowing time"
+          },
+          "next_mowing_at": {
+            "name": "Earliest estimated mowing time"
+          },
+          "last_mowing_estimated": {
+            "name": "Last mowing estimated"
+          }
         }
       },
       "soil_moisture": {

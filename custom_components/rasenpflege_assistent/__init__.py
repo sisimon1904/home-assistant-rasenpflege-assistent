@@ -40,6 +40,7 @@ from .const import (
 )
 from .coordinator import LawnCoordinator
 from .irrigation import IrrigationController
+from .mowing import MowingObserver
 
 type LawnConfigEntry = ConfigEntry[LawnCoordinator]
 
@@ -151,7 +152,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
         ):
             return
         if action == "mowed":
-            await coordinator.async_mark_mowed(deduplicate=True)
+            await coordinator.async_mark_mowed(
+                event_id=f"{new_state.entity_id}:{new_state.last_changed.isoformat()}",
+                recorded_at=event.time_fired,
+                source="completion_input",
+            )
         else:
             if coordinator.irrigation and coordinator.irrigation.active:
                 return
@@ -177,6 +182,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
                 )
             )
 
+    MowingObserver(coordinator).subscribe(entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

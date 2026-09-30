@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 DOMAIN = "rasenpflege_assistent"
-INTEGRATION_VERSION = "3.4.1"
+INTEGRATION_VERSION = "3.5.0"
 PLATFORMS = ["sensor", "button", "switch"]
 
 CONF_NAME = "name"
@@ -38,6 +38,15 @@ CONF_OTHER_VALVE = "other_valve"
 CONF_IRRIGATION_FLOW = "irrigation_flow"
 CONF_MOWER_LOCATION = "mower_location"
 CONF_MOWER_SAFE_STATE = "mower_safe_state"
+CONF_MOWING_MODE = "mowing_mode"
+CONF_MOWING_ENTITY = "mowing_entity"
+CONF_MOWING_ACTIVE_STATE = "mowing_active_state"
+CONF_MOWING_DONE_STATE = "mowing_done_state"
+CONF_MOWING_MIN_MINUTES = "mowing_min_minutes"
+CONF_MOWING_INTERVAL_FACTOR = "mowing_interval_factor"
+CONF_LAST_MOWING = "last_mowing"
+DEFAULT_MOWING_MODE = "manual"
+DEFAULT_MOWING_MIN_MINUTES = 10
 CONF_MIN_IRRIGATION_MINUTES = "min_irrigation_minutes"
 CONF_MAX_IRRIGATION_MINUTES = "max_irrigation_minutes"
 CONF_MAX_IRRIGATION_LITERS = "max_irrigation_liters"

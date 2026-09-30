@@ -1,5 +1,38 @@
 # Changelog
 
+## 3.5.0
+
+### Added
+
+- Dedicated mowing settings with manual/robot modes, growth-dependent robot
+  intervals of 1/3/5 days and an optional interval adjustment factor.
+- Read-only robot-session observation using active work time followed by docking;
+  estimates are labeled and a configured completion binary input takes precedence.
+- Exact mowing timestamps, earliest estimated mowing time, recommendation reason,
+  confidence and record source on the existing mower status entity.
+- Correction and clearing of the last mowing date in maintenance history.
+- Explicit protection against commanding the optional second valve.
+
+### Changed
+
+- Combine elapsed mowing intervals with the next-local-day and twelve-hour wet pause.
+- Apply autumn growth hysteresis and suppress mowing recommendations when current
+  temperature is unavailable or frost is detected.
+- Keep legacy dates and manual mode on upgrade; date-only times remain estimates.
+
+### Fixed
+
+- Record distinct mowing sessions within twelve hours and deduplicate by event identity.
+- Preserve exact mowing times when saving unrelated maintenance settings.
+- Check safety inputs immediately after a valve-opening service call returns.
+- Stop irrigation safely if the meter changes its unit during a session.
+
+### Validation
+
+- Regression coverage for robot pauses, short starts, errors, idle, restart,
+  date migration, history corrections and second-valve read-only behavior.
+- No additional OpenWeatherMap polling loop or mower control is introduced.
+
 ## 3.4.1
 
 ### Fixed

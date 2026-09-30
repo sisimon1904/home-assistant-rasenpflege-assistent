@@ -559,7 +559,8 @@ def growth_state(
         and growth_temperature >= 8
     ):
         return "heat_drought_stress"
-    if today.month in (9, 10, 11) and growth_temperature < 10:
+    autumn_limit = 11 if previous_state == "autumn_slowdown" else 10
+    if today.month in (9, 10, 11) and growth_temperature < autumn_limit:
         return "autumn_slowdown"
     if today.month <= 5 and gts < 200:
         if growth_temperature >= 5 or gts >= 80:
@@ -604,27 +605,50 @@ def mower_recommendation(
     year: int,
     last_mowing: date | None,
     today: date,
+    mode: str = "manual",
+    interval_factor: float = 1.0,
+    last_mowing_at: datetime | None = None,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
     """Return mower state, interval and next recommended mowing date."""
     base_state = mower_state(
         growth=growth, mower_started_year=mower_started_year, year=year
     )
-    interval = {
+    intervals = {
         "active_growth": 4,
         "slow_growth": 7,
         "autumn_slowdown": 10,
         "first_awakening": 10,
-    }.get(growth)
+    }
+    if mode == "robot":
+        intervals = {
+            "active_growth": 1,
+            "slow_growth": 3,
+            "autumn_slowdown": 5,
+            "first_awakening": 5,
+        }
+    interval = intervals.get(growth)
+    if interval is not None:
+        interval = round(interval * max(0.5, min(2.0, interval_factor)), 2)
     next_date = None
+    next_at = None
+    if interval is not None and last_mowing_at is not None and now is not None:
+        next_at = last_mowing_at + timedelta(days=interval)
     if interval is not None and last_mowing is not None:
-        next_date = last_mowing.fromordinal(last_mowing.toordinal() + interval)
-        if today < next_date and base_state in {
+        next_date = last_mowing + timedelta(days=math.ceil(interval))
+        waiting = now < next_at if next_at is not None else today < next_date
+        if waiting and base_state in {
             "mow_regularly",
             "mow_less",
             "reduce_mowing",
         }:
             base_state = "wait_to_mow"
-    return {"status": base_state, "interval": interval, "next_date": next_date}
+    return {
+        "status": base_state,
+        "interval": interval,
+        "next_date": next_date,
+        "next_at": next_at,
+    }
 
 
 def watering_recommendation(
@@ -887,7 +911,7 @@ def next_lawn_action(
         return "fertilize_lawn"
     if mower_status in {"mow_regularly", "mow_less", "reduce_mowing"}:
         return "mow_lawn"
-    if mower_status == "pause_wet":
+    if mower_status in {"pause_wet", "pause_frost"}:
         return "wait_to_mow"
     if mower_status == "collecting_data":
         return "collecting_data"

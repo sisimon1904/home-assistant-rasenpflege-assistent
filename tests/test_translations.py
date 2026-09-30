@@ -9,6 +9,7 @@ from custom_components.rasenpflege_assistent.config_flow import (
     IRRIGATION_FIELDS,
     MAINTENANCE_FIELDS,
     MODEL_FIELDS,
+    MOWING_FIELDS,
     SAFETY_FIELDS,
     SENSOR_FIELDS,
 )
@@ -30,6 +31,7 @@ async def test_options_labels_and_descriptions_load(
         "safety": SAFETY_FIELDS,
         "model": MODEL_FIELDS,
         "maintenance": MAINTENANCE_FIELDS,
+        "mowing": MOWING_FIELDS,
     }.items():
         assert translations[f"component.{DOMAIN}.options.step.{step}.title"]
         for field in fields:

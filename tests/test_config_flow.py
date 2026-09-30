@@ -308,3 +308,77 @@ async def test_clearing_optional_sensor_keeps_irrigation_settings(
     assert result["data"]["temperature_entity"] is None
     assert result["data"]["irrigation_valve"] == "switch.garden_water"
     assert result["data"]["max_irrigation_minutes"] == 72
+
+
+async def test_mowing_page_preserves_other_settings(hass: HomeAssistant) -> None:
+    """Selecting robot mowing never erases unrelated irrigation configuration."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=_input("weather.openweathermap"),
+        options={"irrigation_valve": "switch.garden", "max_irrigation_minutes": 72},
+        version=9,
+    )
+    entry.add_to_hass(hass)
+    flow = LawnCareOptionsFlow()
+    flow.hass = hass
+    flow.handler = entry.entry_id
+    menu = await flow.async_step_init()
+    assert "mowing" in menu["menu_options"]
+    result = await flow.async_step_mowing(
+        {
+            "mowing_mode": "robot",
+            "mowing_interval_factor": 1,
+            "mowing_active_state": "mowing",
+            "mowing_done_state": "docked",
+            "mowing_min_minutes": 10,
+        }
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["irrigation_valve"] == "switch.garden"
+    assert result["data"]["max_irrigation_minutes"] == 72
+    assert result["data"]["mowing_mode"] == "robot"
+
+
+async def test_mowing_page_rejects_unsafe_completion_states(
+    hass: HomeAssistant,
+) -> None:
+    """Idle, unknown and error cannot be configured as successful docking."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, data=_input("weather.openweathermap"), version=9
+    )
+    entry.add_to_hass(hass)
+    flow = LawnCareOptionsFlow()
+    flow.hass = hass
+    flow.handler = entry.entry_id
+    for done in ("mowing", "idle", "unknown", "unavailable", "error"):
+        result = await flow.async_step_mowing(
+            {
+                "mowing_mode": "robot",
+                "mowing_interval_factor": 1,
+                "mowing_active_state": "mowing",
+                "mowing_done_state": done,
+                "mowing_min_minutes": 10,
+            }
+        )
+        assert result["errors"]["mowing_done_state"] == "mowing_states_invalid"
+
+
+async def test_unchanged_mowing_date_preserves_exact_record_on_history_save(hass):
+    """Editing another history field leaves the last mowing time untouched."""
+    from types import SimpleNamespace
+
+    entry = MockConfigEntry(
+        domain=DOMAIN, data=_input("weather.openweathermap"), version=9
+    )
+    entry.add_to_hass(hass)
+    entry.runtime_data = SimpleNamespace(
+        _state=SimpleNamespace(last_mowing="2026-07-20")
+    )
+    flow = LawnCareOptionsFlow()
+    flow.hass = hass
+    flow.handler = entry.entry_id
+    result = await flow.async_step_maintenance(
+        {"last_mowing": "2026-07-20", "initial_gts": 300, "initial_soil_moisture": 70}
+    )
+    assert "last_mowing_revision" not in result["data"]
+    assert "last_mowing" not in result["data"]

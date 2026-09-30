@@ -608,3 +608,93 @@ async def test_failed_valve_closure_retries_and_clears_repair(
     await controller.async_check()
     assert not controller.active
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_second_valve_is_never_commanded_during_start_pause_resume_stop(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """Every service target is the lawn valve across competing-valve changes."""
+    controller = _controller(hass, other_valve="switch.other_water")
+    hass.states.async_set("lawn_mower.garden", "docked")
+    hass.states.async_set("switch.other_water", "off")
+    commands = []
+
+    async def turn_on(call):
+        commands.append(("on", call.data["entity_id"]))
+        assert call.data["entity_id"] == "switch.garden_water"
+        hass.states.async_set("switch.garden_water", "on")
+
+    async def turn_off(call):
+        commands.append(("off", call.data["entity_id"]))
+        assert call.data["entity_id"] == "switch.garden_water"
+        hass.states.async_set("switch.garden_water", "off")
+
+    hass.services.async_register("switch", "turn_on", turn_on)
+    hass.services.async_register("switch", "turn_off", turn_off)
+    await controller.async_start(manual=True)
+    for _ in range(3):
+        hass.states.async_set("switch.other_water", "on")
+        await controller.async_check()
+        assert controller.state.irrigation_last_status == "paused"
+        assert hass.states.get("switch.other_water").state == "on"
+        hass.states.async_set("switch.other_water", "off")
+        await controller._async_maybe_resume()
+    await controller.async_stop()
+    assert len(commands) >= 8
+    with pytest.raises(ServiceValidationError, match="read-only"):
+        await controller._async_command_valve("switch.other_water", open_valve=False)
+    assert all(entity == "switch.garden_water" for _, entity in commands)
+
+
+async def test_other_valve_opening_during_start_is_checked_before_return(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """An input change during the service await immediately closes lawn water."""
+    controller = _controller(hass, other_valve="switch.other_water")
+    hass.states.async_set("lawn_mower.garden", "docked")
+    hass.states.async_set("switch.other_water", "off")
+
+    async def turn_on(_call):
+        hass.states.async_set("switch.garden_water", "on")
+        hass.states.async_set("switch.other_water", "on")
+
+    hass.services.async_register("switch", "turn_on", turn_on)
+    await controller.async_start(manual=True)
+    assert hass.states.get("switch.garden_water").state == "off"
+    assert hass.states.get("switch.other_water").state == "on"
+    assert controller.state.irrigation_last_status == "paused"
+
+
+async def test_meter_unit_change_stops_active_watering(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """A provider changing scale mid-session cannot create a huge water dose."""
+    controller = _controller(hass)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await controller.async_start(manual=True)
+    hass.states.async_set(
+        "sensor.garden_water_liters", "0.002", {"unit_of_measurement": "m³"}
+    )
+    await controller.async_check()
+    assert not controller.active
+    assert controller.state.irrigation_last_reason == "meter_unit_changed"
+    assert controller.state.last_watering is None
+
+
+async def test_restart_during_pause_does_not_resume_or_command_other_valve(
+    hass: HomeAssistant, enable_custom_integrations: None
+) -> None:
+    """Persisted paused water is ended on restart with the second valve intact."""
+    controller = _controller(hass, other_valve="switch.other_water")
+    hass.states.async_set("lawn_mower.garden", "docked")
+    hass.states.async_set("switch.other_water", "off")
+    await controller.async_start(manual=True)
+    hass.states.async_set("switch.other_water", "on")
+    await controller.async_check()
+    restarted = IrrigationController(hass, controller.coordinator)
+    await restarted.async_initialize()
+    assert not restarted.active
+    assert restarted.state.irrigation_last_reason == "interrupted_by_restart"
+    assert hass.states.get("switch.garden_water").state == "off"
+    assert hass.states.get("switch.other_water").state == "on"
+    assert await restarted.async_shutdown()

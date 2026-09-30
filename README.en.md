@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.4.1 · [Changelog](CHANGELOG.md)
+Version 3.5.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -36,7 +36,7 @@ Each lawn has configurable area, use, soil type, sun exposure, root depth,
 slope, compaction, irrigation efficiency, and rain correction.
 Initial setup only asks for the name, OpenWeatherMap weather entity, and basic
 lawn properties. **Configure** then offers separate pages for **Basic settings**,
-**Input sensors**, **Irrigation hardware**, **Soil and water model**, and
+**Input sensors**, **Mowing**, **Irrigation hardware**, **Soil and water model**, and
 **Maintenance history**. **Irrigation safety** appears once a valve is selected.
 Duration and other numeric values use visible entry boxes. Stop any running or
 paused irrigation session before saving settings.
@@ -50,6 +50,41 @@ references. Optional **Lawn was mowed** and **Lawn was watered** binary sensors
 record off-to-on transitions; manual buttons remain available without them.
 Actual watering and fertilizing amounts can be recorded, and the most recent
 maintenance action can be undone.
+
+## Growth-dependent mowing
+
+Choose **Manual mower** or **Robot mower** under **Configure → Mowing**.
+Existing installations retain manual mode and their stored history by default.
+
+| Growth | Manual mower | Robot mower |
+| --- | --- | --- |
+| Active | Every 4 days | Daily |
+| Slow | Every 7 days | Every 3 days |
+| Autumn / first awakening after season start | Every 10 days | Every 5 days |
+
+These are recommendation estimates. Adjust all intervals with the factor:
+1 = defaults, 0.5 = half the interval, 2 = twice the interval. Wetness, frost,
+winter dormancy and drought stress take precedence. No robot commands are sent.
+
+Optionally choose a mower status entity on the same page. Observation counts
+only active mowing time (default: at least 10 minutes), followed by docking.
+For `lawn_mower`, states normally are `mowing` and `docked`; `vacuum` entities may
+use `cleaning`. Use the internal values shown in **Developer tools → States**.
+Pauses and return travel do not count as mowing time. Errors, unknown states,
+`idle`, short starts and restarts do not confirm a session. Observations expire
+after twelve hours.
+
+**Observation is an estimate:** Returning to charge may also create a record.
+A configured **Lawn was mowed** binary input takes precedence and should report
+actual job completion. 100% progress is not required. Distinct sessions on the
+same day are recorded, while duplicate events are ignored.
+
+Mower status exposes `last_mowing_at`, `next_mowing_at`, method, reason,
+confidence and record source. The earliest estimated time combines the mowing
+interval and wet-lawn pause. Frost, drought stress and missing temperature do
+not produce a fixed release time. **Maintenance history** allows correcting or
+clearing the last mowing date. Migrated and corrected date-only records use
+local midnight as an estimated time; new events store the exact time.
 
 ## Optional automatic irrigation
 

@@ -18,6 +18,7 @@ from homeassistant.const import UnitOfArea
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_ALLOW_UNMETERED_MANUAL,
@@ -31,6 +32,7 @@ from .const import (
     CONF_IRRIGATION_FLOW,
     CONF_IRRIGATION_VALVE,
     CONF_LAST_FERTILIZING,
+    CONF_LAST_MOWING,
     CONF_LAST_WATERING,
     CONF_LAWN_TYPE,
     CONF_MAX_FLOW_L_MIN,
@@ -41,6 +43,12 @@ from .const import (
     CONF_MOWED_ENTITY,
     CONF_MOWER_LOCATION,
     CONF_MOWER_SAFE_STATE,
+    CONF_MOWING_ACTIVE_STATE,
+    CONF_MOWING_DONE_STATE,
+    CONF_MOWING_ENTITY,
+    CONF_MOWING_INTERVAL_FACTOR,
+    CONF_MOWING_MIN_MINUTES,
+    CONF_MOWING_MODE,
     CONF_NAME,
     CONF_OTHER_VALVE,
     CONF_PRECIPITATION_ENTITY,
@@ -69,6 +77,8 @@ from .const import (
     DEFAULT_MAX_IRRIGATION_MINUTES,
     DEFAULT_MIN_FLOW_L_MIN,
     DEFAULT_MIN_IRRIGATION_MINUTES,
+    DEFAULT_MOWING_MIN_MINUTES,
+    DEFAULT_MOWING_MODE,
     DEFAULT_NAME,
     DEFAULT_PRECIPITATION_MODE,
     DEFAULT_RAIN_CORRECTION,
@@ -126,10 +136,19 @@ MODEL_FIELDS = (
     CONF_SOIL_SENSOR_WET,
 )
 MAINTENANCE_FIELDS = (
+    CONF_LAST_MOWING,
     CONF_LAST_WATERING,
     CONF_LAST_FERTILIZING,
     CONF_INITIAL_GTS,
     CONF_INITIAL_SOIL_MOISTURE,
+)
+MOWING_FIELDS = (
+    CONF_MOWING_MODE,
+    CONF_MOWING_INTERVAL_FACTOR,
+    CONF_MOWING_ENTITY,
+    CONF_MOWING_ACTIVE_STATE,
+    CONF_MOWING_DONE_STATE,
+    CONF_MOWING_MIN_MINUTES,
 )
 
 
@@ -290,6 +309,33 @@ def _schema(
             ): _select("soil_type", ["sandy", "loamy", "clayey"]),
             vol.Optional(CONF_LAST_WATERING): selector.DateSelector(),
             vol.Optional(CONF_LAST_FERTILIZING): selector.DateSelector(),
+            vol.Optional(CONF_LAST_MOWING): selector.DateSelector(),
+            vol.Required(CONF_MOWING_MODE, default=DEFAULT_MOWING_MODE): _select(
+                "mowing_mode", ["manual", "robot"]
+            ),
+            vol.Required(
+                CONF_MOWING_INTERVAL_FACTOR, default=1.0
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0.5, max=2.0, step=0.1, mode=selector.NumberSelectorMode.BOX
+                )
+            ),
+            vol.Optional(CONF_MOWING_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["lawn_mower", "vacuum", "sensor"])
+            ),
+            vol.Required(CONF_MOWING_ACTIVE_STATE, default="mowing"): str,
+            vol.Required(CONF_MOWING_DONE_STATE, default="docked"): str,
+            vol.Required(
+                CONF_MOWING_MIN_MINUTES, default=DEFAULT_MOWING_MIN_MINUTES
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=1,
+                    max=180,
+                    step=1,
+                    unit_of_measurement="min",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
             vol.Required(
                 CONF_INITIAL_GTS,
                 default=DEFAULT_INITIAL_GTS,
@@ -526,9 +572,9 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
 
     async def async_step_init(self, user_input=None) -> ConfigFlowResult:
         """Offer short, independent settings pages."""
-        choices = ["general", "sensors", "irrigation", "model", "maintenance"]
+        choices = ["general", "sensors", "mowing", "irrigation", "model", "maintenance"]
         if self._current_settings().get(CONF_IRRIGATION_VALVE):
-            choices.insert(3, "safety")
+            choices.insert(4, "safety")
         return self.async_show_menu(step_id="init", menu_options=choices)
 
     def _current_settings(self) -> dict[str, Any]:
@@ -541,6 +587,12 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
         user_input: dict[str, Any] | None,
     ) -> ConfigFlowResult:
         current = self._current_settings()
+        if step_id == "maintenance":
+            state = getattr(
+                getattr(self.config_entry, "runtime_data", None), "_state", None
+            )
+            if state is not None:
+                current[CONF_LAST_MOWING] = state.last_mowing
         show_watered = not bool(current.get(CONF_IRRIGATION_VALVE))
         if step_id == "irrigation" and user_input is not None:
             show_watered = not bool(user_input.get(CONF_IRRIGATION_VALVE))
@@ -566,6 +618,28 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
                 errors[CONF_NAME] = "name_required"
         elif step_id == "model":
             errors.update(_validate_calibration(merged))
+        elif step_id == "mowing":
+            active = merged[CONF_MOWING_ACTIVE_STATE].strip()
+            done = merged[CONF_MOWING_DONE_STATE].strip()
+            if not active or active.casefold() in {
+                "unknown",
+                "unavailable",
+                "error",
+                "idle",
+                "paused",
+                "returning",
+                "docked",
+            }:
+                errors[CONF_MOWING_ACTIVE_STATE] = "mowing_states_invalid"
+            if (
+                not done
+                or done.casefold()
+                in {"unknown", "unavailable", "error", "idle", "paused", "returning"}
+                or active.casefold() == done.casefold()
+            ):
+                errors[CONF_MOWING_DONE_STATE] = "mowing_states_invalid"
+            updates[CONF_MOWING_ACTIVE_STATE] = active
+            updates[CONF_MOWING_DONE_STATE] = done
         elif step_id in {"irrigation", "safety"}:
             errors.update(_validate_irrigation(merged))
             if step_id == "irrigation":
@@ -595,7 +669,17 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
             self.hass.config_entries.async_update_entry(
                 self.config_entry, title=updates[CONF_NAME]
             )
+        if step_id == "maintenance":
+            if state is not None and updates.get(CONF_LAST_MOWING) == state.last_mowing:
+                # Saving fertilizer or model history must not replace an exact
+                # mowing timestamp with midnight for an unchanged date.
+                updates.pop(CONF_LAST_MOWING, None)
+            else:
+                updates["last_mowing_revision"] = dt_util.now().isoformat()
         return self.async_create_entry(data={**self.config_entry.options, **updates})
+
+    async def async_step_mowing(self, user_input=None) -> ConfigFlowResult:
+        return await self._section("mowing", MOWING_FIELDS, user_input)
 
     async def async_step_general(self, user_input=None) -> ConfigFlowResult:
         return await self._section("general", GENERAL_FIELDS, user_input)

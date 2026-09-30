@@ -46,8 +46,14 @@ class LawnData:
     mower_status: str = "collecting_data"
     mower_start_recommended: bool = False
     mower_can_be_switched_off: bool = False
-    mowing_interval_days: int | None = None
+    mowing_interval_days: float | None = None
     next_mowing_date: date | None = None
+    last_mowing_at: str | None = None
+    next_mowing_at: str | None = None
+    mowing_mode: str = "manual"
+    mowing_reason: str = "collecting_data"
+    mowing_confidence: str = "low"
+    mowing_record_source: str | None = None
     growth_temperature_7d: float | None = None
     soil_moisture_percent: float = 70.0
     measured_soil_moisture_percent: float | None = None
@@ -113,6 +119,11 @@ class RuntimeState:
     last_watering: str | None = None
     last_fertilizing: str | None = None
     last_mowing: str | None = None
+    last_mowing_at: str | None = None
+    last_mowing_source: str | None = None
+    last_mowing_event_id: str | None = None
+    configured_last_mowing: str | None = None
+    configured_last_mowing_revision: str | None = None
     configured_initial_gts: float = 0.0
     configured_last_watering: str | None = None
     configured_last_fertilizing: str | None = None
@@ -174,6 +185,11 @@ class RuntimeState:
             "last_watering": self.last_watering,
             "last_fertilizing": self.last_fertilizing,
             "last_mowing": self.last_mowing,
+            "last_mowing_at": self.last_mowing_at,
+            "last_mowing_source": self.last_mowing_source,
+            "last_mowing_event_id": self.last_mowing_event_id,
+            "configured_last_mowing": self.configured_last_mowing,
+            "configured_last_mowing_revision": self.configured_last_mowing_revision,
             "configured_initial_gts": self.configured_initial_gts,
             "configured_last_watering": self.configured_last_watering,
             "configured_last_fertilizing": self.configured_last_fertilizing,

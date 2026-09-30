@@ -99,7 +99,8 @@
           "irrigation": "Bewässerung",
           "safety": "Bewässerung – Sicherheit",
           "model": "Boden- und Wassermodell",
-          "maintenance": "Pflegeverlauf"
+          "maintenance": "Pflegeverlauf",
+          "mowing": "Mähen"
         }
       },
       "general": {
@@ -215,13 +216,35 @@
           "last_watering": "Datum der letzten Bewässerung korrigieren",
           "last_fertilizing": "Datum der letzten Düngung korrigieren",
           "initial_gts": "Aktuelle Grünlandtemperatursumme korrigieren",
-          "initial_soil_moisture": "Modellierte Bodenfeuchte neu kalibrieren"
+          "initial_soil_moisture": "Modellierte Bodenfeuchte neu kalibrieren",
+          "last_mowing": "Letztes Mähen korrigieren"
         },
         "data_description": {
           "initial_gts": "Bei einer Installation mitten im Jahr kann hier ein bekannter Startwert eingetragen werden. Ab dem nächsten 1. Januar zählt die Integration automatisch ab 0.",
           "initial_soil_moisture": "Startwert des virtuellen Bodenspeichers. Für normalen lehmigen Boden sind 70 % ein sinnvoller Anfangswert.",
           "last_watering": "Korrigiere das Datum der letzten Bewässerung, wenn die automatische Erkennung oder manuelle Erfassung sie verpasst hat.",
-          "last_fertilizing": "Korrigiere das Datum der letzten Düngung."
+          "last_fertilizing": "Korrigiere das Datum der letzten Düngung.",
+          "last_mowing": "Datum des letzten Mähens korrigieren. Da die Uhrzeit unbekannt ist, wird der lokale Tagesbeginn als Schätzung verwendet. Leeren entfernt den Eintrag."
+        }
+      },
+      "mowing": {
+        "title": "Mähen",
+        "description": "Mähabstand und optionale Erkennung einstellen. Der Roboter wird nicht gesteuert.",
+        "data": {
+          "mowing_mode": "Mähmethode",
+          "mowing_interval_factor": "Mähabstand anpassen (Faktor)",
+          "mowing_entity": "Mäherstatus für Einsatzerkennung (optional)",
+          "mowing_active_state": "Zustand während des Mähens",
+          "mowing_done_state": "Zustand nach Rückkehr zur Station",
+          "mowing_min_minutes": "Mindestmähzeit für Erkennung (Minuten)"
+        },
+        "data_description": {
+          "mowing_mode": "Handmäher: 4/7/10 Tage; Mähroboter: 1/3/5 Tage bei vollem/langsamem/herbstlichem Wachstum. Nässe-, Frost- und Trockenpausen haben Vorrang. Es werden keine Mäherbefehle gesendet.",
+          "mowing_interval_factor": "1 = Vorgaben, 0,5 = halber Abstand, 2 = doppelter Abstand. Der Abstand wird seit dem letzten erfassten Einsatz berechnet.",
+          "mowing_entity": "Nur gelesen. Im Robotermodus wird ausreichende aktive Mähzeit mit anschließender Rückkehr erfasst. Das ist eine Schätzung, kein Nachweis vollständiger Flächenabdeckung. Der Eingang „Rasen wurde gemäht“ hat Vorrang.",
+          "mowing_active_state": "Exakter interner Zustand, z. B. mowing; bei vacuum-Entitäten häufig cleaning. Angezeigte Übersetzungen sind keine Zustandswerte.",
+          "mowing_done_state": "Exakter interner Zustand, normalerweise docked. Eine Rückkehr zum Laden kann ebenfalls zählen. Für verlässliche Auftragsabschlüsse den Binäreingang verwenden.",
+          "mowing_min_minutes": "Nur aktive Mähzeit zählt; Pausen und Rückfahrt zählen nicht. Kurze Starts, Fehler, unbekannte Zustände und Neustarts bestätigen keinen Einsatz."
         }
       }
     },
@@ -237,7 +260,8 @@
       "other_valve_same": "Das zweite Ventil darf nicht das Rasenventil sein.",
       "maximum_below_minimum": "Der Maximalwert muss über dem Minimalwert liegen.",
       "safe_state_required": "Gib den Zustand für einen an der Station befindlichen Roboter ein.",
-      "irrigation_active": "Bewässerung vor dem Ändern der Einstellungen stoppen."
+      "irrigation_active": "Bewässerung vor dem Ändern der Einstellungen stoppen.",
+      "mowing_states_invalid": "Gib unterschiedliche gültige Zustände für Mähen und Station an; Fehler- und Pausenzustände sind nicht zulässig."
     }
   },
   "selector": {
@@ -283,6 +307,12 @@
         "normal": "Normal",
         "compacted": "Verdichtet"
       }
+    },
+    "mowing_mode": {
+      "options": {
+        "manual": "Handmäher",
+        "robot": "Mähroboter"
+      }
     }
   },
   "entity": {
@@ -313,6 +343,14 @@
           "completed": "Abgeschlossen",
           "stopped": "Abgebrochen",
           "paused": "Pausiert – zweites Ventil geöffnet"
+        },
+        "state_attributes": {
+          "reason": {
+            "name": "Abschaltgrund",
+            "state": {
+              "meter_unit_changed": "Zählereinheit geändert"
+            }
+          }
         }
       },
       "status": {
@@ -370,7 +408,59 @@
           "reduce_mowing": "Mähhäufigkeit im Herbst reduzieren",
           "pause_drought": "Wegen Trockenstress pausieren",
           "pause_wet": "Wegen nassem Rasen pausieren",
-          "wait_to_mow": "Bis zum nächsten Mähtermin warten"
+          "wait_to_mow": "Bis zum nächsten Mähzeitpunkt warten",
+          "pause_frost": "Pause wegen Frost"
+        },
+        "state_attributes": {
+          "recommendation_reason": {
+            "name": "Grund der Empfehlung",
+            "state": {
+              "collecting_data": "Daten werden gesammelt",
+              "winter_off": "Für den Winter abschalten",
+              "keep_off": "Noch ausgeschaltet lassen",
+              "start_mower": "Mähroboter wieder starten",
+              "mow_regularly": "Regelmäßig mähen – Rasen wächst",
+              "mow_less": "Seltener mähen",
+              "reduce_mowing": "Mähhäufigkeit im Herbst reduzieren",
+              "pause_drought": "Wegen Trockenstress pausieren",
+              "pause_wet": "Wegen nassem Rasen pausieren",
+              "wait_to_mow": "Bis zum nächsten Mähzeitpunkt warten",
+              "pause_frost": "Pause wegen Frost"
+            }
+          },
+          "mowing_mode": {
+            "name": "Mähmethode",
+            "state": {
+              "manual": "Handmäher",
+              "robot": "Mähroboter"
+            }
+          },
+          "recommendation_confidence": {
+            "name": "Vertrauen in die Empfehlung",
+            "state": {
+              "low": "Niedrig",
+              "medium": "Mittel (Schätzung)"
+            }
+          },
+          "last_mowing_source": {
+            "name": "Quelle des letzten Mähens",
+            "state": {
+              "manual": "Manuell erfasst",
+              "manual_correction": "Korrigiertes Datum",
+              "legacy_date": "Übernommenes Datum",
+              "robot_estimate": "Geschätzter Robotereinsatz",
+              "completion_input": "Gemeldet durch Binäreingang"
+            }
+          },
+          "last_mowing_at": {
+            "name": "Zuletzt gemäht um"
+          },
+          "next_mowing_at": {
+            "name": "Frühester geschätzter Mähzeitpunkt"
+          },
+          "last_mowing_estimated": {
+            "name": "Letztes Mähen geschätzt"
+          }
         }
       },
       "soil_moisture": {

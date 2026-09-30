@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.4.1 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.5.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -37,7 +37,7 @@ Pro Rasen lassen sich Fläche, Nutzung, Bodenart, Sonnenlage, Wurzeltiefe,
 Gefälle, Verdichtung, Bewässerungseffizienz und Regenkorrektur einstellen.
 Bei der Ersteinrichtung genügen Name, OpenWeatherMap-Wetterentität und die
 grundlegenden Rasendaten. **Konfigurieren** öffnet danach die getrennten Seiten
-**Grundeinstellungen**, **Eingangssensoren**, **Bewässerung**, **Boden- und
+**Grundeinstellungen**, **Eingangssensoren**, **Mähen**, **Bewässerung**, **Boden- und
 Wassermodell** und **Pflegeverlauf**. Mit Ventil erscheint zusätzlich
 **Bewässerung – Sicherheit**. Die Dauer und andere Zahlen werden in Feldern
 mit sichtbaren Werten eingegeben. Während eine Bewässerung läuft oder pausiert,
@@ -53,6 +53,44 @@ bewässert** protokollieren eine Aus→Ein-Flanke. Bei eingerichtetem Ventil wir
 der Eingang „Rasen wurde bewässert“ ausgeblendet; ohne Ventil stehen die manuellen
 Schaltflächen zur Verfügung. Bewässerung und Düngung lassen sich mit
 tatsächlichen Mengen protokollieren und das letzte Ereignis rückgängig machen.
+
+## Wachstumsabhängig mähen
+
+Unter **Konfigurieren → Mähen** wählst du **Handmäher** oder **Mähroboter**.
+Bestehende Installationen behalten zunächst den Handmäher-Modus und ihre Daten.
+
+| Wachstum | Handmäher | Mähroboter |
+| --- | --- | --- |
+| Volles Wachstum | alle 4 Tage | täglich |
+| Langsames Wachstum | alle 7 Tage | alle 3 Tage |
+| Herbst / erstes Erwachen nach Saisonstart | alle 10 Tage | alle 5 Tage |
+
+Das sind Schätzungen für die Empfehlung. Der Faktor passt alle Abstände an:
+1 = Vorgaben, 0,5 = halber Abstand, 2 = doppelter Abstand. Nässe, Frost,
+Winterruhe und Trockenstress haben Vorrang. Der Roboter wird nicht gesteuert.
+
+Optional wählst du auf derselben Seite eine Mäherstatus-Entität. Die Erkennung
+zählt ausschließlich aktive Mähzeit (Vorgabe: mindestens 10 Minuten) und erfasst
+anschließend die Rückkehr zur Station. Für `lawn_mower` sind üblicherweise
+`mowing` und `docked` einzutragen; bei `vacuum` kann der aktive Zustand `cleaning`
+heißen. Verwende die internen Zustände aus **Entwicklerwerkzeuge → Zustände**.
+Pausen und Rückfahrt zählen nicht als Mähzeit. Fehler, unbekannte Zustände,
+`idle`, kurze Starts und Neustarts bestätigen keinen Einsatz; eine begonnene
+Beobachtung wird nach zwölf Stunden verworfen.
+
+**Die Erkennung ist eine Schätzung:** Auch die Rückkehr zum Laden kann einen
+Eintrag auslösen. Ein eingerichteter Binäreingang **Rasen wurde gemäht** hat
+Vorrang und sollte einen tatsächlich abgeschlossenen Auftrag melden.
+100 % Fortschritt sind keine Voraussetzung. Verschiedene Einsätze am selben
+Tag werden gespeichert, doppelte Meldungen desselben Ereignisses nicht.
+
+Im Mähroboterstatus stehen `last_mowing_at`, `next_mowing_at`, Mähmethode,
+Grund, Vertrauen und die Quelle des letzten Eintrags. Der früheste geschätzte
+Termin berücksichtigt sowohl den Zeitabstand als auch die Nässepause.
+Bei Frost, Trockenstress oder fehlender Temperatur gibt es keinen festen
+Freigabetermin. Unter **Pflegeverlauf** kannst du das letzte Mähdatum korrigieren
+oder leeren. Übernommene und korrigierte reine Datumswerte verwenden den lokalen
+Tagesbeginn als geschätzte Uhrzeit; neue Ereignisse speichern die genaue Uhrzeit.
 
 ## Optionale automatische Bewässerung
 

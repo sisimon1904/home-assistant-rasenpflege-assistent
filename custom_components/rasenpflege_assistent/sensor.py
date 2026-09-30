@@ -264,6 +264,7 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             "reduce_mowing",
             "pause_drought",
             "pause_wet",
+            "pause_frost",
             "wait_to_mow",
         ],
         value_fn=lambda data: data.mower_status,
@@ -283,6 +284,14 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             ),
             "wet_until": data.mower_wet_until,
             "wet_reason": data.mower_wet_reason,
+            "mowing_mode": data.mowing_mode,
+            "last_mowing_at": data.last_mowing_at,
+            "next_mowing_at": data.next_mowing_at,
+            "recommendation_reason": data.mowing_reason,
+            "recommendation_confidence": data.mowing_confidence,
+            "last_mowing_source": data.mowing_record_source,
+            "last_mowing_estimated": data.mowing_record_source
+            in {"robot_estimate", "legacy_date", "manual_correction"},
         },
     ),
     LawnSensorDescription(

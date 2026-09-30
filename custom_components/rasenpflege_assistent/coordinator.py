@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 from datetime import date, datetime, timedelta
@@ -46,8 +47,11 @@ from .const import (
     CONF_IRRIGATION_EFFICIENCY,
     CONF_IRRIGATION_VALVE,
     CONF_LAST_FERTILIZING,
+    CONF_LAST_MOWING,
     CONF_LAST_WATERING,
     CONF_LAWN_TYPE,
+    CONF_MOWING_INTERVAL_FACTOR,
+    CONF_MOWING_MODE,
     CONF_PRECIPITATION_ENTITY,
     CONF_PRECIPITATION_MODE,
     CONF_RAIN_CORRECTION,
@@ -129,6 +133,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         self._hourly_forecast_cache: list[dict[str, Any]] = []
         self._hourly_forecast_updated_at = None
         self.irrigation = None
+        self._mowing_lock = asyncio.Lock()
 
     @property
     def settings(self) -> dict[str, Any]:
@@ -163,6 +168,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 last_watering=stored.get("last_watering"),
                 last_fertilizing=stored.get("last_fertilizing"),
                 last_mowing=stored.get("last_mowing"),
+                last_mowing_at=stored.get("last_mowing_at"),
+                last_mowing_source=stored.get("last_mowing_source"),
+                last_mowing_event_id=stored.get("last_mowing_event_id"),
+                configured_last_mowing=stored.get("configured_last_mowing"),
+                configured_last_mowing_revision=stored.get(
+                    "configured_last_mowing_revision"
+                ),
                 configured_initial_gts=float(
                     stored.get("configured_initial_gts", initial_gts)
                 ),
@@ -265,6 +277,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 sample_date=today.isoformat(),
                 last_watering=initial_watering,
                 last_fertilizing=initial_fertilizing,
+                last_mowing=settings.get(CONF_LAST_MOWING),
+                configured_last_mowing=settings.get(CONF_LAST_MOWING),
+                configured_last_mowing_revision=settings.get("last_mowing_revision"),
                 configured_initial_gts=initial_gts,
                 configured_last_watering=initial_watering,
                 configured_last_fertilizing=initial_fertilizing,
@@ -315,6 +330,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         self._state.soil_water_mm = min(capacity, self._state.soil_water_mm)
 
         for setting_key, state_key, configured_key in (
+            (CONF_LAST_MOWING, "last_mowing", "configured_last_mowing"),
             (CONF_LAST_WATERING, "last_watering", "configured_last_watering"),
             (
                 CONF_LAST_FERTILIZING,
@@ -323,9 +339,36 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             ),
         ):
             configured_value = settings.get(setting_key)
-            if configured_value != getattr(self._state, configured_key):
+            mowing_changed = (
+                setting_key == CONF_LAST_MOWING
+                and settings.get("last_mowing_revision")
+                != self._state.configured_last_mowing_revision
+            )
+            if (
+                configured_value != getattr(self._state, configured_key)
+                or mowing_changed
+            ):
                 setattr(self._state, state_key, configured_value)
                 setattr(self._state, configured_key, configured_value)
+                if setting_key == CONF_LAST_MOWING:
+                    self._state.configured_last_mowing_revision = settings.get(
+                        "last_mowing_revision"
+                    )
+                    self._state.last_mowing_at = None
+                    self._state.last_mowing_event_id = None
+                    self._state.last_mowing_source = (
+                        "manual_correction" if configured_value else None
+                    )
+
+        # Older versions knew only a local date. Preserve that fact and use
+        # local midnight as an explicitly estimated time, never the load time.
+        mowing_date = _parse_date(self._state.last_mowing)
+        if mowing_date is not None and not self._state.last_mowing_at:
+            self._state.last_mowing_at = dt_util.as_utc(
+                dt_util.start_of_local_day(mowing_date)
+            ).isoformat()
+            if not self._state.last_mowing_source:
+                self._state.last_mowing_source = "legacy_date"
 
     @staticmethod
     def _reported_at(state):
@@ -358,17 +401,20 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             )
             if wet_until is None or candidate > wet_until:
                 wet_until, wet_reason = candidate, reason
-        if (
-            wet_until is not None
-            and now < wet_until
-            and mower["status"]
-            in {"start_mower", "mow_regularly", "mow_less", "reduce_mowing"}
-        ):
-            mower["status"] = "pause_wet"
+        if wet_until is not None and now < wet_until:
+            if mower["status"] in {
+                "start_mower",
+                "mow_regularly",
+                "mow_less",
+                "reduce_mowing",
+                "wait_to_mow",
+            }:
+                mower["status"] = "pause_wet"
             mower["next_date"] = max(
                 mower["next_date"] or dt_util.as_local(now).date(),
                 dt_util.as_local(wet_until).date(),
             )
+            mower["next_at"] = max(mower.get("next_at") or now, wet_until)
         return (
             (wet_until, wet_reason)
             if wet_until is not None and now < wet_until
@@ -1182,8 +1228,31 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             year=today.year,
             last_mowing=last_mowing,
             today=today,
+            mode=settings.get(CONF_MOWING_MODE, "manual"),
+            interval_factor=float(settings.get(CONF_MOWING_INTERVAL_FACTOR, 1.0)),
+            last_mowing_at=dt_util.parse_datetime(self._state.last_mowing_at or ""),
+            now=now,
         )
         wet_until, wet_reason = self._pause_mower_when_wet(now, mower)
+        mowing_confidence = "medium"
+        if temperature is None:
+            mower["status"] = "collecting_data"
+            mowing_confidence = "low"
+        elif temperature <= 0 or (
+            soil_temperature is not None and soil_temperature <= 0
+        ):
+            mower["status"] = "pause_frost"
+        if mower["status"] in {
+            "collecting_data",
+            "winter_off",
+            "keep_off",
+            "pause_drought",
+            "pause_frost",
+        }:
+            mower["next_at"] = None
+            mower["next_date"] = None
+        if mower.get("next_at"):
+            mower["next_date"] = dt_util.as_local(mower["next_at"]).date()
 
         watering = watering_recommendation(
             today=today,
@@ -1365,6 +1434,14 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             mower_can_be_switched_off=mower["status"] == "winter_off",
             mowing_interval_days=mower["interval"],
             next_mowing_date=mower["next_date"],
+            next_mowing_at=(
+                mower["next_at"].isoformat() if mower.get("next_at") else None
+            ),
+            last_mowing_at=self._state.last_mowing_at,
+            mowing_mode=settings.get(CONF_MOWING_MODE, "manual"),
+            mowing_reason=mower["status"],
+            mowing_confidence=mowing_confidence,
+            mowing_record_source=self._state.last_mowing_source,
             growth_temperature_7d=growth_temperature,
             soil_moisture_percent=soil_moisture,
             measured_soil_moisture_percent=measured_soil_moisture,
@@ -1543,22 +1620,50 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         await self._store.async_save(self._state.as_dict())
         await self.async_request_refresh()
 
-    async def async_mark_mowed(self, *, deduplicate: bool = False) -> None:
+    async def async_mark_mowed(
+        self,
+        *,
+        deduplicate: bool = False,
+        event_id: str | None = None,
+        recorded_at: datetime | None = None,
+        source: str = "manual",
+        active_seconds: float | None = None,
+    ) -> None:
         """Record mowing and acknowledge the mowing season for this year."""
-        assert self._state is not None
-        if deduplicate and self._is_recent_maintenance_event(
-            "mowing", timedelta(hours=12)
-        ):
-            return
-        now = dt_util.now()
-        previous = {
-            "last_mowing": self._state.last_mowing,
-            "mower_started_year": self._state.mower_started_year,
-        }
-        self._state.last_mowing = dt_util.as_local(now).date().isoformat()
-        self._state.mower_started_year = dt_util.as_local(now).year
-        self._append_maintenance_event("mowing", previous)
-        await self._store.async_save(self._state.as_dict())
+        async with self._mowing_lock:
+            assert self._state is not None
+            if event_id and event_id == self._state.last_mowing_event_id:
+                return
+            if (
+                deduplicate
+                and not event_id
+                and self._is_recent_maintenance_event("mowing", timedelta(seconds=60))
+            ):
+                return
+            now = recorded_at or dt_util.now()
+            previous_at = dt_util.parse_datetime(self._state.last_mowing_at or "")
+            if event_id and previous_at and now <= previous_at:
+                return
+            previous = {
+                "last_mowing": self._state.last_mowing,
+                "last_mowing_at": self._state.last_mowing_at,
+                "last_mowing_source": self._state.last_mowing_source,
+                "last_mowing_event_id": self._state.last_mowing_event_id,
+                "mower_started_year": self._state.mower_started_year,
+            }
+            self._state.last_mowing = dt_util.as_local(now).date().isoformat()
+            self._state.last_mowing_at = now.isoformat()
+            self._state.last_mowing_source = source
+            self._state.last_mowing_event_id = event_id
+            self._state.mower_started_year = dt_util.as_local(now).year
+            self._append_maintenance_event(
+                "mowing",
+                previous,
+                source=source,
+                active_seconds=active_seconds,
+                recorded_at=now.isoformat(),
+            )
+            await self._store.async_save(self._state.as_dict())
         await self.async_request_refresh()
 
     async def async_undo_last_action(self) -> None:
