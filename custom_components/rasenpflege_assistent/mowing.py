@@ -96,6 +96,7 @@ class MowingObserver:
                         recorded_at=now,
                         source="robot_estimate",
                         active_seconds=seconds,
+                        session_started_at=started_at,
                     )
             elif state not in {"paused", "returning"}:
                 self._reset()

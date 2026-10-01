@@ -35,7 +35,10 @@ def sum_forecast_rain(
         if value is None:
             value = item.get("native_precipitation")
         try:
-            amount = max(0.0, float(value))
+            numeric = float(value)
+            if not math.isfinite(numeric) or numeric < 0:
+                return None
+            amount = numeric
             if probability_adjusted:
                 try:
                     probability = float(item.get("precipitation_probability", 100))
@@ -44,7 +47,7 @@ def sum_forecast_rain(
                 amount *= max(0.0, min(100.0, probability)) / 100
             values.append(amount)
         except (TypeError, ValueError):
-            continue
+            return None
     return round(sum(values), 1) if values else None
 
 
@@ -390,12 +393,19 @@ def recommended_watering_window(
             reference = reference.replace(tzinfo=timestamp.tzinfo)
         elif reference.tzinfo is not None:
             timestamp = timestamp.replace(tzinfo=reference.tzinfo)
-        if not reference <= timestamp <= reference + timedelta(hours=48):
+        if (
+            not timestamp <= reference + timedelta(hours=48)
+            or timestamp + timedelta(hours=1) <= reference
+        ):
             continue
         try:
-            precipitation = max(0.0, float(item.get("precipitation", 0)))
+            precipitation = float(
+                item.get("precipitation", item.get("native_precipitation"))
+            )
+            if not math.isfinite(precipitation) or precipitation < 0:
+                continue
         except (TypeError, ValueError):
-            precipitation = 0.0
+            continue
         try:
             probability = max(
                 0.0, min(100.0, float(item.get("precipitation_probability", 0)))
@@ -419,13 +429,19 @@ def recommended_watering_window(
             wind *= 0.44704
         elif "kn" in normalized_unit:
             wind *= 0.514444
-        if wind > 6:
+        if (
+            not math.isfinite(wind)
+            or (temperature is not None and not math.isfinite(temperature))
+            or wind > 6
+        ):
             continue
         hour_penalty = abs(timestamp.hour + timestamp.minute / 60 - 6)
         if not 4 <= timestamp.hour < 10:
             hour_penalty += 5
         temperature_penalty = max(0.0, (temperature or 18.0) - 24) * 0.8
         score = hour_penalty + wind * 1.5 + temperature_penalty + probability / 25
+        if timestamp <= reference < timestamp + timedelta(hours=1):
+            score -= 100
         candidates.append((score, timestamp, item, wind))
     if not candidates:
         return {
@@ -763,7 +779,7 @@ def watering_recommendation(
             "forecast_coverage_hours": coverage_hours,
             "confidence": (
                 "high"
-                if hourly_coverage_hours >= 24
+                if hourly_coverage_hours >= 24 and rain_24h is not None
                 else "medium"
                 if rain is not None
                 else "low"
@@ -894,7 +910,9 @@ def watering_recommendation(
         "forecast_coverage_hours": coverage_hours,
         "confidence": (
             "high"
-            if hourly_coverage_hours >= 24 and elapsed is not None
+            if hourly_coverage_hours >= 24
+            and rain_24h is not None
+            and elapsed is not None
             else "medium"
             if rain is not None and elapsed is not None
             else "low"

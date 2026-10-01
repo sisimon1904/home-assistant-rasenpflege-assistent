@@ -104,6 +104,7 @@ from .const import (
 )
 from .coordinator import LawnCoordinator
 from .entity import LawnEntity
+from .explanations import reason_text
 from .models import LawnData
 
 PARALLEL_UPDATES = 0
@@ -183,6 +184,7 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             "fertilizing_recommended",
             "mowing_recommended",
             "good_condition",
+            "lawn_wet",
         ],
         value_fn=lambda data: data.lawn_status,
         attributes_fn=lambda data: {
@@ -214,6 +216,7 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             "wait_to_mow",
             "winterize_mower",
             "no_action",
+            "wait_for_irrigation",
         ],
         value_fn=lambda data: data.next_action,
         attributes_fn=lambda data: {
@@ -289,6 +292,13 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             "next_mowing_at": data.next_mowing_at,
             "recommendation_reason": data.mowing_reason,
             "recommendation_confidence": data.mowing_confidence,
+            "last_robot_session_started_at": data.last_robot_session_started_at,
+            "last_robot_session_finished_at": data.last_robot_session_finished_at,
+            "last_robot_session_active_minutes": (
+                round(data.last_robot_session_active_seconds / 60, 1)
+                if data.last_robot_session_active_seconds is not None
+                else None
+            ),
             "last_mowing_source": data.mowing_record_source,
             "last_mowing_estimated": data.mowing_record_source
             in {"robot_estimate", "legacy_date", "manual_correction"},
@@ -413,6 +423,9 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             "other_valve_open",
             "other_valve_unavailable",
             "meter_unavailable",
+            "meter_stale",
+            "storage_error",
+            "homeassistant_stopping",
             "not_configured",
         ],
         value_fn=lambda data: "not_configured",
@@ -433,6 +446,9 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             "other_valve_open",
             "other_valve_unavailable",
             "meter_unavailable",
+            "meter_stale",
+            "storage_error",
+            "homeassistant_stopping",
             "meter_required",
             "waiting_for_weather",
             "rain_unavailable",
@@ -696,9 +712,30 @@ class LawnSensor(LawnEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return useful recommendation details."""
-        if self.entity_description.key == "irrigation_readiness":
-            return self.coordinator.irrigation.diagnostic_attributes()
-        if self.entity_description.key == "irrigation_auto_decision":
+        key = self.entity_description.key
+        language = self.coordinator.hass.config.language
+        if key in {"irrigation_readiness", "irrigation_auto_decision"}:
             details = self.coordinator.irrigation.diagnostic_attributes()
-            return {"next_automatic_start": details["next_automatic_start"]}
-        return self.entity_description.attributes_fn(self.coordinator.data)
+            details["reason_text"] = reason_text(self.native_value, language)
+            return details
+        details = self.entity_description.attributes_fn(self.coordinator.data)
+        if key == "irrigation_status":
+            details.update(self.coordinator.irrigation.diagnostic_attributes())
+        for code_key in (
+            "reason",
+            "recommendation_reason",
+            "wet_reason",
+            "watering_window_reason",
+        ):
+            if code_key in details:
+                details[f"{code_key}_text"] = reason_text(details[code_key], language)
+        if ATTR_REASONS in details:
+            details["reasons_text"] = [
+                reason_text(code, language) for code in details[ATTR_REASONS]
+            ]
+        if (
+            key == "mower_status"
+            and details.get("last_mowing_source") == "robot_estimate"
+        ):
+            details["estimate_note"] = reason_text("robot_estimate", language)
+        return details

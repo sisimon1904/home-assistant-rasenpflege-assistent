@@ -196,7 +196,8 @@
           "irrigation_efficiency": "Irrigation efficiency",
           "rain_correction": "Observed rain correction factor",
           "soil_sensor_dry": "Soil sensor dry reference",
-          "soil_sensor_wet": "Soil sensor wet reference"
+          "soil_sensor_wet": "Soil sensor wet reference",
+          "soil_sensor_max_age_minutes": "Maximum soil measurement age (minutes)"
         },
         "data_description": {
           "default_watering_amount": "Amount added to the soil model when watering is recorded and no calculated recommendation is available.",
@@ -206,7 +207,8 @@
           "irrigation_efficiency": "Fraction of applied irrigation that reaches the modeled root zone.",
           "rain_correction": "Corrects systematic over- or underestimation of the observed rain source. 1.0 leaves it unchanged.",
           "soil_sensor_dry": "Raw percentage shown by the physical sensor in dry soil.",
-          "soil_sensor_wet": "Raw percentage shown by the physical sensor near field capacity. Must be greater than the dry reference."
+          "soil_sensor_wet": "Raw percentage shown by the physical sensor near field capacity. Must be greater than the dry reference.",
+          "soil_sensor_max_age_minutes": "Older soil moisture and soil temperature measurements are ignored. The model or outdoor temperature history is then used. Default: 360 minutes."
         }
       },
       "maintenance": {
@@ -331,7 +333,10 @@
           "other_valve_open": "Other valve open",
           "other_valve_unavailable": "Other valve unavailable",
           "meter_unavailable": "Water meter unavailable",
-          "not_configured": "Not configured"
+          "not_configured": "Not configured",
+          "meter_stale": "Flow reading too old",
+          "storage_error": "Storage error",
+          "homeassistant_stopping": "Home Assistant is stopping"
         }
       },
       "irrigation_status": {
@@ -365,7 +370,8 @@
           "wait_for_rain": "Wait for rain",
           "fertilizing_recommended": "Fertilizing recommended",
           "mowing_recommended": "Mowing recommended",
-          "good_condition": "Good condition"
+          "good_condition": "Good condition",
+          "lawn_wet": "Lawn wet"
         }
       },
       "next_action": {
@@ -380,7 +386,8 @@
           "mow_lawn": "Mow lawn",
           "winterize_mower": "Switch mower off for winter",
           "no_action": "No action required",
-          "wait_to_mow": "Wait for the lawn to dry before mowing"
+          "wait_to_mow": "Wait for the lawn to dry before mowing",
+          "wait_for_irrigation": "Wait for irrigation"
         }
       },
       "growth_status": {
@@ -573,7 +580,10 @@
           "watering_not_due": "Watering is not due",
           "no_suitable_window": "No suitable watering window",
           "waiting_for_window": "Waiting for the watering window",
-          "window_expired": "Watering window has ended"
+          "window_expired": "Watering window has ended",
+          "meter_stale": "Flow reading too old",
+          "storage_error": "Storage error",
+          "homeassistant_stopping": "Home Assistant is stopping"
         }
       }
     },
@@ -639,6 +649,10 @@
     "current_weather_stale": {
       "title": "Current weather data is stale",
       "description": "The current OpenWeatherMap observations are more than three hours old. The water model is using a reduced fallback calculation until fresh humidity, wind, and cloud data are available."
+    },
+    "irrigation_storage_error": {
+      "title": "Irrigation data could not be saved",
+      "description": "Valve shutdown remains active. A pending water credit is retried; new watering is blocked until storage recovers. Check the Home Assistant log and available disk space."
     }
   },
   "services": {

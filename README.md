@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.5.1 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.6.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -12,6 +12,18 @@ vorhandenen OpenWeatherMap-Daten in Home Assistant. Sie berechnet die
 Grünlandtemperatursumme, modellierte Bodenfeuchte sowie Empfehlungen zum
 Bewässern, Düngen und Mähen. Optional kann sie ein vorhandenes Bewässerungsventil
 steuern; sie schaltet den Mähroboter nicht.
+
+## Neu in 3.6.0
+
+Während einer laufenden oder pausierten Bewässerung gilt der Rasen sofort als nass. Der zentrale Status zeigt `lawn_wet`, die nächste Aktion `wait_for_irrigation`. Nach dem Abschluss bleibt die bestehende Abtrocknungsfrist wirksam.
+
+Die Attribute des Bewässerungsstatus zeigen Zielmenge, gelieferte und verbleibende Liter, Fortschritt in Prozent sowie gelieferte Millimeter. Ohne Mengenziel gibt es keinen Prozentwert; im ungemessenen Timerbetrieb werden keine Wassermengen erfunden. Lesbare Gründe ergänzen die bisherigen Codes auf Deutsch und Englisch.
+
+Der Mäherstatus enthält Start, Ende und aktive Minuten der letzten erkannten Robotersitzung. Pausen und Rückfahrt zählen nicht zur aktiven Dauer. Die Werte bleiben Schätzungen: Die Rückkehr zur Station bestätigt keine vollständige Flächenabdeckung.
+
+Unter **Bodenmodell** lässt sich das maximale Alter physischer Bodenfeuchte- und Bodentemperaturwerte einstellen (Standard: 360 Minuten). Ältere Werte werden nicht verwendet; für die Feuchte dient das Modell als Ersatz, die Bodentemperatur bleibt unbekannt.
+
+Beim regulären Herunterfahren von Home Assistant wird das eigene Bewässerungsventil geschlossen. Speicherfehler verhindern das Schließen nicht; fehlgeschlagene Wasserbuchungen werden erneut versucht. Öffnen und Wiederaufnahme benötigen zuvor einen erfolgreich gespeicherten Sitzungszustand. Das optionale zweite Ventil bleibt ein reiner Leseeingang.
 
 ## Installation
 

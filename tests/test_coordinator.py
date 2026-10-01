@@ -261,3 +261,40 @@ async def test_clearing_automatic_watering_date_uses_revision(hass):
     await c._async_setup()
     assert c._state.last_watering is None
     assert c._state.last_watering_at is None
+
+
+async def test_physical_soil_readings_expire_at_configured_age(
+    hass, enable_custom_integrations
+):
+    """Stale soil sensors fall back to the model and unknown temperature."""
+    coordinator = _coordinator(
+        hass,
+        soil_moisture_entity="sensor.soil",
+        soil_temperature_entity="sensor.soil_temp",
+        soil_sensor_max_age_minutes=30,
+    )
+    hass.states.async_set("sensor.soil", "50")
+    hass.states.async_set("sensor.soil_temp", "18")
+    now = dt_util.now()
+    assert coordinator._read_soil_moisture()[0] is not None
+    assert coordinator._read_soil_temperature() == 18
+    with patch(
+        "custom_components.rasenpflege_assistent.coordinator.dt_util.now",
+        return_value=now + timedelta(minutes=31),
+    ):
+        assert coordinator._read_soil_moisture()[0] is None
+        assert coordinator._read_soil_temperature() is None
+
+
+async def test_clearing_automatic_fertilizing_date_uses_revision(hass):
+    """Clearing an automatically recorded date overrides an empty old config."""
+    coordinator = _coordinator(
+        hass, last_fertilizing=None, last_fertilizing_revision="new"
+    )
+    coordinator._state = RuntimeState(
+        year=2026, gts=100, sample_date="2026-07-20", last_fertilizing="2026-07-19"
+    )
+    coordinator._store.async_load = AsyncMock(return_value=coordinator._state.as_dict())
+    await coordinator._async_setup()
+    assert coordinator._state.last_fertilizing is None
+    assert coordinator._state.configured_last_fertilizing_revision == "new"

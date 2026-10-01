@@ -279,3 +279,27 @@ async def test_old_growth_history_cannot_override_missing_temperature_or_frost(
     assert data.next_mowing_date is None
     if temperature is None:
         assert data.mowing_confidence == "low"
+
+
+async def test_completed_robot_session_persists_active_duration(
+    hass, enable_custom_integrations
+):
+    """Pause and return travel do not inflate the published mowing estimate."""
+    coordinator = _coordinator(hass)
+    observer = MowingObserver(coordinator)
+    for old, new, minute in [
+        ("docked", "mowing", 0),
+        ("mowing", "paused", 10),
+        ("paused", "mowing", 20),
+        ("mowing", "returning", 30),
+        ("returning", "docked", 40),
+    ]:
+        await observer.async_handle_event(_event(old, new, minute))
+    state = coordinator._state
+    assert state.last_robot_session_started_at == NOW.isoformat()
+    assert (
+        state.last_robot_session_finished_at
+        == (NOW + timedelta(minutes=40)).isoformat()
+    )
+    assert state.last_robot_session_active_seconds == 1200
+    assert state.as_dict()["last_robot_session_active_seconds"] == 1200

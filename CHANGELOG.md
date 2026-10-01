@@ -1,5 +1,27 @@
 # Changelog
 
+## 3.6.0
+
+### Added
+
+- Apply the wet-lawn mowing interlock immediately during running and paused irrigation, without additional weather polling.
+- Show the last estimated robot mowing session's start, end and active minutes; exclude pauses and return travel.
+- Expose irrigation target, delivered and remaining liters, progress percentage and delivered millimeters.
+- Add readable German and English decision explanations alongside stable machine-readable reason codes.
+- Add a configurable maximum age for physical soil moisture and temperature readings (default: six hours).
+
+### Fixed
+
+- Close the owned irrigation valve on orderly Home Assistant shutdown and block reopening during shutdown.
+- Require successful session persistence before opening or resuming irrigation.
+- Continue valve closure despite storage errors and retry failed water credits without duplicate accounting.
+- Keep post-close shared-meter consumption out of completed and pending irrigation credits.
+- Reject stale flow-rate readings at startup while allowing unchanged cumulative-meter baselines.
+- Treat missing, negative and non-finite forecast precipitation as unknown instead of dry weather.
+- Keep an eligible watering hour available while it is underway; reject expired or invalid forecast hours.
+- Apply corrected or cleared fertilizing dates even when the prior configuration was empty.
+- Remove obsolete optional irrigation entities and valve repair notifications when a valve is removed.
+
 ## 3.5.1
 
 ### Fixed

@@ -53,6 +53,9 @@ class LawnData:
     mowing_mode: str = "manual"
     mowing_reason: str = "collecting_data"
     mowing_confidence: str = "low"
+    last_robot_session_started_at: str | None = None
+    last_robot_session_finished_at: str | None = None
+    last_robot_session_active_seconds: float | None = None
     mowing_record_source: str | None = None
     growth_temperature_7d: float | None = None
     soil_moisture_percent: float = 70.0
@@ -128,6 +131,10 @@ class RuntimeState:
     configured_initial_gts: float = 0.0
     configured_last_watering: str | None = None
     configured_last_watering_revision: str | None = None
+    last_robot_session_started_at: str | None = None
+    last_robot_session_finished_at: str | None = None
+    last_robot_session_active_seconds: float | None = None
+    configured_last_fertilizing_revision: str | None = None
     configured_last_fertilizing: str | None = None
     temperature_min: float | None = None
     temperature_max: float | None = None
@@ -196,6 +203,10 @@ class RuntimeState:
             "configured_initial_gts": self.configured_initial_gts,
             "configured_last_watering": self.configured_last_watering,
             "configured_last_watering_revision": self.configured_last_watering_revision,
+            "last_robot_session_started_at": self.last_robot_session_started_at,
+            "last_robot_session_finished_at": self.last_robot_session_finished_at,
+            "last_robot_session_active_seconds": self.last_robot_session_active_seconds,
+            "configured_last_fertilizing_revision": self.configured_last_fertilizing_revision,
             "configured_last_fertilizing": self.configured_last_fertilizing,
             "temperature_min": self.temperature_min,
             "temperature_max": self.temperature_max,

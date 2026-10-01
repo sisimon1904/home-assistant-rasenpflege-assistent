@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.5.1 · [Changelog](CHANGELOG.md)
+Version 3.6.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -12,6 +12,18 @@ OpenWeatherMap data in Home Assistant. It calculates the grassland temperature
 sum, modeled soil moisture, and recommendations for watering, fertilizing, and
 mowing. It can optionally control an existing irrigation valve; it does not
 control the robotic mower.
+
+## New in 3.6.0
+
+Running or paused irrigation immediately marks the lawn wet. The central status becomes `lawn_wet` and the next action becomes `wait_for_irrigation`. The existing drying delay remains effective after completion.
+
+Irrigation status attributes show target, delivered and remaining liters, progress percentage and delivered millimeters. Progress is unknown without a volume target; unmetered timer mode does not invent water volumes. Readable German and English explanations accompany existing reason codes.
+
+Mower status includes the last detected robot session's start, end and active minutes. Pauses and return travel are excluded. These values remain estimates: docking does not confirm complete lawn coverage.
+
+The **Soil model** settings include a maximum age for physical soil moisture and temperature readings (default: 360 minutes). Older readings are ignored; moisture falls back to the model and soil temperature remains unknown.
+
+The owned irrigation valve closes on orderly Home Assistant shutdown. Storage errors do not prevent closure, and failed water credits are retried. Opening or resuming requires successful session persistence first. The optional second valve remains a read-only input.
 
 ## Installation
 

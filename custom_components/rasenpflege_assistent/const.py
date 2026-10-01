@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 DOMAIN = "rasenpflege_assistent"
-INTEGRATION_VERSION = "3.5.1"
+INTEGRATION_VERSION = "3.6.0"
 PLATFORMS = ["sensor", "button", "switch"]
 
 CONF_NAME = "name"
@@ -33,6 +33,8 @@ CONF_IRRIGATION_EFFICIENCY = "irrigation_efficiency"
 CONF_RAIN_CORRECTION = "rain_correction"
 CONF_SOIL_SENSOR_DRY = "soil_sensor_dry"
 CONF_SOIL_SENSOR_WET = "soil_sensor_wet"
+CONF_SOIL_SENSOR_MAX_AGE = "soil_sensor_max_age_minutes"
+DEFAULT_SOIL_SENSOR_MAX_AGE = 360
 CONF_IRRIGATION_VALVE = "irrigation_valve"
 CONF_OTHER_VALVE = "other_valve"
 CONF_IRRIGATION_FLOW = "irrigation_flow"

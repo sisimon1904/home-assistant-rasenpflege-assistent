@@ -59,6 +59,7 @@ from .const import (
     CONF_SLOPE,
     CONF_SOIL_MOISTURE_ENTITY,
     CONF_SOIL_SENSOR_DRY,
+    CONF_SOIL_SENSOR_MAX_AGE,
     CONF_SOIL_SENSOR_WET,
     CONF_SOIL_TEMPERATURE_ENTITY,
     CONF_SOIL_TYPE,
@@ -77,6 +78,7 @@ from .const import (
     DEFAULT_ROOT_DEPTH,
     DEFAULT_SLOPE,
     DEFAULT_SOIL_SENSOR_DRY,
+    DEFAULT_SOIL_SENSOR_MAX_AGE,
     DEFAULT_SOIL_SENSOR_WET,
     DEFAULT_SOIL_TYPE,
     DEFAULT_SUN_EXPOSURE,
@@ -182,6 +184,18 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 configured_last_watering=stored.get("configured_last_watering"),
                 configured_last_watering_revision=stored.get(
                     "configured_last_watering_revision"
+                ),
+                last_robot_session_started_at=stored.get(
+                    "last_robot_session_started_at"
+                ),
+                last_robot_session_finished_at=stored.get(
+                    "last_robot_session_finished_at"
+                ),
+                last_robot_session_active_seconds=stored.get(
+                    "last_robot_session_active_seconds"
+                ),
+                configured_last_fertilizing_revision=stored.get(
+                    "configured_last_fertilizing_revision"
                 ),
                 configured_last_fertilizing=stored.get("configured_last_fertilizing"),
                 temperature_min=stored.get("temperature_min"),
@@ -290,6 +304,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                     "last_watering_revision"
                 ),
                 configured_last_fertilizing=initial_fertilizing,
+                configured_last_fertilizing_revision=settings.get(
+                    "last_fertilizing_revision"
+                ),
                 soil_water_mm=capacity * initial_moisture / 100,
                 configured_initial_soil_moisture=initial_moisture,
                 water_model_version=3,
@@ -355,6 +372,11 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 configured_value != getattr(self._state, configured_key)
                 or mowing_changed
                 or (
+                    setting_key == CONF_LAST_FERTILIZING
+                    and settings.get("last_fertilizing_revision")
+                    != self._state.configured_last_fertilizing_revision
+                )
+                or (
                     setting_key == CONF_LAST_WATERING
                     and settings.get("last_watering_revision")
                     != self._state.configured_last_watering_revision
@@ -362,6 +384,10 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             ):
                 setattr(self._state, state_key, configured_value)
                 setattr(self._state, configured_key, configured_value)
+                if setting_key == CONF_LAST_FERTILIZING:
+                    self._state.configured_last_fertilizing_revision = settings.get(
+                        "last_fertilizing_revision"
+                    )
                 if setting_key == CONF_LAST_WATERING:
                     self._state.configured_last_watering_revision = settings.get(
                         "last_watering_revision"
@@ -422,10 +448,20 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         assert self._state is not None
         wet_until: datetime | None = None
         wet_reason: str | None = None
-        for timestamp, reason in (
+        wet_events = [
             (self._state.last_wet_rain_at, "rain"),
             (self._state.last_watering_at, "watering"),
-        ):
+        ]
+        if self._state.irrigation_session is not None:
+            wet_events.append(
+                (
+                    now.isoformat(),
+                    "irrigation_paused"
+                    if self._state.irrigation_session.get("paused_at")
+                    else "irrigation_running",
+                )
+            )
+        for timestamp, reason in wet_events:
             event_at = dt_util.parse_datetime(timestamp or "")
             if event_at is None:
                 continue
@@ -443,6 +479,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 "mow_less",
                 "reduce_mowing",
                 "wait_to_mow",
+                "pause_wet",
             }:
                 mower["status"] = "pause_wet"
             mower["next_date"] = max(
@@ -455,6 +492,26 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             if wet_until is not None and now < wet_until
             else (None, None)
         )
+
+    def apply_live_irrigation_status(self, data: LawnData) -> None:
+        """Publish the wet interlock immediately without fetching weather."""
+        if self._state.irrigation_session is None:
+            return
+        mower = {
+            "status": data.mower_status,
+            "next_date": data.next_mowing_date,
+            "next_at": dt_util.parse_datetime(data.next_mowing_at or ""),
+        }
+        until, reason = self._pause_mower_when_wet(dt_util.now(), mower)
+        data.mower_status = mower["status"]
+        data.mowing_reason = mower["status"]
+        data.mower_start_recommended = mower["status"] == "start_mower"
+        data.mower_wet_until = until.isoformat() if until else None
+        data.mower_wet_reason = reason
+        data.next_mowing_date = mower["next_date"]
+        data.next_mowing_at = mower["next_at"].isoformat() if mower["next_at"] else None
+        data.lawn_status = "lawn_wet"
+        data.next_action = "wait_for_irrigation"
 
     def _read_temperature(self, now) -> tuple[float | None, str, int | None]:
         """Read the selected outdoor sensor, falling back to OpenWeatherMap."""
@@ -603,13 +660,30 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             return forecast
         return cached
 
+    def _soil_sensor_fresh(self, state) -> bool:
+        """Accept physical soil measurements only within the configured age."""
+        if state is None or state.state in ("unknown", "unavailable"):
+            return False
+        age = dt_util.now() - self._reported_at(state)
+        return (
+            timedelta(0)
+            <= age
+            <= timedelta(
+                minutes=float(
+                    self.settings.get(
+                        CONF_SOIL_SENSOR_MAX_AGE, DEFAULT_SOIL_SENSOR_MAX_AGE
+                    )
+                )
+            )
+        )
+
     def _read_soil_moisture(self) -> tuple[float | None, str]:
         """Read and validate an optional physical soil-moisture sensor."""
         entity_id = self.settings.get(CONF_SOIL_MOISTURE_ENTITY)
         if not entity_id:
             return None, "model"
         state = self.hass.states.get(entity_id)
-        if state is None or state.state in ("unknown", "unavailable"):
+        if not self._soil_sensor_fresh(state):
             return None, "model"
         try:
             value = float(state.state)
@@ -737,7 +811,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         """Read an optional soil-temperature sensor in Celsius."""
         entity_id = self.settings.get(CONF_SOIL_TEMPERATURE_ENTITY)
         state = self.hass.states.get(entity_id) if entity_id else None
-        if state is None or state.state in ("unknown", "unavailable"):
+        if not self._soil_sensor_fresh(state):
             return None
         try:
             value = float(state.state)
@@ -1493,6 +1567,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             mowing_mode=settings.get(CONF_MOWING_MODE, "manual"),
             mowing_reason=mower["status"],
             mowing_confidence=mowing_confidence,
+            last_robot_session_started_at=self._state.last_robot_session_started_at,
+            last_robot_session_finished_at=self._state.last_robot_session_finished_at,
+            last_robot_session_active_seconds=self._state.last_robot_session_active_seconds,
             mowing_record_source=self._state.last_mowing_source,
             growth_temperature_7d=growth_temperature,
             soil_moisture_percent=soil_moisture,
@@ -1573,6 +1650,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             ),
             irrigation_reason=self._state.irrigation_last_reason,
         )
+        self.apply_live_irrigation_status(data)
         await self._store.async_save(self._state.as_dict())
         return data
 
@@ -1607,6 +1685,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         *,
         deduplicate: bool = False,
         was_wet: bool = False,
+        refresh: bool = True,
     ) -> None:
         """Record watering and add the calculated or configured amount."""
         assert self._state is not None
@@ -1652,7 +1731,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             applied_mm=applied_mm,
         )
         await self._store.async_save(self._state.as_dict())
-        await self.async_request_refresh()
+        if refresh:
+            await self.async_request_refresh()
 
     async def async_mark_fertilized(
         self, product_npk: str | None = None, amount_kg: float | None = None
@@ -1680,6 +1760,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         recorded_at: datetime | None = None,
         source: str = "manual",
         active_seconds: float | None = None,
+        session_started_at: datetime | None = None,
     ) -> None:
         """Record mowing and acknowledge the mowing season for this year."""
         async with self._mowing_lock:
@@ -1705,6 +1786,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             }
             self._state.last_mowing = dt_util.as_local(now).date().isoformat()
             self._state.last_mowing_at = now.isoformat()
+            if source == "robot_estimate":
+                self._state.last_robot_session_started_at = (
+                    session_started_at.isoformat() if session_started_at else None
+                )
+                self._state.last_robot_session_finished_at = now.isoformat()
+                self._state.last_robot_session_active_seconds = active_seconds
             self._state.last_mowing_source = source
             self._state.last_mowing_event_id = event_id
             self._state.mower_started_year = dt_util.as_local(now).year

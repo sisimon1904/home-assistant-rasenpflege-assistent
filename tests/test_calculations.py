@@ -813,3 +813,35 @@ def test_forecast_internal_gap_limits_coverage():
         for i in [0, 1, 2, 12, 13, 14, 23]
     ]
     assert forecast_coverage_hours(forecast, [], now=now) == 3
+
+
+def test_partial_or_nonfinite_rain_is_unknown():
+    """Incomplete rain totals cannot masquerade as dry forecasts."""
+    for invalid in (None, "nan", "inf", -1):
+        assert (
+            sum_forecast_rain([{"precipitation": 0}, {"precipitation": invalid}])
+            is None
+        )
+
+
+def test_underway_watering_hour_stays_eligible():
+    """A suitable hour is retained until its end, then expires."""
+    start = datetime(2026, 7, 20, 6, tzinfo=timezone.utc)
+    forecast = [
+        {
+            "datetime": start.isoformat(),
+            "precipitation": 0,
+            "wind_speed": 1,
+            "temperature": 18,
+        }
+    ]
+    assert (
+        recommended_watering_window(forecast, start + timedelta(minutes=30))["start"]
+        == start.isoformat()
+    )
+    assert (
+        recommended_watering_window(forecast, start + timedelta(hours=1))["start"]
+        is None
+    )
+    forecast[0].pop("precipitation")
+    assert recommended_watering_window(forecast, start)["start"] is None

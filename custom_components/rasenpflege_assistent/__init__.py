@@ -9,6 +9,7 @@ from homeassistant.core import Event, HomeAssistant, ServiceCall
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import (
@@ -128,6 +129,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
         await coordinator.async_request_refresh()
 
     registry = er.async_get(hass)
+    if not coordinator.irrigation.configured and not coordinator.irrigation.active:
+        _remove_unused_irrigation_entities(hass, entry.entry_id)
     for key in (
         "watering_due",
         "fertilizing_due",
@@ -279,3 +282,19 @@ async def async_migrate_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bo
     if entry.version == 8:
         hass.config_entries.async_update_entry(entry, version=9, minor_version=0)
     return True
+
+
+def _remove_unused_irrigation_entities(hass: HomeAssistant, entry_id: str) -> None:
+    """Remove only this entry's optional outputs and obsolete valve repair."""
+    registry = er.async_get(hass)
+    for platform, key in (
+        ("sensor", "irrigation_status"),
+        ("sensor", "irrigation_readiness"),
+        ("sensor", "irrigation_auto_decision"),
+        ("button", "stop_irrigation"),
+        ("switch", "automatic_irrigation"),
+    ):
+        entity_id = registry.async_get_entity_id(platform, DOMAIN, f"{entry_id}_{key}")
+        if entity_id:
+            registry.async_remove(entity_id)
+    ir.async_delete_issue(hass, DOMAIN, f"{entry_id}_irrigation_valve_stuck")

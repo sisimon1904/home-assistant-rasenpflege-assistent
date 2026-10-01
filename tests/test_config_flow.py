@@ -372,7 +372,9 @@ async def test_unchanged_mowing_date_preserves_exact_record_on_history_save(hass
     )
     entry.add_to_hass(hass)
     entry.runtime_data = SimpleNamespace(
-        _state=SimpleNamespace(last_mowing="2026-07-20", last_watering=None)
+        _state=SimpleNamespace(
+            last_mowing="2026-07-20", last_watering=None, last_fertilizing=None
+        )
     )
     flow = LawnCareOptionsFlow()
     flow.hass = hass

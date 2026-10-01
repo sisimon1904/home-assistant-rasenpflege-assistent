@@ -58,6 +58,7 @@ from .const import (
     CONF_SLOPE,
     CONF_SOIL_MOISTURE_ENTITY,
     CONF_SOIL_SENSOR_DRY,
+    CONF_SOIL_SENSOR_MAX_AGE,
     CONF_SOIL_SENSOR_WET,
     CONF_SOIL_TEMPERATURE_ENTITY,
     CONF_SOIL_TYPE,
@@ -85,6 +86,7 @@ from .const import (
     DEFAULT_ROOT_DEPTH,
     DEFAULT_SLOPE,
     DEFAULT_SOIL_SENSOR_DRY,
+    DEFAULT_SOIL_SENSOR_MAX_AGE,
     DEFAULT_SOIL_SENSOR_WET,
     DEFAULT_SOIL_TYPE,
     DEFAULT_SUN_EXPOSURE,
@@ -134,6 +136,7 @@ MODEL_FIELDS = (
     CONF_RAIN_CORRECTION,
     CONF_SOIL_SENSOR_DRY,
     CONF_SOIL_SENSOR_WET,
+    CONF_SOIL_SENSOR_MAX_AGE,
 )
 MAINTENANCE_FIELDS = (
     CONF_LAST_MOWING,
@@ -307,6 +310,17 @@ def _schema(
                 CONF_SOIL_TYPE,
                 default=DEFAULT_SOIL_TYPE,
             ): _select("soil_type", ["sandy", "loamy", "clayey"]),
+            vol.Required(
+                CONF_SOIL_SENSOR_MAX_AGE, default=DEFAULT_SOIL_SENSOR_MAX_AGE
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=30,
+                    max=2880,
+                    step=30,
+                    unit_of_measurement="min",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
             vol.Optional(CONF_LAST_WATERING): selector.DateSelector(),
             vol.Optional(CONF_LAST_FERTILIZING): selector.DateSelector(),
             vol.Optional(CONF_LAST_MOWING): selector.DateSelector(),
@@ -409,7 +423,8 @@ def _schema(
                 )
             ),
             vol.Required(
-                CONF_SOIL_SENSOR_WET, default=DEFAULT_SOIL_SENSOR_WET
+                CONF_SOIL_SENSOR_WET,
+                default=DEFAULT_SOIL_SENSOR_WET,
             ): selector.NumberSelector(
                 selector.NumberSelectorConfig(
                     min=0,
@@ -594,6 +609,7 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
             if state is not None:
                 current[CONF_LAST_MOWING] = state.last_mowing
                 current[CONF_LAST_WATERING] = state.last_watering
+                current[CONF_LAST_FERTILIZING] = state.last_fertilizing
         show_watered = not bool(current.get(CONF_IRRIGATION_VALVE))
         if step_id == "irrigation" and user_input is not None:
             show_watered = not bool(user_input.get(CONF_IRRIGATION_VALVE))
@@ -671,6 +687,13 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
                 self.config_entry, title=updates[CONF_NAME]
             )
         if step_id == "maintenance":
+            if (
+                state is not None
+                and updates.get(CONF_LAST_FERTILIZING) == state.last_fertilizing
+            ):
+                updates.pop(CONF_LAST_FERTILIZING, None)
+            else:
+                updates["last_fertilizing_revision"] = dt_util.now().isoformat()
             if (
                 state is not None
                 and updates.get(CONF_LAST_WATERING) == state.last_watering
