@@ -100,7 +100,8 @@
           "safety": "Bewässerung – Sicherheit",
           "model": "Boden- und Wassermodell",
           "maintenance": "Pflegeverlauf",
-          "mowing": "Mähen"
+          "mowing": "Mähen",
+          "schedule": "Bewässerung – Zeitplan und Etappen"
         }
       },
       "general": {
@@ -133,7 +134,8 @@
           "precipitation_entity": "Sensor für gefallenen Niederschlag (optional)",
           "precipitation_mode": "Art des Niederschlagssensors",
           "soil_moisture_entity": "Physischer Bodenfeuchtesensor (optional)",
-          "soil_temperature_entity": "Bodentemperatursensor (optional)"
+          "soil_temperature_entity": "Bodentemperatursensor (optional)",
+          "leaf_wetness_entity": "Blattnässesensor"
         },
         "data_description": {
           "temperature_entity": "Dieser Sensor hat Vorrang. Wenn er nicht ausgewählt oder nicht verfügbar ist, wird automatisch die aktuelle Temperatur von OpenWeatherMap verwendet.",
@@ -142,7 +144,8 @@
           "precipitation_entity": "Akzeptiert Niederschlagsmenge oder Niederschlagsintensität. Ohne Sensor wird kein Regen in das Bodenmodell eingetragen; Vorhersagen dienen nur der Empfehlung.",
           "precipitation_mode": "Automatisch verwendet Einheit und Zustandsklasse. Bei einem mehrdeutigen Sensorwert in mm kann die Art fest vorgegeben werden.",
           "soil_moisture_entity": "Gleicht den modellierten Bodenspeicher höchstens alle sechs Stunden sanft mit dem gemessenen Prozentwert ab. Ohne Sensor arbeitet das Modell unverändert weiter.",
-          "soil_temperature_entity": "Wenn ausgewählt, hat die Bodentemperatur bei der Bestimmung des Vegetationszustands Vorrang."
+          "soil_temperature_entity": "Wenn ausgewählt, hat die Bodentemperatur bei der Bestimmung des Vegetationszustands Vorrang.",
+          "leaf_wetness_entity": "Optional: Ein bedeutet nass, Aus bedeutet trocken. Ein frischer Trockenwert ersetzt die geschätzte Abtrocknungsfrist nach Regen/Bewässerung. Laufende und pausierte Bewässerung sperrt Mähen weiterhin. Bei fehlenden oder alten Werten gilt die bisherige Schätzung."
         }
       },
       "irrigation": {
@@ -248,6 +251,24 @@
           "mowing_done_state": "Exakter interner Zustand, normalerweise docked. Eine Rückkehr zum Laden kann ebenfalls zählen. Für verlässliche Auftragsabschlüsse den Binäreingang verwenden.",
           "mowing_min_minutes": "Nur aktive Mähzeit zählt; Pausen und Rückfahrt zählen nicht. Kurze Starts, Fehler, unbekannte Zustände und Neustarts bestätigen keinen Einsatz."
         }
+      },
+      "schedule": {
+        "title": "Bewässerung – Zeitplan und Etappen",
+        "description": "Begrenzt automatische Bewässerung und erlaubt optionale Versickerungspausen.",
+        "data": {
+          "irrigation_weekdays": "Erlaubte Wochentage",
+          "irrigation_start_time": "Beginn der erlaubten Bewässerungszeit",
+          "irrigation_end_time": "Ende der erlaubten Bewässerungszeit",
+          "irrigation_cycle_minutes": "Bewässerungsdauer je Etappe (Minuten)",
+          "irrigation_soak_minutes": "Versickerungspause (Minuten)"
+        },
+        "data_description": {
+          "irrigation_weekdays": "Nur die Automatik ist auf diese Tage begrenzt. Bei einem Zeitfenster über Mitternacht zählt der Tag, an dem es beginnt. Eine leere Auswahl sperrt automatische Starts.",
+          "irrigation_start_time": "Lokale Home-Assistant-Zeit. Gleiche Start- und Endzeit erlaubt den ganzen ausgewählten Tag. Manuelle Starts beachten weiterhin alle Sicherheitssperren.",
+          "irrigation_end_time": "Am Ende des erlaubten Fensters wird eine automatische Sitzung beendet. Das Wetterfenster muss beim Start zusätzlich geeignet sein.",
+          "irrigation_cycle_minutes": "0 deaktiviert Etappen. Sonst schließt das eigene Ventil nach dieser aktiven Zeit für eine Versickerungspause. Die maximale Gesamtdauer umfasst alle Pausen.",
+          "irrigation_soak_minutes": "Nach dieser Pause wird nur nach erneuter Sicherheitsprüfung fortgesetzt. Gemeinsamer Zählerverbrauch während der Pause wird nicht angerechnet."
+        }
       }
     },
     "error": {
@@ -315,6 +336,17 @@
         "manual": "Handmäher",
         "robot": "Mähroboter"
       }
+    },
+    "irrigation_weekdays": {
+      "options": {
+        "0": "Montag",
+        "1": "Dienstag",
+        "2": "Mittwoch",
+        "3": "Donnerstag",
+        "4": "Freitag",
+        "5": "Samstag",
+        "6": "Sonntag"
+      }
     }
   },
   "entity": {
@@ -336,7 +368,8 @@
           "not_configured": "Nicht eingerichtet",
           "meter_stale": "Durchflussmesswert zu alt",
           "storage_error": "Speicherfehler",
-          "homeassistant_stopping": "Home Assistant wird beendet"
+          "homeassistant_stopping": "Home Assistant wird beendet",
+          "frost": "Frostsperre"
         }
       },
       "irrigation_status": {
@@ -347,7 +380,7 @@
           "stopping": "Ventil wird geschlossen",
           "completed": "Abgeschlossen",
           "stopped": "Abgebrochen",
-          "paused": "Pausiert – zweites Ventil geöffnet"
+          "paused": "Pausiert"
         },
         "state_attributes": {
           "reason": {
@@ -583,8 +616,17 @@
           "window_expired": "Bewässerungsfenster ist abgelaufen",
           "meter_stale": "Durchflussmesswert zu alt",
           "storage_error": "Speicherfehler",
-          "homeassistant_stopping": "Home Assistant wird beendet"
+          "homeassistant_stopping": "Home Assistant wird beendet",
+          "frost": "Frostsperre",
+          "automation_suspended": "Automatik vorübergehend gesperrt",
+          "outside_schedule": "Außerhalb des Zeitplans"
         }
+      },
+      "water_consumption_week": {
+        "name": "Erfasste Bewässerung diese Woche"
+      },
+      "water_consumption_month": {
+        "name": "Erfasste Bewässerung diesen Monat"
       }
     },
     "binary_sensor": {
@@ -667,6 +709,10 @@
         "amount_mm": {
           "name": "Wassermenge",
           "description": "Tatsächlich ausgebrachte Wassermenge in Millimetern."
+        },
+        "recorded_at": {
+          "name": "Zeitpunkt des Pflegeereignisses",
+          "description": "Optionaler vergangener ISO-Zeitstempel mit Zeitzone, z. B. 2026-10-01T08:00:00+02:00. Vergangene Wassermengen verändern den heutigen Bodenspeicher nicht."
         }
       }
     },
@@ -685,6 +731,10 @@
         "amount_kg": {
           "name": "Produktmenge",
           "description": "Ausgebrachte Produktmenge in Kilogramm."
+        },
+        "recorded_at": {
+          "name": "Zeitpunkt des Pflegeereignisses",
+          "description": "Optionaler vergangener ISO-Zeitstempel mit Zeitzone, z. B. 2026-10-01T08:00:00+02:00. Vergangene Wassermengen verändern den heutigen Bodenspeicher nicht."
         }
       }
     },
@@ -695,6 +745,10 @@
         "config_entry_id": {
           "name": "Rasen",
           "description": "Zu aktualisierende Rasenkonfiguration."
+        },
+        "recorded_at": {
+          "name": "Zeitpunkt des Pflegeereignisses",
+          "description": "Optionaler vergangener ISO-Zeitstempel mit Zeitzone, z. B. 2026-10-01T08:00:00+02:00. Vergangene Wassermengen verändern den heutigen Bodenspeicher nicht."
         }
       }
     },
@@ -705,6 +759,48 @@
         "config_entry_id": {
           "name": "Rasen",
           "description": "Zu aktualisierende Rasenkonfiguration."
+        }
+      }
+    },
+    "start_irrigation": {
+      "name": "Bewässerung starten",
+      "description": "Startet manuell mit optionalem Mengenziel in Litern oder mm. Ein Mengenziel erfordert einen Wasserzähler und hat Vorrang vor der manuellen Mindestdauer. Sicherheitsgrenzen gelten immer.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Rasen-Konfiguration",
+          "description": "Wähle die Konfiguration der betroffenen Rasenfläche."
+        },
+        "target_liters": {
+          "name": "Zielmenge in Litern",
+          "description": "Nur Liter oder mm angeben. 1 mm entspricht 1 Liter je Quadratmeter."
+        },
+        "target_mm": {
+          "name": "Zielmenge in Millimetern",
+          "description": "Wird mit der konfigurierten Rasenfläche in Liter umgerechnet."
+        }
+      }
+    },
+    "stop_irrigation": {
+      "name": "Bewässerung stoppen",
+      "description": "Beendet die eigene laufende oder pausierte Sitzung.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Rasen-Konfiguration",
+          "description": "Wähle die Konfiguration der betroffenen Rasenfläche."
+        }
+      }
+    },
+    "suspend_irrigation": {
+      "name": "Automatik vorübergehend sperren",
+      "description": "Sperrt die Automatik bis zum Zeitstempel. Ohne until wird die Sperre aufgehoben. Eine laufende automatische Sitzung wird beendet; manuelle Starts bleiben möglich.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Rasen-Konfiguration",
+          "description": "Wähle die Konfiguration der betroffenen Rasenfläche."
+        },
+        "until": {
+          "name": "Gesperrt bis",
+          "description": "Zukünftiger ISO-Zeitstempel mit Zeitzone; leer lassen zum Aufheben."
         }
       }
     }

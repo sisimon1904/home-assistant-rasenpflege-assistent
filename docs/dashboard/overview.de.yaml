@@ -1,0 +1,11 @@
+# Entitäten unter Entwicklerwerkzeuge → Zustände ersetzen.
+# Für Bedienaktionen REPLACE_WITH_ENTRY_ID ersetzen.
+type: custom:mushroom-template-card
+entity: sensor.rasen_pflegestatus
+primary: Rasen – nächste Pflege
+secondary: '{{ state_translated(entity) }} · {{ state_translated(''sensor.rasen_nachste_aktion'') }}'
+icon: mdi:grass
+icon_color: '{{ state_attr(entity, ''icon_color'') or ''green'' }}'
+multiline_secondary: true
+tap_action:
+  action: more-info

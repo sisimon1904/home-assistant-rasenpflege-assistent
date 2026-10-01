@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.6.0 · [Changelog](CHANGELOG.md)
+Version 3.7.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -13,17 +13,84 @@ sum, modeled soil moisture, and recommendations for watering, fertilizing, and
 mowing. It can optionally control an existing irrigation valve; it does not
 control the robotic mower.
 
-## New in 3.6.0
+## New in 3.7.0
 
-Running or paused irrigation immediately marks the lawn wet. The central status becomes `lawn_wet` and the next action becomes `wait_for_irrigation`. The existing drying delay remains effective after completion.
+- Manual irrigation with a requested amount in liters or millimeters.
+- Optional watering cycles and soaking pauses; the maximum total duration still includes every pause.
+- Weekday/local-time schedules and temporary automatic irrigation holds.
+- Optional leaf wetness input to refine estimated drying delays.
+- Weekly/monthly consumption, backdated maintenance, irrigation events and expanded diagnostics.
+- Frost protection, stricter weather validation, complete robot-session undo and completed explanations/colors.
 
-Irrigation status attributes show target, delivered and remaining liters, progress percentage and delivered millimeters. Progress is unknown without a volume target; unmetered timer mode does not invent water volumes. Readable German and English explanations accompany existing reason codes.
+## Irrigation targets, schedules and soaking cycles
 
-Mower status includes the last detected robot session's start, end and active minutes. Pauses and return travel are excluded. These values remain estimates: docking does not confirm complete lawn coverage.
+Under **Configure → Irrigation – schedule and cycles**, choose weekdays and allowed local Home Assistant times. Equal start/end times permit the entire selected day. An overnight 22:00–02:00 window belongs to the day on which it starts. An empty weekday selection blocks automation. Existing configurations default to every day and all day.
 
-The **Soil model** settings include a maximum age for physical soil moisture and temperature readings (default: 360 minutes). Older readings are ignored; moisture falls back to the model and soil temperature remains unknown.
+The schedule limits automatic watering. A suitable weather window is also required at startup. A running automatic session stops at the end of the allowed time. Manual starts can occur outside the schedule, while obeying frost, mower, valve, meter and safety interlocks.
 
-The owned irrigation valve closes on orderly Home Assistant shutdown. Storage errors do not prevent closure, and failed water credits are retried. Opening or resuming requires successful session persistence first. The optional second valve remains a read-only input.
+**Watering duration per cycle** defaults to 0 (disabled). A positive duration closes the owned valve after that active period. After the **soaking pause** (default: 15 minutes), all safety inputs are checked again before resuming. Pauses keep the session active and the lawn wet. Shared-meter consumption during pauses is excluded and the baseline resets before resuming. Total-runtime limits include all pauses. Restart closes a persisted paused session rather than resuming it. The second valve remains read-only.
+
+Use **Developer tools → Actions** for these actions:
+
+| Action | Additional fields | Behavior |
+| --- | --- | --- |
+| `rasenpflege_assistent.start_irrigation` | optional `target_liters` **or** `target_mm` | Manual start; volume targets require a water meter. |
+| `rasenpflege_assistent.stop_irrigation` | none | Stop the owned running or paused session. |
+| `rasenpflege_assistent.suspend_irrigation` | optional `until` | Hold automation until the timestamp; omit `until` to clear. |
+
+All actions require `config_entry_id`. The action dialog lets you select the lawn configuration. Its ID can also be obtained with `{{ config_entry_id('sensor.YOUR_LAWN_ENTITY') }}` in **Developer tools → Template**. `until` must be a future ISO timestamp **with timezone**, such as `2026-10-02T08:00:00+02:00`.
+
+An explicit volume target takes precedence over the usual manual minimum duration. Above-limit targets are rejected. Shutdown follows the reported meter value; sensor and valve delays can cause an overshoot. One millimeter equals one liter per square meter of lawn. The existing **Record watering** button retains its behavior without an explicit target.
+
+A temporary hold stops an already-running automatic session, leaves the master automation switch unchanged and does not independently enable it on expiry. Manual watering remains available. Freezing air or soil readings block starts/resumes and stop a running session when that temperature information arrives.
+
+## Leaf wetness, maintenance and consumption
+
+Under **Configure → Input sensors**, an optional leaf wetness binary sensor uses `on` for wet and `off` for dry. A fresh dry reading can release the historical drying estimate after rain/irrigation. Active and paused irrigation still block mowing. Missing, invalid or stale readings restore the previous estimate. Maximum age is configured under **Soil and water model** (default: 360 minutes); the sensor should report regularly.
+
+The `record_mowing`, `record_fertilizing` and `record_watering` actions accept optional `recorded_at`, a past ISO timestamp with timezone. Backdated watering requires explicit `amount_mm`. Historical water enters history and consumption without changing today's soil reservoir: past rain and evaporation are not replayed. Older events cannot replace a newer last-maintenance date. Without a timestamp, the existing immediate recording behavior applies.
+
+Consumption sensors summarize known recorded quantities in the local calendar week (Monday to today) and current calendar month. Attributes distinguish valve measurements, user-recorded quantities, manual estimates, unmetered sessions and measurement gaps. Unknown volumes are never invented; totals with gaps are incomplete. Consumption starts with 3.7.0 and is not reconstructed from older bounded history. The usage ledger retains about one year; maintenance history retains the last 20 events. Undo removes the linked usage entry and is blocked during controlled irrigation.
+
+## New diagnostic attributes and dashboard templates
+
+Diagnostics read existing states without extra regular OpenWeatherMap queries. Live robot minutes update locally every 30 seconds. In-flight observations remain estimates and are discarded on restart.
+
+| Entity / attribute | Unit | Meaning |
+| --- | --- | --- |
+| Irrigation status: `session_target_liters`, `session_liters`, `session_remaining_liters` | L | Target, known delivery and remainder; remaining volume is unknown without a target. |
+| `session_progress_percent`, `session_delivered_mm` | %, mm | Progress and delivered water; unknown in unmetered timer mode. |
+| `session_flow_l_min` | L/min | Flow while the owned valve is active, from a rate or last measured counter increment. |
+| `session_active_seconds`, `session_paused_seconds`, `session_remaining_seconds` | s | Active time, pauses and remaining maximum total duration. |
+| `session_cycle_number`, `session_pause_reason`, `session_resume_after` | count / code / ISO time | Current segment, pause reason and earliest resume. |
+| `last_session` | object | Start/end, liters, mm, actual soil-model credit, durations, source, gap and outcome. |
+| Irrigation readiness: `automatic_conditions`, `automatic_blockers`, `automatic_blockers_text` | object / lists | All start conditions and simultaneous failures, including readable explanations. |
+| `automation_suspended_until` | ISO time | Temporary hold end; past timestamps no longer block. |
+| Soil moisture / data quality: `input_diagnostics` | object | Entity, value, unit, age, allowed age and rejection reason for soil/leaf sensors. |
+| Data quality: `forecast_diagnostics` | object | Weather entity, update time per forecast type, entry counts and missing inputs. |
+| Mower status: `live_robot_session` | object | Active minutes, start and observation state; not proof of complete coverage. |
+| `last_robot_session_started_at`, `last_robot_session_finished_at`, `last_robot_session_active_minutes` | ISO time, min | Last estimated robot session, excluding pauses and return travel. |
+| Recorded irrigation this week / this month | L | Known recorded quantities; source and unknown sessions are attributes. |
+
+Copyable Mushroom templates: [Overview](docs/dashboard/overview.en.yaml), [Irrigation controls](docs/dashboard/irrigation.en.yaml), [Mowing](docs/dashboard/mowing.en.yaml), [Diagnostics and consumption](docs/dashboard/diagnostics.en.yaml). Mushroom cards are required. Entity IDs are **examples** and must be replaced using **Developer tools → States**. Replace `REPLACE_WITH_ENTRY_ID` with the correct lawn's entry ID before using controls. Paste YAML into a manual dashboard card.
+
+## Irrigation events for your automations
+
+`rasenpflege_assistent_irrigation` provides `config_entry_id`, `phase`, `reason`, `source`, `started_at`, `liters` and `measurement_gap`. Phases are `started`, `paused`, `resumed`, `completed` and `stopped`. Completion events follow successful persistence and are not duplicated on storage retries. Events are live notifications and are not replayed after restart. The integration sends no messages itself.
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: rasenpflege_assistent_irrigation
+    event_data:
+      config_entry_id: REPLACE_WITH_ENTRY_ID
+      phase: stopped
+actions:
+  - action: persistent_notification.create
+    data:
+      title: Lawn irrigation stopped
+      message: "Reason: {{ trigger.event.data.reason }}; known volume: {{ trigger.event.data.liters }} L"
+```
 
 ## Installation
 
@@ -138,9 +205,8 @@ resumed. Measured water enters the soil model after confirmed valve closure.
 Unmetered manual sessions record a watering date, but do not invent water
 volume. Following measured rain or watering, mowing is deferred until at
 least the following local day and twelve hours after the wetting event;
-leaf wetness is estimated rather than measured.
-A device-side cutoff remains advisable: Home Assistant cannot send a shutoff
-command when it or the radio link is down. Failed shutoff commands are
+a fresh optional leaf wetness reading can provide a more precise release.
+A device-side cutoff remains advisable: sudden Home Assistant outages or radio loss prevent further commands. Orderly shutdown attempts to close the owned valve before integrations stop. Failed shutoff commands are
 retried, but the physical valve must be checked if it does not respond.
 
 No additional OpenWeatherMap API key is needed. The integration reads existing
@@ -181,7 +247,7 @@ Home Assistant's local time zone.
 
 Without a measured rain source, actual rainfall remains unknown to the model.
 Local showers, shade, and soil differences can cause deviations. Use
-**Configure → Recalibrate modeled soil moisture** when needed. NPK and product
+**Configure → Maintenance history → Initial estimated soil moisture** when needed. NPK and product
 amounts are estimates; follow the manufacturer's dose and a soil analysis.
 The diagnostic **Observed rain today** remains unknown when measurements are
 missing or the day's readings were interrupted. A midyear installation marks

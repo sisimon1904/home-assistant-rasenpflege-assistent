@@ -4,6 +4,8 @@ import importlib.util
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+import pytest
+
 _SPEC = importlib.util.spec_from_file_location(
     "lawn_calculations",
     Path(__file__).parents[1]
@@ -845,3 +847,32 @@ def test_underway_watering_hour_stays_eligible():
     )
     forecast[0].pop("precipitation")
     assert recommended_watering_window(forecast, start)["start"] is None
+
+
+@pytest.mark.parametrize(
+    "wind,temp",
+    [(None, 18), ("nan", 18), ("inf", 18), (-1, 18), (1, -2), (1, None), (1, "nan")],
+)
+def test_invalid_weather_never_becomes_suitable_window(wind, temp):
+    """Unknown wind and freezing or invalid temperatures cannot mean calm/dry."""
+    now = datetime(2026, 10, 1, 6, tzinfo=timezone.utc)
+    forecast = [
+        {
+            "datetime": now.isoformat(),
+            "wind_speed": wind,
+            "temperature": temp,
+            "precipitation": 0,
+        }
+    ]
+    assert recommended_watering_window(forecast, now)["start"] is None
+
+
+def test_mixed_timezone_forecasts_are_normalized_before_sorting():
+    """Naive/aware provider timestamps cannot crash rain and coverage calculations."""
+    now = datetime(2026, 10, 1, 6, tzinfo=timezone.utc)
+    forecast = [
+        {"datetime": "2026-10-01T06:00:00", "precipitation": 1},
+        {"datetime": "2026-10-01T07:00:00+00:00", "precipitation": 2},
+    ]
+    assert sum_hourly_forecast_rain(forecast, 24, now) == 3
+    assert forecast_coverage_hours(forecast, [], now=now) == 2

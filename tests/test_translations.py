@@ -11,6 +11,7 @@ from custom_components.rasenpflege_assistent.config_flow import (
     MODEL_FIELDS,
     MOWING_FIELDS,
     SAFETY_FIELDS,
+    SCHEDULE_FIELDS,
     SENSOR_FIELDS,
 )
 from custom_components.rasenpflege_assistent.const import DOMAIN
@@ -29,6 +30,7 @@ async def test_options_labels_and_descriptions_load(
         "sensors": SENSOR_FIELDS,
         "irrigation": IRRIGATION_FIELDS,
         "safety": SAFETY_FIELDS,
+        "schedule": SCHEDULE_FIELDS,
         "model": MODEL_FIELDS,
         "maintenance": MAINTENANCE_FIELDS,
         "mowing": MOWING_FIELDS,

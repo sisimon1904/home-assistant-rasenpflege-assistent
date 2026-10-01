@@ -298,3 +298,120 @@ async def test_clearing_automatic_fertilizing_date_uses_revision(hass):
     await coordinator._async_setup()
     assert coordinator._state.last_fertilizing is None
     assert coordinator._state.configured_last_fertilizing_revision == "new"
+
+
+async def test_backdated_water_records_usage_without_rewatering_today(hass):
+    """Historical amounts are retained without changing the current reservoir."""
+    coordinator = _coordinator(hass, area=100)
+    coordinator._state = RuntimeState(
+        year=2026,
+        gts=100,
+        sample_date=dt_util.now().date().isoformat(),
+        soil_water_mm=10,
+        last_watering=dt_util.now().date().isoformat(),
+        last_watering_at=dt_util.now().isoformat(),
+    )
+    coordinator._store.async_save = AsyncMock()
+    coordinator.async_request_refresh = AsyncMock()
+    previous_date = coordinator._state.last_watering
+    await coordinator.async_mark_watered(
+        5, recorded_at=dt_util.now() - timedelta(days=3)
+    )
+    assert coordinator._state.soil_water_mm == 10
+    assert coordinator._state.last_watering == previous_date
+    assert coordinator._state.water_usage[0]["liters"] == 500
+    assert coordinator._state.maintenance_history[-1]["details"]["applied_mm"] == 0
+    await coordinator.async_undo_last_action()
+    assert coordinator._state.soil_water_mm == 10
+    assert not coordinator._state.water_usage
+
+
+async def test_leaf_wetness_overrides_drying_estimate_but_never_live_irrigation(hass):
+    """Fresh wet/dry measurements refine drying; missing readings use the estimate."""
+    coordinator = _coordinator(hass, leaf_wetness_entity="binary_sensor.leaf")
+    coordinator._state = RuntimeState(
+        year=2026,
+        gts=100,
+        sample_date=dt_util.now().date().isoformat(),
+        last_watering_at=dt_util.now().isoformat(),
+    )
+    now = dt_util.now()
+
+    def mower():
+        return {"status": "mow_regularly", "next_date": None, "next_at": None}
+
+    hass.states.async_set("binary_sensor.leaf", "on")
+    assert coordinator._pause_mower_when_wet(now, mower())[1] == "leaf_wetness"
+    hass.states.async_set("binary_sensor.leaf", "off")
+    assert coordinator._pause_mower_when_wet(now, mower()) == (None, None)
+    coordinator._state.irrigation_session = {"paused_at": now.isoformat()}
+    assert coordinator._pause_mower_when_wet(now, mower())[1] == "irrigation_paused"
+    coordinator._state.irrigation_session = None
+    hass.states.async_set("binary_sensor.leaf", "unavailable")
+    assert coordinator._pause_mower_when_wet(now, mower())[1] == "watering"
+
+
+async def test_input_diagnostics_distinguish_missing_invalid_and_stale(hass):
+    """Diagnostics explain the sensor fallback instead of collapsing all failures."""
+    coordinator = _coordinator(
+        hass,
+        soil_moisture_entity="sensor.soil",
+        soil_temperature_entity="sensor.soil_temp",
+    )
+    assert (
+        coordinator.input_diagnostics()["soil_moisture_entity"]["reason"] == "missing"
+    )
+    hass.states.async_set("sensor.soil", "nan")
+    assert (
+        coordinator.input_diagnostics()["soil_moisture_entity"]["reason"] == "invalid"
+    )
+    hass.states.async_set("sensor.soil", "50")
+    now = dt_util.now()
+    with patch(
+        "custom_components.rasenpflege_assistent.coordinator.dt_util.now",
+        return_value=now + timedelta(hours=7),
+    ):
+        assert (
+            coordinator.input_diagnostics()["soil_moisture_entity"]["reason"] == "stale"
+        )
+
+
+async def test_37_runtime_fields_survive_reload(hass):
+    """Automation hold, usage and detailed completion survive a coordinator reload."""
+    coordinator = _coordinator(hass)
+    state = RuntimeState(
+        year=2026,
+        gts=100,
+        sample_date=dt_util.now().date().isoformat(),
+        irrigation_suspended_until=(dt_util.now() + timedelta(hours=1)).isoformat(),
+        irrigation_last_session={"liters": 10},
+        water_usage=[{"date": dt_util.now().date().isoformat(), "liters": 10}],
+    )
+    coordinator._store.async_load = AsyncMock(return_value=state.as_dict())
+    await coordinator._async_setup()
+    assert (
+        coordinator._state.irrigation_suspended_until
+        == state.irrigation_suspended_until
+    )
+    assert coordinator._state.irrigation_last_session == {"liters": 10}
+    assert coordinator._state.water_usage == state.water_usage
+
+
+async def test_backdated_water_keeps_newer_date_without_exact_timestamp(hass):
+    """Date-only legacy/zero-volume records must not be replaced by older history."""
+    coordinator = _coordinator(hass, area=100)
+    coordinator._state = RuntimeState(
+        year=2026,
+        gts=100,
+        sample_date=dt_util.now().date().isoformat(),
+        soil_water_mm=10,
+        last_watering=dt_util.as_local(dt_util.now()).date().isoformat(),
+    )
+    coordinator._store.async_save = AsyncMock()
+    coordinator.async_request_refresh = AsyncMock()
+    newer_date = coordinator._state.last_watering
+    await coordinator.async_mark_watered(
+        5, recorded_at=dt_util.now() - timedelta(days=2)
+    )
+    assert coordinator._state.last_watering == newer_date
+    assert coordinator._state.last_watering_at is None

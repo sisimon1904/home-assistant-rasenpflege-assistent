@@ -4,9 +4,15 @@ from __future__ import annotations
 
 import math
 from calendar import monthrange
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from itertools import pairwise
 from typing import Any
+
+
+def _forecast_datetime(value: str) -> datetime:
+    """Normalize naive provider timestamps to UTC before sorting/comparing."""
+    parsed = datetime.fromisoformat(value)
+    return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed
 
 
 def grassland_temperature_increment(day: date, mean_temperature: float) -> float:
@@ -65,7 +71,7 @@ def sum_hourly_forecast_rain(
         if not raw:
             continue
         try:
-            value = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+            value = _forecast_datetime(str(raw).replace("Z", "+00:00"))
         except ValueError:
             continue
         dated.append((value, item))
@@ -100,7 +106,7 @@ def forecast_coverage_hours(
     for item in hourly_forecast:
         try:
             timestamps.append(
-                datetime.fromisoformat(str(item["datetime"]).replace("Z", "+00:00"))
+                _forecast_datetime(str(item["datetime"]).replace("Z", "+00:00"))
             )
         except (KeyError, TypeError, ValueError):
             continue
@@ -161,9 +167,7 @@ def next_forecast_rain_at(
             undated.append(item)
             continue
         try:
-            dated.append(
-                (datetime.fromisoformat(str(raw).replace("Z", "+00:00")), item)
-            )
+            dated.append((_forecast_datetime(str(raw).replace("Z", "+00:00")), item))
         except ValueError:
             continue
     dated.sort(key=lambda value: value[0])
@@ -381,9 +385,7 @@ def recommended_watering_window(
         if not raw_timestamp:
             continue
         try:
-            timestamp = datetime.fromisoformat(
-                str(raw_timestamp).replace("Z", "+00:00")
-            )
+            timestamp = _forecast_datetime(str(raw_timestamp).replace("Z", "+00:00"))
         except ValueError:
             continue
         reference = now
@@ -417,11 +419,11 @@ def recommended_watering_window(
         try:
             temperature = float(item["temperature"])
         except (KeyError, TypeError, ValueError):
-            temperature = None
+            continue
         try:
-            wind = max(0.0, float(item.get("wind_speed", 0)))
-        except (TypeError, ValueError):
-            wind = 0.0
+            wind = float(item["wind_speed"])
+        except (KeyError, TypeError, ValueError):
+            continue
         normalized_unit = wind_speed_unit.lower()
         if "km/h" in normalized_unit or "kmh" in normalized_unit:
             wind /= 3.6
@@ -430,7 +432,9 @@ def recommended_watering_window(
         elif "kn" in normalized_unit:
             wind *= 0.514444
         if (
-            not math.isfinite(wind)
+            wind < 0
+            or temperature <= 0
+            or not math.isfinite(wind)
             or (temperature is not None and not math.isfinite(temperature))
             or wind > 6
         ):
@@ -814,7 +818,7 @@ def watering_recommendation(
     hours_until_rain: float | None = None
     if next_rain and now is not None:
         try:
-            rain_at = datetime.fromisoformat(next_rain.replace("Z", "+00:00"))
+            rain_at = _forecast_datetime(next_rain.replace("Z", "+00:00"))
             reference = now
             if reference.tzinfo is None and rain_at.tzinfo is not None:
                 reference = reference.replace(tzinfo=rain_at.tzinfo)

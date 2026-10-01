@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from copy import deepcopy
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
@@ -45,6 +46,8 @@ from .const import (
 
 if TYPE_CHECKING:
     from .coordinator import LawnCoordinator
+
+from .planning import schedule_allowed
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -146,6 +149,12 @@ class IrrigationController:
             return "homeassistant_stopping"
         if self._storage_error:
             return "storage_error"
+        data = self.coordinator.data
+        if data and any(
+            value is not None and value <= 0
+            for value in (data.current_temperature, data.soil_temperature)
+        ):
+            return "frost"
         if not self._mower_is_docked():
             return "mower_not_docked"
         if self._valve_state() != "off":
@@ -196,6 +205,13 @@ class IrrigationController:
         blocker = self.start_blocker()
         if blocker:
             return blocker
+        suspended = dt_util.parse_datetime(self.state.irrigation_suspended_until or "")
+        if suspended and dt_util.now() < suspended:
+            return "automation_suspended"
+        if not schedule_allowed(
+            self.coordinator.settings, dt_util.as_local(dt_util.now())
+        ):
+            return "outside_schedule"
         data = self.coordinator.data
         if data is None:
             return "waiting_for_weather"
@@ -229,9 +245,114 @@ class IrrigationController:
             return "no_suitable_window"
         if now < start:
             return "waiting_for_window"
-        if now > end:
+        if now >= end:
             return "window_expired"
         return None
+
+    def automatic_conditions(self) -> dict[str, bool]:
+        """Expose every independently checked start condition together."""
+        data = self.coordinator.data
+        now = dt_util.now()
+        meter_id = self.coordinator.settings.get(CONF_IRRIGATION_FLOW)
+        meter = self.hass.states.get(meter_id) if meter_id else None
+        reading = _meter_reading(meter)
+        meter_fresh = reading is not None and (
+            reading[0] == "volume"
+            or now - (getattr(meter, "last_reported", None) or meter.last_updated)
+            <= timedelta(
+                seconds=max(
+                    120,
+                    int(
+                        self.coordinator.settings.get(
+                            CONF_FLOW_START_GRACE, DEFAULT_FLOW_START_GRACE
+                        )
+                    ),
+                )
+            )
+        )
+        suspended = dt_util.parse_datetime(self.state.irrigation_suspended_until or "")
+        start = (
+            dt_util.parse_datetime(data.watering_window_start or "") if data else None
+        )
+        end = dt_util.parse_datetime(data.watering_window_end or "") if data else None
+        today = dt_util.as_local(now).date().isoformat()
+        retry = dt_util.parse_datetime(self.state.irrigation_retry_after or "")
+        return {
+            "configured": self.configured,
+            "automation_enabled": self.state.irrigation_enabled,
+            "no_active_session": not self.active,
+            "homeassistant_running": not self._shutting_down,
+            "storage_available": not self._storage_error,
+            "mower_docked": self._mower_is_docked(),
+            "valve_closed": self._valve_state() == "off",
+            "other_valve_closed": self._other_valve_state() == "off",
+            "meter_available": reading is not None,
+            "meter_fresh": meter_fresh,
+            "weather_available": bool(
+                data
+                and not data.forecast_stale
+                and data.current_temperature is not None
+            ),
+            "rain_available": bool(data and data.observed_rain_today_mm is not None),
+            "confidence_sufficient": bool(
+                data
+                and data.watering_confidence != "low"
+                and data.soil_model_confidence != "low"
+            ),
+            "frost_free": bool(
+                data
+                and data.current_temperature is not None
+                and data.current_temperature > 0
+                and (data.soil_temperature is None or data.soil_temperature > 0)
+            ),
+            "not_suspended": suspended is None or now >= suspended,
+            "schedule_allowed": schedule_allowed(
+                self.coordinator.settings, dt_util.as_local(now)
+            ),
+            "not_watered_today": self.state.irrigation_last_auto_date != today
+            and self.state.last_watering != today,
+            "retry_allowed": retry is None or now >= retry,
+            "watering_due": bool(
+                data
+                and data.watering_status == "water_now"
+                and data.watering_recommended
+                and data.watering_mm > 0
+            ),
+            "forecast_window_active": bool(start and end and start <= now < end),
+        }
+
+    def _emit_event(
+        self, phase: str, *, reason: str | None = None, session: dict | None = None
+    ) -> None:
+        """Provide stable, entry-scoped events for user-owned automations."""
+        session = session or self.state.irrigation_session or {}
+        self.hass.bus.async_fire(
+            f"{DOMAIN}_irrigation",
+            {
+                "config_entry_id": self.coordinator.config_entry.entry_id,
+                "phase": phase,
+                "reason": reason,
+                "source": session.get("source"),
+                "started_at": session.get("started_at"),
+                "liters": session.get("liters")
+                if session.get("meter_kind") != "timer"
+                else None,
+                "measurement_gap": session.get("measurement_gap", False),
+            },
+        )
+
+    async def async_suspend_automation(self, until) -> None:
+        """Persist a temporary automation hold; manual starts remain available."""
+        if until is not None and until <= dt_util.now():
+            raise ServiceValidationError("Suspension must end in the future")
+        previous = self.state.irrigation_suspended_until
+        self.state.irrigation_suspended_until = until.isoformat() if until else None
+        if not await self._async_persist_state():
+            self.state.irrigation_suspended_until = previous
+            raise ServiceValidationError("Suspension could not be saved")
+        if until and self.active and self.state.irrigation_session["source"] == "auto":
+            await self.async_stop("automation_suspended")
+        self._publish_session()
 
     def diagnostic_attributes(self) -> dict[str, Any]:
         """Expose live safety inputs without additional weather requests."""
@@ -243,6 +364,7 @@ class IrrigationController:
             if meter
             else None
         )
+        reading = _meter_reading(meter)
         return {
             "automatic_blocker": self.automatic_blocker(),
             "next_automatic_start": (
@@ -328,6 +450,41 @@ class IrrigationController:
             if session and session["meter_kind"] != "timer"
             else None,
             "storage_error": self._storage_error,
+            "automatic_conditions": self.automatic_conditions(),
+            "automatic_blockers": [
+                key for key, passed in self.automatic_conditions().items() if not passed
+            ],
+            "automation_suspended_until": self.state.irrigation_suspended_until,
+            "session_cycle_number": session.get("cycle_number", 1) if session else None,
+            "session_pause_reason": session.get("pause_reason") if session else None,
+            "session_resume_after": session.get("resume_after") if session else None,
+            "session_flow_l_min": (
+                reading[1]
+                if reading and reading[0] == "rate"
+                else session.get("measured_flow_l_min")
+            )
+            if session
+            and not session.get("paused_at")
+            and not session.get("closing_reason")
+            and self._valve_state() == "on"
+            else None,
+            "session_remaining_seconds": max(
+                0,
+                round(
+                    float(
+                        self.coordinator.settings.get(
+                            CONF_MAX_IRRIGATION_MINUTES, DEFAULT_MAX_IRRIGATION_MINUTES
+                        )
+                    )
+                    * 60
+                    - (
+                        dt_util.now() - dt_util.parse_datetime(session["started_at"])
+                    ).total_seconds()
+                ),
+            )
+            if session
+            else None,
+            "last_session": self.state.irrigation_last_session,
             "last_stop_reason": self.state.irrigation_last_reason,
             "last_session_liters": self.state.irrigation_last_liters,
             "last_active_seconds": self.state.irrigation_last_active_seconds,
@@ -509,6 +666,21 @@ class IrrigationController:
             if self._shutting_down or session is None or not session.get("paused_at"):
                 return
             now = dt_util.now()
+            resume_after = dt_util.parse_datetime(session.get("resume_after") or "")
+            if resume_after and now < resume_after:
+                return
+            if session["source"] == "auto":
+                suspended = dt_util.parse_datetime(
+                    self.state.irrigation_suspended_until or ""
+                )
+                if suspended and now < suspended:
+                    await self._async_stop_locked("automation_suspended")
+                    return
+                if not schedule_allowed(
+                    self.coordinator.settings, dt_util.as_local(now)
+                ):
+                    await self._async_stop_locked("outside_schedule")
+                    return
             if (
                 now - dt_util.parse_datetime(session["started_at"])
             ).total_seconds() >= 60 * float(
@@ -553,6 +725,9 @@ class IrrigationController:
             session["last_flow_at"] = None
             session["flow_seen"] = False
             session["paused_at"] = None
+            session["resume_after"] = None
+            session["pause_reason"] = None
+            session["cycle_number"] = int(session.get("cycle_number", 1)) + 1
             session["segment_started_at"] = now.isoformat()
             session["opening_started_at"] = now.isoformat()
             session["segment_accounted"] = False
@@ -575,6 +750,7 @@ class IrrigationController:
                 await self._async_persist_state()
                 await self._async_close_locked()
                 raise
+        self._emit_event("resumed")
         await self.async_check()
         await self.coordinator.async_request_refresh()
 
@@ -601,8 +777,22 @@ class IrrigationController:
             # The regular check will retry only while all prerequisites hold.
             _LOGGER.debug("Automatic irrigation deferred", exc_info=True)
 
-    async def async_start(self, *, manual: bool) -> None:
+    async def async_start(
+        self,
+        *,
+        manual: bool,
+        target_liters: float | None = None,
+        target_mm: float | None = None,
+    ) -> None:
         """Open a valve only after the mower and meter pass validation."""
+        if target_liters is not None and target_mm is not None:
+            raise ServiceValidationError("Choose either liters or millimeters")
+        if not manual and (target_liters is not None or target_mm is not None):
+            raise ServiceValidationError("Explicit targets are manual only")
+        for value in (target_liters, target_mm):
+            if value is not None and (not math.isfinite(value) or value <= 0):
+                raise ServiceValidationError("Target must be finite and positive")
+        explicit_target = target_liters is not None or target_mm is not None
         if not self.configured:
             raise ServiceValidationError("No irrigation valve is configured")
         async with self._lock:
@@ -610,7 +800,7 @@ class IrrigationController:
                 raise ServiceValidationError("Irrigation is already running")
             if not manual and not self.state.irrigation_enabled:
                 raise ServiceValidationError("Automatic irrigation is disabled")
-            blocker = self.start_blocker()
+            blocker = self.start_blocker() if manual else self.automatic_blocker()
             if blocker:
                 raise ServiceValidationError(blocker)
             meter_id = self.coordinator.settings.get(CONF_IRRIGATION_FLOW)
@@ -625,16 +815,40 @@ class IrrigationController:
             else:
                 kind, baseline = meter
                 # Idle cumulative meters may not publish until water flows.
+            if explicit_target and kind == "timer":
+                raise ServiceValidationError(
+                    "A requested volume requires a working meter"
+                )
             now = dt_util.now()
             area = float(self.coordinator.settings.get(CONF_AREA, DEFAULT_AREA))
             # A voluntary manual start with no recommendation runs only for
             # the minimum time; it must not inherit the default 15 mm dose.
-            target_mm = (
+            recommended_mm = (
                 self.coordinator.data.watering_mm
                 if self.coordinator.data and self.coordinator.data.watering_mm > 0
                 else 0.0
             )
+            requested_liters = (
+                target_liters
+                if target_liters is not None
+                else target_mm * area
+                if target_mm is not None
+                else recommended_mm * area
+            )
+            maximum_liters = float(
+                self.coordinator.settings.get(
+                    CONF_MAX_IRRIGATION_LITERS, DEFAULT_MAX_IRRIGATION_LITERS
+                )
+            )
+            if explicit_target and requested_liters > maximum_liters:
+                raise ServiceValidationError(
+                    "Requested amount exceeds the safety volume limit"
+                )
             session = {
+                "explicit_target": explicit_target,
+                "cycle_number": 1,
+                "pause_reason": None,
+                "resume_after": None,
                 "source": "manual" if manual else "auto",
                 "valve_entity_id": self.coordinator.settings[CONF_IRRIGATION_VALVE],
                 "started_at": now.isoformat(),
@@ -657,7 +871,7 @@ class IrrigationController:
                 "paused_at": None,
                 "liters": 0.0,
                 "target_liters": min(
-                    target_mm * area,
+                    requested_liters,
                     float(
                         self.coordinator.settings.get(
                             CONF_MAX_IRRIGATION_LITERS, DEFAULT_MAX_IRRIGATION_LITERS
@@ -696,6 +910,7 @@ class IrrigationController:
                 await self._async_close_locked()
                 raise
         # Inputs can change while the opening service call is awaiting hardware.
+        self._emit_event("started")
         await self.async_check()
         await self.coordinator.async_request_refresh()
 
@@ -709,9 +924,30 @@ class IrrigationController:
             if session.get("closing_reason"):
                 await self._async_close_locked()
                 return
+            data = self.coordinator.data
+            if data and any(
+                value is not None and value <= 0
+                for value in (data.current_temperature, data.soil_temperature)
+            ):
+                await self._async_stop_locked("frost")
+                return
+            if session["source"] == "auto":
+                suspended = dt_util.parse_datetime(
+                    self.state.irrigation_suspended_until or ""
+                )
+                if suspended and now < suspended:
+                    await self._async_stop_locked("automation_suspended")
+                    return
+                if not schedule_allowed(
+                    self.coordinator.settings, dt_util.as_local(now)
+                ):
+                    await self._async_stop_locked("outside_schedule")
+                    return
             if session.get("paused_at"):
                 if self._valve_state() != "off":
-                    session["closing_reason"] = "other_valve_open"
+                    session["closing_reason"] = (
+                        session.get("pause_reason") or "other_valve_open"
+                    )
                     await self._async_persist_state()
                     await self._async_close_locked()
                     return
@@ -822,7 +1058,7 @@ class IrrigationController:
                         CONF_MIN_IRRIGATION_MINUTES, DEFAULT_MIN_IRRIGATION_MINUTES
                     )
                 )
-                if session["source"] == "manual"
+                if session["source"] == "manual" and not session.get("explicit_target")
                 else 0
             )
             active_seconds = (
@@ -840,10 +1076,23 @@ class IrrigationController:
             ):
                 await self._async_stop_locked("target_reached")
                 return
+            cycle = float(self.coordinator.settings.get("irrigation_cycle_minutes", 0))
+            if (
+                cycle > 0
+                and (
+                    now
+                    - dt_util.parse_datetime(
+                        session.get("segment_started_at") or session["started_at"]
+                    )
+                ).total_seconds()
+                >= cycle * 60
+            ):
+                await self._async_pause_locked("soak_pause")
+                return
             await self._async_persist_state()
             self._publish_session()
 
-    async def _async_pause_locked(self) -> None:
+    async def _async_pause_locked(self, reason: str = "other_valve_open") -> None:
         """Close only our valve, retaining a supervised resumable session."""
         session = self.state.irrigation_session
         now = dt_util.now()
@@ -857,11 +1106,13 @@ class IrrigationController:
         other_id = self.coordinator.settings.get(CONF_OTHER_VALVE)
         other = self.hass.states.get(other_id) if other_id else None
         if session["meter_kind"] != "timer" and self._valve_state() == "on":
-            if (
-                meter
-                and other
-                and (getattr(meter, "last_reported", None) or meter.last_updated)
-                <= other.last_changed
+            if meter and (
+                reason == "soak_pause"
+                or (
+                    other
+                    and (getattr(meter, "last_reported", None) or meter.last_updated)
+                    <= other.last_changed
+                )
             ):
                 fault = self._sample_meter(session, now)
                 if fault:
@@ -878,9 +1129,10 @@ class IrrigationController:
             ).total_seconds(),
         )
         session["segment_accounted"] = True
-        session["closing_reason"] = "other_valve_open"
+        session["pause_reason"] = reason
+        session["closing_reason"] = reason
         self.state.irrigation_last_status = "stopping"
-        self.state.irrigation_last_reason = "other_valve_open"
+        self.state.irrigation_last_reason = reason
         await self._async_persist_state()
         await self._async_close_locked()
 
@@ -941,6 +1193,7 @@ class IrrigationController:
                     )
                 ):
                     return "excessive_flow"
+                session["measured_flow_l_min"] = round(flow_rate, 3)
                 session["liters"] += delta
                 session["meter_baseline"] = value
                 session["last_volume_change_at"] = now.isoformat()
@@ -1050,12 +1303,26 @@ class IrrigationController:
             DOMAIN,
             f"{self.coordinator.config_entry.entry_id}_irrigation_valve_stuck",
         )
-        if session["closing_reason"] == "other_valve_open":
+        if session["closing_reason"] in {"other_valve_open", "soak_pause"}:
+            session["pause_reason"] = session["closing_reason"]
+            session["resume_after"] = (
+                (
+                    dt_util.now()
+                    + timedelta(
+                        minutes=float(
+                            self.coordinator.settings.get("irrigation_soak_minutes", 15)
+                        )
+                    )
+                ).isoformat()
+                if session["pause_reason"] == "soak_pause"
+                else None
+            )
             session["paused_at"] = dt_util.now().isoformat()
             session["closing_reason"] = None
             self.state.irrigation_last_status = "paused"
             await self._async_persist_state()
             self._publish_session()
+            self._emit_event("paused", reason=session["pause_reason"])
             await self.coordinator.async_request_refresh()
         else:
             await self._async_finish_locked(session["closing_reason"])
@@ -1075,6 +1342,8 @@ class IrrigationController:
             "irrigation_recent_until",
             "last_watering",
             "last_watering_at",
+            "irrigation_last_session",
+            "water_usage",
         )
         previous = {key: deepcopy(getattr(self.state, key)) for key in keys}
         previous_history = list(self.state.maintenance_history)
@@ -1119,6 +1388,11 @@ class IrrigationController:
             self._finishing = False
         self._clear_storage_error()
         self._publish_session()
+        self._emit_event(
+            "completed" if reason == "target_reached" else "stopped",
+            reason=reason,
+            session=previous["irrigation_session"],
+        )
         await self.coordinator.async_request_refresh()
 
     async def _async_finish_attempt_locked(self, reason: str) -> None:
@@ -1170,6 +1444,28 @@ class IrrigationController:
         self.state.irrigation_last_measurement_gap = bool(
             session.get("measurement_gap")
         )
+        area = float(self.coordinator.settings.get(CONF_AREA, DEFAULT_AREA))
+        self.state.irrigation_last_session = {
+            "started_at": session["started_at"],
+            "finished_at": now.isoformat(),
+            "liters": liters,
+            "delivered_mm": round(liters / area, 3) if liters is not None else None,
+            "effective_model_mm": 0.0,
+            "active_seconds": self.state.irrigation_last_active_seconds,
+            "paused_seconds": self.state.irrigation_last_paused_seconds,
+            "reason": reason,
+            "source": session["source"],
+            "measurement_gap": bool(session.get("measurement_gap")),
+        }
+        if (liters is not None and liters > 0) or session.get("ever_confirmed_open"):
+            self.state.irrigation_last_session["usage_id"] = (
+                self.coordinator.record_water_usage(
+                    now,
+                    liters,
+                    source="irrigation",
+                    measurement_gap=bool(session.get("measurement_gap")),
+                )
+            )
         guard_minutes = (
             max(
                 10,
@@ -1193,7 +1489,9 @@ class IrrigationController:
         # by async_mark_watered, with no intermediate save losing the credit.
         if liters is not None and liters > 0:
             area = float(self.coordinator.settings.get(CONF_AREA, DEFAULT_AREA))
-            await self.coordinator.async_mark_watered(liters / area, refresh=False)
+            await self.coordinator.async_mark_watered(
+                liters / area, refresh=False, usage=False
+            )
         elif (
             (
                 session["meter_kind"] == "timer"
@@ -1216,7 +1514,9 @@ class IrrigationController:
             or reason == "interrupted_by_restart"
             and (session.get("ever_confirmed_open") or session.get("confirmed_open"))
         ):
-            await self.coordinator.async_mark_watered(0, was_wet=True, refresh=False)
+            await self.coordinator.async_mark_watered(
+                0, was_wet=True, refresh=False, usage=False
+            )
         else:
             if not await self._async_persist_state():
                 raise OSError("Irrigation completion could not be saved")

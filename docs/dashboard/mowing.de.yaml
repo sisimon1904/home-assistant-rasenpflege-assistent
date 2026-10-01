@@ -1,0 +1,19 @@
+# Entitäten unter Entwicklerwerkzeuge → Zustände ersetzen.
+# Für Bedienaktionen REPLACE_WITH_ENTRY_ID ersetzen.
+type: custom:mushroom-template-card
+entity: sensor.rasen_mahroboterstatus
+primary: Mähen
+secondary: '{{ state_translated(entity) }}
+
+  {{ state_attr(entity, ''recommendation_reason_text'') or '''' }}
+
+  Nächster Termin: {% set at = state_attr(entity, ''next_mowing_at'') %}{{ as_local(as_datetime(at)).strftime(''%d.%m. %H:%M'') if at else ''—'' }}
+
+  {% set live = state_attr(entity, ''live_robot_session'') or {} %}Aktive Minuten: {{ live.get(''active_minutes'', 0) }} · {{ live.get(''status'', ''idle'') }}
+
+  Letzte Sitzung, geschätzt: {{ state_attr(entity, ''last_robot_session_active_minutes'') if state_attr(entity, ''last_robot_session_active_minutes'') is not none else ''—'' }} min'
+icon: mdi:robot-mower
+icon_color: '{{ state_attr(entity, ''icon_color'') or ''grey'' }}'
+multiline_secondary: true
+tap_action:
+  action: more-info

@@ -28,13 +28,19 @@ from .const import (
     CONF_FLOW_START_GRACE,
     CONF_INITIAL_GTS,
     CONF_INITIAL_SOIL_MOISTURE,
+    CONF_IRRIGATION_CYCLE_MINUTES,
     CONF_IRRIGATION_EFFICIENCY,
+    CONF_IRRIGATION_END_TIME,
     CONF_IRRIGATION_FLOW,
+    CONF_IRRIGATION_SOAK_MINUTES,
+    CONF_IRRIGATION_START_TIME,
     CONF_IRRIGATION_VALVE,
+    CONF_IRRIGATION_WEEKDAYS,
     CONF_LAST_FERTILIZING,
     CONF_LAST_MOWING,
     CONF_LAST_WATERING,
     CONF_LAWN_TYPE,
+    CONF_LEAF_WETNESS_ENTITY,
     CONF_MAX_FLOW_L_MIN,
     CONF_MAX_IRRIGATION_LITERS,
     CONF_MAX_IRRIGATION_MINUTES,
@@ -103,6 +109,7 @@ GENERAL_FIELDS = (
     CONF_SOIL_TYPE,
 )
 SENSOR_FIELDS = (
+    CONF_LEAF_WETNESS_ENTITY,
     CONF_TEMPERATURE_ENTITY,
     CONF_MOWED_ENTITY,
     CONF_WATERED_ENTITY,
@@ -118,6 +125,13 @@ IRRIGATION_FIELDS = (
     CONF_MOWER_LOCATION,
     CONF_MOWER_SAFE_STATE,
     CONF_ALLOW_UNMETERED_MANUAL,
+)
+SCHEDULE_FIELDS = (
+    CONF_IRRIGATION_WEEKDAYS,
+    CONF_IRRIGATION_START_TIME,
+    CONF_IRRIGATION_END_TIME,
+    CONF_IRRIGATION_CYCLE_MINUTES,
+    CONF_IRRIGATION_SOAK_MINUTES,
 )
 SAFETY_FIELDS = (
     CONF_MIN_IRRIGATION_MINUTES,
@@ -192,6 +206,46 @@ def _schema(
                 }
                 if show_watered
                 else {}
+            ),
+            vol.Optional(CONF_LEAF_WETNESS_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="binary_sensor")
+            ),
+            vol.Required(
+                CONF_IRRIGATION_WEEKDAYS, default=["0", "1", "2", "3", "4", "5", "6"]
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=["0", "1", "2", "3", "4", "5", "6"],
+                    multiple=True,
+                    translation_key="irrigation_weekdays",
+                )
+            ),
+            vol.Required(
+                CONF_IRRIGATION_START_TIME, default="00:00:00"
+            ): selector.TimeSelector(),
+            vol.Required(
+                CONF_IRRIGATION_END_TIME, default="00:00:00"
+            ): selector.TimeSelector(),
+            vol.Required(
+                CONF_IRRIGATION_CYCLE_MINUTES, default=0
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0,
+                    max=60,
+                    step=1,
+                    unit_of_measurement="min",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Required(
+                CONF_IRRIGATION_SOAK_MINUTES, default=15
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=1,
+                    max=120,
+                    step=1,
+                    unit_of_measurement="min",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
             ),
             vol.Optional(CONF_IRRIGATION_VALVE): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="switch")
@@ -590,6 +644,7 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
         choices = ["general", "sensors", "mowing", "irrigation", "model", "maintenance"]
         if self._current_settings().get(CONF_IRRIGATION_VALVE):
             choices.insert(4, "safety")
+            choices.insert(5, "schedule")
         return self.async_show_menu(step_id="init", menu_options=choices)
 
     def _current_settings(self) -> dict[str, Any]:
@@ -732,3 +787,7 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
 
     async def async_step_maintenance(self, user_input=None) -> ConfigFlowResult:
         return await self._section("maintenance", MAINTENANCE_FIELDS, user_input)
+
+    async def async_step_schedule(self, user_input=None) -> ConfigFlowResult:
+        """Configure allowed automation hours and optional soak cycles."""
+        return await self._section("schedule", SCHEDULE_FIELDS, user_input)

@@ -240,6 +240,122 @@ for _code, _texts in _EXTRA.items():
     EXPLANATIONS["en"][_code] = _texts[1]
 
 
+_RELEASE_EXPLANATIONS = {
+    "outside_watering_season": (
+        "Außerhalb der Bewässerungssaison.",
+        "Outside the watering season.",
+    ),
+    "gts_below_200": (
+        "Grünlandtemperatursumme noch unter 200.",
+        "Grassland temperature sum is below 200.",
+    ),
+    "gts_reached_200": (
+        "Grünlandtemperatursumme hat 200 erreicht.",
+        "Grassland temperature sum reached 200.",
+    ),
+    "main_growth_and_interval_reached": (
+        "Hauptwachstum und Düngeabstand erreicht.",
+        "Main growth and fertilizing interval reached.",
+    ),
+    "avoid_nitrogen_during_heat_or_drought": (
+        "Bei Hitze oder Trockenheit keinen Stickstoff düngen.",
+        "Avoid nitrogen during heat or drought.",
+    ),
+    "potassium_supports_winter_hardiness": (
+        "Kalium unterstützt die Winterhärte.",
+        "Potassium supports winter hardiness.",
+    ),
+    "outside_fertilizing_season": (
+        "Außerhalb der Düngesaison.",
+        "Outside the fertilizing season.",
+    ),
+    "last_fertilizing_known": (
+        "Letzte Düngung wird berücksichtigt.",
+        "Last fertilizing is taken into account.",
+    ),
+    "last_fertilizing_unknown": (
+        "Letzte Düngung ist unbekannt.",
+        "Last fertilizing is unknown.",
+    ),
+    "frost": (
+        "Bewässerung wegen Frost gesperrt.",
+        "Irrigation blocked because of frost.",
+    ),
+    "leaf_wetness": (
+        "Blattnässesensor meldet nassen Rasen.",
+        "Leaf wetness sensor reports wet lawn.",
+    ),
+    "soak_pause": (
+        "Versickerungspause zwischen Bewässerungsetappen.",
+        "Soaking pause between irrigation cycles.",
+    ),
+    "automation_suspended": (
+        "Automatische Bewässerung vorübergehend gesperrt.",
+        "Automatic irrigation is temporarily suspended.",
+    ),
+    "outside_schedule": (
+        "Außerhalb der erlaubten Bewässerungszeit.",
+        "Outside the allowed irrigation schedule.",
+    ),
+    "configured": ("Kein Ventil eingerichtet.", "No valve configured."),
+    "automation_enabled": ("Automatik ausgeschaltet.", "Automation disabled."),
+    "no_active_session": (
+        "Eine Sitzung ist bereits aktiv.",
+        "A session is already active.",
+    ),
+    "homeassistant_running": (
+        "Home Assistant wird beendet.",
+        "Home Assistant is stopping.",
+    ),
+    "storage_available": ("Speicher nicht verfügbar.", "Storage is unavailable."),
+    "mower_docked": ("Mäher nicht an Station.", "Mower is not docked."),
+    "valve_closed": ("Eigenes Ventil nicht geschlossen.", "Owned valve is not closed."),
+    "other_valve_closed": (
+        "Zweites Ventil offen oder unbekannt.",
+        "Second valve is open or unknown.",
+    ),
+    "meter_available": (
+        "Wasserzähler fehlt oder ist ungültig.",
+        "Water meter is missing or invalid.",
+    ),
+    "meter_fresh": (
+        "Wasserzähler fehlt oder ist zu alt.",
+        "Water meter is missing or stale.",
+    ),
+    "weather_available": (
+        "Wetterdaten fehlen oder sind zu alt.",
+        "Weather data is missing or stale.",
+    ),
+    "rain_available": ("Gemessener Regen fehlt.", "Observed rain is missing."),
+    "confidence_sufficient": (
+        "Datenvertrauen zu gering.",
+        "Data confidence is too low.",
+    ),
+    "frost_free": (
+        "Frost oder unbekannte Temperatur.",
+        "Frost or unknown temperature.",
+    ),
+    "not_suspended": (
+        "Automatische Bewässerung vorübergehend gesperrt.",
+        "Automatic irrigation is temporarily suspended.",
+    ),
+    "schedule_allowed": (
+        "Außerhalb der erlaubten Bewässerungszeit.",
+        "Outside the allowed irrigation schedule.",
+    ),
+    "not_watered_today": ("Heute bereits bewässert.", "Already watered today."),
+    "retry_allowed": ("Wartezeit vor erneutem Start.", "Waiting before another start."),
+    "watering_due": ("Bewässerung nicht erforderlich.", "Watering is not due."),
+    "forecast_window_active": (
+        "Kein aktuell geeignetes Vorhersagefenster.",
+        "No suitable forecast window is active.",
+    ),
+}
+for _code, _texts in _RELEASE_EXPLANATIONS.items():
+    EXPLANATIONS["de"][_code] = _texts[0]
+    EXPLANATIONS["en"][_code] = _texts[1]
+
+
 def reason_text(code: str | None, language: str) -> str | None:
     """Return a localized explanation, preserving unknown codes for diagnosis."""
     if code is None:

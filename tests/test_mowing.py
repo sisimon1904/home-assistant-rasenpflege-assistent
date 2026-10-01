@@ -303,3 +303,56 @@ async def test_completed_robot_session_persists_active_duration(
     )
     assert state.last_robot_session_active_seconds == 1200
     assert state.as_dict()["last_robot_session_active_seconds"] == 1200
+
+
+async def test_undo_robot_session_restores_previous_session_details(hass):
+    """Undo must keep the mowing date and corresponding robot session consistent."""
+    coordinator = _coordinator(hass)
+    first = NOW - timedelta(days=2)
+    await coordinator.async_mark_mowed(
+        recorded_at=first,
+        source="robot_estimate",
+        active_seconds=600,
+        session_started_at=first - timedelta(minutes=10),
+    )
+    await coordinator.async_mark_mowed(
+        recorded_at=NOW,
+        source="robot_estimate",
+        active_seconds=1200,
+        session_started_at=NOW - timedelta(minutes=20),
+    )
+    await coordinator.async_undo_last_action()
+    assert coordinator._state.last_robot_session_finished_at == first.isoformat()
+    assert coordinator._state.last_robot_session_active_seconds == 600
+
+
+async def test_backdated_mowing_keeps_newer_last_mowing(hass):
+    """A late-entered historical event does not move the next mowing schedule backwards."""
+    coordinator = _coordinator(hass)
+    await coordinator.async_mark_mowed(recorded_at=NOW)
+    await coordinator.async_mark_mowed(recorded_at=NOW - timedelta(days=3))
+    assert coordinator._state.last_mowing_at == NOW.isoformat()
+    assert len(coordinator._state.maintenance_history) == 2
+    await coordinator.async_undo_last_action()
+    assert coordinator._state.last_mowing_at == NOW.isoformat()
+
+
+async def test_live_robot_minutes_update_without_weather_request(hass):
+    """The local observer tick updates active duration without forecast polling."""
+    coordinator = _coordinator(hass)
+    observer = MowingObserver(coordinator)
+    await observer.async_handle_event(_event("docked", "mowing", 0))
+    with patch(
+        "custom_components.rasenpflege_assistent.mowing.dt_util.now",
+        return_value=NOW + timedelta(minutes=5),
+    ):
+        assert observer.diagnostic_attributes()["active_minutes"] == 5
+        observer._tick(NOW + timedelta(minutes=5))
+    coordinator.async_request_refresh.assert_not_awaited()
+    await observer.async_handle_event(_event("mowing", "paused", 10))
+    with patch(
+        "custom_components.rasenpflege_assistent.mowing.dt_util.now",
+        return_value=NOW + timedelta(minutes=20),
+    ):
+        assert observer.diagnostic_attributes()["active_minutes"] == 10
+        assert observer.diagnostic_attributes()["status"] == "waiting_for_dock"

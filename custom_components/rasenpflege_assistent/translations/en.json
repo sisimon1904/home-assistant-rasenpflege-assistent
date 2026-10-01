@@ -100,7 +100,8 @@
           "safety": "Irrigation safety",
           "model": "Soil and water model",
           "maintenance": "Maintenance history",
-          "mowing": "Mowing"
+          "mowing": "Mowing",
+          "schedule": "Irrigation – schedule and cycles"
         }
       },
       "general": {
@@ -133,7 +134,8 @@
           "precipitation_entity": "Observed precipitation sensor (optional)",
           "precipitation_mode": "Precipitation sensor type",
           "soil_moisture_entity": "Physical soil moisture sensor (optional)",
-          "soil_temperature_entity": "Soil temperature sensor (optional)"
+          "soil_temperature_entity": "Soil temperature sensor (optional)",
+          "leaf_wetness_entity": "Leaf wetness sensor"
         },
         "data_description": {
           "temperature_entity": "This sensor has priority. If it is not selected or is unavailable, the current OpenWeatherMap temperature is used automatically.",
@@ -142,7 +144,8 @@
           "precipitation_entity": "Accepts precipitation depth or precipitation intensity. Without a sensor, no rain is added to the soil model; forecasts are used only for recommendations.",
           "precipitation_mode": "Automatic uses the unit and state class. Select a fixed type if your sensor reports an ambiguous value in mm.",
           "soil_moisture_entity": "Gently calibrates the modeled soil reservoir toward the measured percentage every six hours. Without a sensor, the model continues independently.",
-          "soil_temperature_entity": "When selected, soil temperature takes priority for vegetation-state decisions."
+          "soil_temperature_entity": "When selected, soil temperature takes priority for vegetation-state decisions.",
+          "leaf_wetness_entity": "Optional: on means wet, off means dry. A fresh dry reading replaces the estimated drying delay after rain/irrigation. Running and paused irrigation still block mowing. Missing or stale readings use the existing estimate."
         }
       },
       "irrigation": {
@@ -248,6 +251,24 @@
           "mowing_done_state": "Exact internal state, normally docked. Returning for charging may also count. Use the completion binary input for reliable job completion.",
           "mowing_min_minutes": "Only active mowing counts; pauses and return travel do not. Short starts, errors, unknown states and restarts do not confirm a session."
         }
+      },
+      "schedule": {
+        "title": "Irrigation – schedule and cycles",
+        "description": "Limit automatic irrigation and optionally use soaking pauses.",
+        "data": {
+          "irrigation_weekdays": "Allowed weekdays",
+          "irrigation_start_time": "Allowed irrigation start time",
+          "irrigation_end_time": "Allowed irrigation end time",
+          "irrigation_cycle_minutes": "Watering duration per cycle (minutes)",
+          "irrigation_soak_minutes": "Soaking pause (minutes)"
+        },
+        "data_description": {
+          "irrigation_weekdays": "Only automation is limited to these days. Overnight windows belong to the day on which they start. An empty selection blocks automatic starts.",
+          "irrigation_start_time": "Local Home Assistant time. Equal start/end times allow the entire selected day. Manual starts still obey all safety interlocks.",
+          "irrigation_end_time": "An automatic session is stopped at the end of the allowed window. A suitable weather window is also required at startup.",
+          "irrigation_cycle_minutes": "0 disables cycles. Otherwise the owned valve closes after this active time for a soaking pause. Maximum total duration includes all pauses.",
+          "irrigation_soak_minutes": "After this pause irrigation resumes only after renewed safety checks. Shared-meter consumption during the pause is excluded."
+        }
       }
     },
     "error": {
@@ -315,6 +336,17 @@
         "manual": "Manual mower",
         "robot": "Robot mower"
       }
+    },
+    "irrigation_weekdays": {
+      "options": {
+        "0": "Monday",
+        "1": "Tuesday",
+        "2": "Wednesday",
+        "3": "Thursday",
+        "4": "Friday",
+        "5": "Saturday",
+        "6": "Sunday"
+      }
     }
   },
   "entity": {
@@ -336,7 +368,8 @@
           "not_configured": "Not configured",
           "meter_stale": "Flow reading too old",
           "storage_error": "Storage error",
-          "homeassistant_stopping": "Home Assistant is stopping"
+          "homeassistant_stopping": "Home Assistant is stopping",
+          "frost": "Frost interlock"
         }
       },
       "irrigation_status": {
@@ -347,7 +380,7 @@
           "stopping": "Closing valve",
           "completed": "Completed",
           "stopped": "Stopped",
-          "paused": "Paused – other valve open"
+          "paused": "Paused"
         },
         "state_attributes": {
           "reason": {
@@ -583,8 +616,17 @@
           "window_expired": "Watering window has ended",
           "meter_stale": "Flow reading too old",
           "storage_error": "Storage error",
-          "homeassistant_stopping": "Home Assistant is stopping"
+          "homeassistant_stopping": "Home Assistant is stopping",
+          "frost": "Frost interlock",
+          "automation_suspended": "Automation temporarily suspended",
+          "outside_schedule": "Outside allowed schedule"
         }
+      },
+      "water_consumption_week": {
+        "name": "Recorded irrigation this week"
+      },
+      "water_consumption_month": {
+        "name": "Recorded irrigation this month"
       }
     },
     "binary_sensor": {
@@ -667,6 +709,10 @@
         "amount_mm": {
           "name": "Water depth",
           "description": "Actual applied water depth in millimeters."
+        },
+        "recorded_at": {
+          "name": "Maintenance event time",
+          "description": "Optional past ISO timestamp with timezone, e.g. 2026-10-01T08:00:00+02:00. Historical water volumes do not change today's soil reservoir."
         }
       }
     },
@@ -685,6 +731,10 @@
         "amount_kg": {
           "name": "Product amount",
           "description": "Applied product amount in kilograms."
+        },
+        "recorded_at": {
+          "name": "Maintenance event time",
+          "description": "Optional past ISO timestamp with timezone, e.g. 2026-10-01T08:00:00+02:00. Historical water volumes do not change today's soil reservoir."
         }
       }
     },
@@ -695,6 +745,10 @@
         "config_entry_id": {
           "name": "Lawn",
           "description": "Lawn configuration to update."
+        },
+        "recorded_at": {
+          "name": "Maintenance event time",
+          "description": "Optional past ISO timestamp with timezone, e.g. 2026-10-01T08:00:00+02:00. Historical water volumes do not change today's soil reservoir."
         }
       }
     },
@@ -705,6 +759,48 @@
         "config_entry_id": {
           "name": "Lawn",
           "description": "Lawn configuration to update."
+        }
+      }
+    },
+    "start_irrigation": {
+      "name": "Start irrigation",
+      "description": "Start manually with an optional target in liters or mm. A volume target requires a meter and takes precedence over manual minimum duration. Safety limits always apply.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Lawn configuration",
+          "description": "Select the configuration for this lawn."
+        },
+        "target_liters": {
+          "name": "Target liters",
+          "description": "Specify either liters or mm. 1 mm equals 1 liter per square meter."
+        },
+        "target_mm": {
+          "name": "Target millimeters",
+          "description": "Converted to liters using the configured lawn area."
+        }
+      }
+    },
+    "stop_irrigation": {
+      "name": "Stop irrigation",
+      "description": "Stop the owned running or paused session.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Lawn configuration",
+          "description": "Select the configuration for this lawn."
+        }
+      }
+    },
+    "suspend_irrigation": {
+      "name": "Suspend automatic irrigation",
+      "description": "Suspend automation until the timestamp. Omit until to clear the hold. A running automatic session is stopped; manual starts remain available.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Lawn configuration",
+          "description": "Select the configuration for this lawn."
+        },
+        "until": {
+          "name": "Suspended until",
+          "description": "Future ISO timestamp with timezone; omit to clear."
         }
       }
     }

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON
@@ -11,12 +13,14 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_COMPACTION,
     CONF_DEFAULT_WATERING_AMOUNT,
     CONF_INITIAL_SOIL_MOISTURE,
     CONF_IRRIGATION_EFFICIENCY,
+    CONF_LEAF_WETNESS_ENTITY,
     CONF_MOWED_ENTITY,
     CONF_PRECIPITATION_ENTITY,
     CONF_RAIN_CORRECTION,
@@ -58,35 +62,102 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             )
         return entry.runtime_data
 
+    def _recorded_at(call: ServiceCall):
+        value = call.data.get("recorded_at")
+        if not value:
+            return None
+        at = dt_util.parse_datetime(value)
+        if at is None or at.tzinfo is None or at > dt_util.now():
+            raise ServiceValidationError(
+                "Use a past ISO timestamp with timezone for recorded_at"
+            )
+        return at
+
+    async def _start_irrigation(call: ServiceCall) -> None:
+        coordinator = _coordinator(call)
+        await coordinator.irrigation.async_start(
+            manual=True,
+            target_liters=call.data.get("target_liters"),
+            target_mm=call.data.get("target_mm"),
+        )
+
+    async def _stop_irrigation(call: ServiceCall) -> None:
+        await _coordinator(call).irrigation.async_stop()
+
+    async def _suspend_irrigation(call: ServiceCall) -> None:
+        value = call.data.get("until")
+        until = dt_util.parse_datetime(value) if value else None
+        if value and (until is None or until.tzinfo is None):
+            raise ServiceValidationError("Use an ISO timestamp with timezone for until")
+        await _coordinator(call).irrigation.async_suspend_automation(until)
+
     async def _record_watering(call: ServiceCall) -> None:
         coordinator = _coordinator(call)
         if coordinator.irrigation and coordinator.irrigation.active:
             raise ServiceValidationError(
                 "Cannot manually record water during a controlled irrigation session"
             )
-        await coordinator.async_mark_watered(call.data.get("amount_mm"))
+        at = _recorded_at(call)
+        if at is not None and "amount_mm" not in call.data:
+            raise ServiceValidationError(
+                "Historical watering requires an explicit amount_mm"
+            )
+        await coordinator.async_mark_watered(call.data.get("amount_mm"), recorded_at=at)
 
     async def _record_fertilizing(call: ServiceCall) -> None:
         await _coordinator(call).async_mark_fertilized(
-            call.data.get("product_npk"), call.data.get("amount_kg")
+            call.data.get("product_npk"),
+            call.data.get("amount_kg"),
+            recorded_at=_recorded_at(call),
         )
 
     async def _record_mowing(call: ServiceCall) -> None:
-        await _coordinator(call).async_mark_mowed()
+        await _coordinator(call).async_mark_mowed(recorded_at=_recorded_at(call))
 
     async def _undo(call: ServiceCall) -> None:
         await _coordinator(call).async_undo_last_action()
 
+    def _finite(value: float) -> float:
+        if not math.isfinite(value):
+            raise vol.Invalid("A finite quantity is required")
+        return value
+
     entry_schema = {vol.Required("config_entry_id"): cv.string}
+    history_schema = {**entry_schema, vol.Optional("recorded_at"): cv.string}
+    hass.services.async_register(
+        DOMAIN,
+        "start_irrigation",
+        _start_irrigation,
+        schema=vol.Schema(
+            {
+                **entry_schema,
+                vol.Optional("target_liters"): vol.All(
+                    vol.Coerce(float), _finite, vol.Range(min=0.1, max=50000)
+                ),
+                vol.Optional("target_mm"): vol.All(
+                    vol.Coerce(float), _finite, vol.Range(min=0.1, max=50)
+                ),
+            }
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN, "stop_irrigation", _stop_irrigation, schema=vol.Schema(entry_schema)
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "suspend_irrigation",
+        _suspend_irrigation,
+        schema=vol.Schema({**entry_schema, vol.Optional("until"): cv.string}),
+    )
     hass.services.async_register(
         DOMAIN,
         "record_watering",
         _record_watering,
         schema=vol.Schema(
             {
-                **entry_schema,
+                **history_schema,
                 vol.Optional("amount_mm"): vol.All(
-                    vol.Coerce(float), vol.Range(min=0, max=50)
+                    vol.Coerce(float), _finite, vol.Range(min=0, max=50)
                 ),
             }
         ),
@@ -97,16 +168,16 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         _record_fertilizing,
         schema=vol.Schema(
             {
-                **entry_schema,
+                **history_schema,
                 vol.Optional("product_npk"): cv.string,
                 vol.Optional("amount_kg"): vol.All(
-                    vol.Coerce(float), vol.Range(min=0, max=100)
+                    vol.Coerce(float), _finite, vol.Range(min=0, max=100)
                 ),
             }
         ),
     )
     hass.services.async_register(
-        DOMAIN, "record_mowing", _record_mowing, schema=vol.Schema(entry_schema)
+        DOMAIN, "record_mowing", _record_mowing, schema=vol.Schema(history_schema)
     )
     hass.services.async_register(
         DOMAIN, "undo_last_action", _undo, schema=vol.Schema(entry_schema)
@@ -185,7 +256,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
                 )
             )
 
-    MowingObserver(coordinator).subscribe(entry)
+    coordinator.mowing_observer = MowingObserver(coordinator)
+    coordinator.mowing_observer.subscribe(entry)
+    leaf_id = coordinator.settings.get(CONF_LEAF_WETNESS_ENTITY)
+    if leaf_id:
+
+        async def _leaf_changed(_event):
+            await coordinator.async_request_refresh()
+
+        entry.async_on_unload(
+            async_track_state_change_event(hass, [leaf_id], _leaf_changed)
+        )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

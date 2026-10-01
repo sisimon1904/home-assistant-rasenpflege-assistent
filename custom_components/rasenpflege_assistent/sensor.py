@@ -106,6 +106,7 @@ from .coordinator import LawnCoordinator
 from .entity import LawnEntity
 from .explanations import reason_text
 from .models import LawnData
+from .planning import consumption_summary
 
 PARALLEL_UPDATES = 0
 
@@ -135,6 +136,7 @@ MOWER_COLORS = {
     "pause_drought": "red",
     "pause_wet": "light-blue",
     "wait_to_mow": "grey",
+    "pause_frost": "blue",
 }
 
 STATUS_COLORS = {
@@ -148,6 +150,7 @@ STATUS_COLORS = {
     "fertilizing_recommended": "orange",
     "mowing_recommended": "green",
     "good_condition": "green",
+    "lawn_wet": "light-blue",
 }
 
 WATERING_COLORS = {
@@ -426,6 +429,7 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             "meter_stale",
             "storage_error",
             "homeassistant_stopping",
+            "frost",
             "not_configured",
         ],
         value_fn=lambda data: "not_configured",
@@ -449,6 +453,7 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             "meter_stale",
             "storage_error",
             "homeassistant_stopping",
+            "frost",
             "meter_required",
             "waiting_for_weather",
             "rain_unavailable",
@@ -460,6 +465,8 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             "no_suitable_window",
             "waiting_for_window",
             "window_expired",
+            "automation_suspended",
+            "outside_schedule",
         ],
         value_fn=lambda data: "not_configured",
     ),
@@ -666,6 +673,19 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
 )
 
 
+SENSORS += tuple(
+    LawnSensorDescription(
+        key=key,
+        translation_key=key,
+        icon="mdi:water",
+        native_unit_of_measurement=UnitOfVolume.LITERS,
+        suggested_display_precision=1,
+        value_fn=lambda data: None,
+    )
+    for key in ("water_consumption_week", "water_consumption_month")
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -703,6 +723,15 @@ class LawnSensor(LawnEntity, SensorEntity):
     @property
     def native_value(self) -> Any:
         """Return the sensor value."""
+        if self.entity_description.key in {
+            "water_consumption_week",
+            "water_consumption_month",
+        }:
+            period = "week" if self.entity_description.key.endswith("week") else "month"
+            return consumption_summary(
+                self.coordinator._state.water_usage,
+                dt_util.as_local(dt_util.now()).date(),
+            )[f"{period}_liters"]
         if self.entity_description.key == "irrigation_readiness":
             return self.coordinator.irrigation.readiness()
         if self.entity_description.key == "irrigation_auto_decision":
@@ -714,13 +743,58 @@ class LawnSensor(LawnEntity, SensorEntity):
         """Return useful recommendation details."""
         key = self.entity_description.key
         language = self.coordinator.hass.config.language
+        if key in {"water_consumption_week", "water_consumption_month"}:
+            return consumption_summary(
+                self.coordinator._state.water_usage,
+                dt_util.as_local(dt_util.now()).date(),
+            )
         if key in {"irrigation_readiness", "irrigation_auto_decision"}:
             details = self.coordinator.irrigation.diagnostic_attributes()
             details["reason_text"] = reason_text(self.native_value, language)
+            details["automatic_blockers_text"] = [
+                reason_text(code, language) for code in details["automatic_blockers"]
+            ]
             return details
         details = self.entity_description.attributes_fn(self.coordinator.data)
+        if key == "soil_moisture":
+            details["input_diagnostics"] = self.coordinator.input_diagnostics()
+        if key == "data_quality":
+            details["input_diagnostics"] = self.coordinator.input_diagnostics()
+            details["forecast_diagnostics"] = {
+                "provider": self.coordinator.settings.get("weather_entity"),
+                "daily_updated_at": self.coordinator._forecast_updated_at.isoformat()
+                if self.coordinator._forecast_updated_at
+                else None,
+                "hourly_updated_at": self.coordinator._hourly_forecast_updated_at.isoformat()
+                if self.coordinator._hourly_forecast_updated_at
+                else None,
+                "daily_entries": len(self.coordinator._forecast_cache),
+                "hourly_entries": len(self.coordinator._hourly_forecast_cache),
+                "daily_missing_rain_values": sum(
+                    item.get("precipitation", item.get("native_precipitation")) is None
+                    for item in self.coordinator._forecast_cache
+                ),
+                "hourly_missing_wind_values": sum(
+                    item.get("wind_speed") is None
+                    for item in self.coordinator._hourly_forecast_cache
+                ),
+            }
+        if key == "mower_status":
+            observer = getattr(self.coordinator, "mowing_observer", None)
+            details["live_robot_session"] = (
+                observer.diagnostic_attributes()
+                if observer
+                else {"status": "not_configured", "active_minutes": 0}
+            )
         if key == "irrigation_status":
             details.update(self.coordinator.irrigation.diagnostic_attributes())
+            if details.get("last_session"):
+                details["last_session"] = {
+                    **details["last_session"],
+                    "reason_text": reason_text(
+                        details["last_session"]["reason"], language
+                    ),
+                }
         for code_key in (
             "reason",
             "recommendation_reason",

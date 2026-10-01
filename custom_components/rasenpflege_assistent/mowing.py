@@ -5,8 +5,12 @@ from __future__ import annotations
 import asyncio
 from datetime import timedelta
 
-from homeassistant.core import Event
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.core import Event, callback
+from homeassistant.helpers.event import (
+    async_track_state_change_event,
+    async_track_time_interval,
+)
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_MOWED_ENTITY,
@@ -37,6 +41,32 @@ class MowingObserver:
         self.active_since = None
         self.active_seconds = 0.0
 
+    def diagnostic_attributes(self) -> dict:
+        """Expose an in-flight estimate; it never claims completed lawn coverage."""
+        active_seconds = self.active_seconds + (
+            max(0, (dt_util.now() - self.active_since).total_seconds())
+            if self.active_since
+            else 0
+        )
+        return {
+            "status": "mowing"
+            if self.active_since
+            else "waiting_for_dock"
+            if self.started_at
+            else "idle",
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "active_minutes": round(active_seconds / 60, 1),
+            "estimated": True,
+        }
+
+    @callback
+    def _tick(self, _now) -> None:
+        """Update live minutes locally without requesting weather."""
+        if self.started_at:
+            if _now - self.started_at > timedelta(hours=12):
+                self._reset()
+            self.coordinator.async_update_listeners()
+
     def subscribe(self, entry) -> None:
         settings = self.coordinator.settings
         entity_id = settings.get(CONF_MOWING_ENTITY)
@@ -45,6 +75,11 @@ class MowingObserver:
             and entity_id
             and not settings.get(CONF_MOWED_ENTITY)
         ):
+            entry.async_on_unload(
+                async_track_time_interval(
+                    self.coordinator.hass, self._tick, timedelta(seconds=30)
+                )
+            )
             entry.async_on_unload(
                 async_track_state_change_event(
                     self.coordinator.hass, [entity_id], self.async_handle_event
@@ -58,6 +93,7 @@ class MowingObserver:
             new = event.data.get("new_state")
             if new is None or old is None:
                 self._reset()
+                self.coordinator.async_update_listeners()
                 return
             if old.state == new.state:
                 return
@@ -73,6 +109,7 @@ class MowingObserver:
             state = new.state.casefold()
             if state in {"unknown", "unavailable", "error", "idle"}:
                 self._reset()
+                self.coordinator.async_update_listeners()
                 return
             if state == active:
                 if self.started_at is None:
@@ -100,3 +137,4 @@ class MowingObserver:
                     )
             elif state not in {"paused", "returning"}:
                 self._reset()
+            self.coordinator.async_update_listeners()

@@ -1,0 +1,42 @@
+# Entitäten unter Entwicklerwerkzeuge → Zustände ersetzen.
+# Für Bedienaktionen REPLACE_WITH_ENTRY_ID ersetzen.
+type: vertical-stack
+cards:
+- type: custom:mushroom-template-card
+  entity: sensor.rasen_bewasserungsstatus
+  primary: Bewässerung
+  secondary: '{{ state_translated(entity) }}
+
+    Geliefert: {{ state_attr(entity, ''session_liters'') if state_attr(entity, ''session_liters'') is not none else ''—'' }} L / {{ state_attr(entity, ''session_target_liters'') if state_attr(entity, ''session_target_liters'') is not none else ''—'' }} L
+
+    Verbleibend: {{ state_attr(entity, ''session_remaining_liters'') if state_attr(entity, ''session_remaining_liters'') is not none else ''—'' }} L · {{ state_attr(entity, ''session_progress_percent'') if state_attr(entity, ''session_progress_percent'') is not none else ''—'' }} %
+
+    {{ state_attr(entity, ''reason_text'') or '''' }}'
+  icon: mdi:sprinkler-variant
+  icon_color: '{{ ''blue'' if states(entity) == ''running'' else ''orange'' if states(entity) in [''paused'',''stopping''] else ''grey'' }}'
+  multiline_secondary: true
+  tap_action:
+    action: more-info
+- type: horizontal-stack
+  cards:
+  - type: custom:mushroom-template-card
+    primary: 3 mm starten
+    icon: mdi:water-plus
+    tap_action:
+      action: perform-action
+      perform_action: rasenpflege_assistent.start_irrigation
+      data:
+        config_entry_id: REPLACE_WITH_ENTRY_ID
+        target_mm: 3
+  - type: custom:mushroom-template-card
+    primary: Stoppen
+    icon: mdi:water-off
+    tap_action:
+      action: perform-action
+      perform_action: rasenpflege_assistent.stop_irrigation
+      data:
+        config_entry_id: REPLACE_WITH_ENTRY_ID
+- type: custom:mushroom-entity-card
+  entity: switch.rasen_automatische_bewasserung
+  tap_action:
+    action: toggle

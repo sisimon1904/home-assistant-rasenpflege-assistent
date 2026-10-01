@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.6.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.7.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -13,17 +13,84 @@ Grünlandtemperatursumme, modellierte Bodenfeuchte sowie Empfehlungen zum
 Bewässern, Düngen und Mähen. Optional kann sie ein vorhandenes Bewässerungsventil
 steuern; sie schaltet den Mähroboter nicht.
 
-## Neu in 3.6.0
+## Neu in 3.7.0
 
-Während einer laufenden oder pausierten Bewässerung gilt der Rasen sofort als nass. Der zentrale Status zeigt `lawn_wet`, die nächste Aktion `wait_for_irrigation`. Nach dem Abschluss bleibt die bestehende Abtrocknungsfrist wirksam.
+- Manuelle Bewässerung mit Wunschmenge in Litern oder Millimetern.
+- Optionale Etappen mit Versickerungspausen; die maximale Gesamtdauer bleibt einschließlich aller Pausen verbindlich.
+- Wochenplan mit erlaubten lokalen Uhrzeiten und zeitlich begrenzte Automatiksperre.
+- Optionaler Blattnässesensor für eine gemessene Mähfreigabe statt einer reinen Abtrocknungsschätzung.
+- Wochen- und Monatsverbräuche, nachträgliche Pflegeeinträge, Bewässerungsereignisse und ausführlichere Diagnosen.
+- Frostsperre, strengere Wetterprüfung, vollständiges Rückgängigmachen von Robotersitzungen und vervollständigte Erklärungen/Farben.
 
-Die Attribute des Bewässerungsstatus zeigen Zielmenge, gelieferte und verbleibende Liter, Fortschritt in Prozent sowie gelieferte Millimeter. Ohne Mengenziel gibt es keinen Prozentwert; im ungemessenen Timerbetrieb werden keine Wassermengen erfunden. Lesbare Gründe ergänzen die bisherigen Codes auf Deutsch und Englisch.
+## Bewässerung: Menge, Zeitplan und Etappen
 
-Der Mäherstatus enthält Start, Ende und aktive Minuten der letzten erkannten Robotersitzung. Pausen und Rückfahrt zählen nicht zur aktiven Dauer. Die Werte bleiben Schätzungen: Die Rückkehr zur Station bestätigt keine vollständige Flächenabdeckung.
+Unter **Konfigurieren → Bewässerung – Zeitplan und Etappen** legst du erlaubte Wochentage und Uhrzeiten fest. Die Zeiten beziehen sich auf die lokale Home-Assistant-Zeitzone. Gleiche Start- und Endzeit erlaubt den ganzen ausgewählten Tag. Ein Fenster von 22:00 bis 02:00 gehört zum Wochentag seines Beginns. Eine leere Tagesauswahl sperrt die Automatik. Bestehende Konfigurationen behalten zunächst alle Tage und den ganzen Tag.
 
-Unter **Bodenmodell** lässt sich das maximale Alter physischer Bodenfeuchte- und Bodentemperaturwerte einstellen (Standard: 360 Minuten). Ältere Werte werden nicht verwendet; für die Feuchte dient das Modell als Ersatz, die Bodentemperatur bleibt unbekannt.
+Der Zeitplan gilt für automatische Bewässerung. Zum Start muss zusätzlich das Wetterfenster geeignet sein. Am Ende der erlaubten Zeit wird eine laufende automatische Sitzung beendet. Manuelle Starts bleiben außerhalb des Zeitplans möglich, beachten aber Frost, Mäherstandort, Ventile, Zähler und alle Sicherheitsgrenzen.
 
-Beim regulären Herunterfahren von Home Assistant wird das eigene Bewässerungsventil geschlossen. Speicherfehler verhindern das Schließen nicht; fehlgeschlagene Wasserbuchungen werden erneut versucht. Öffnen und Wiederaufnahme benötigen zuvor einen erfolgreich gespeicherten Sitzungszustand. Das optionale zweite Ventil bleibt ein reiner Leseeingang.
+**Bewässerungsdauer je Etappe** ist standardmäßig 0: keine Etappen. Ein größerer Wert schließt das eigene Ventil nach der angegebenen aktiven Dauer. Nach der **Versickerungspause** (Standard: 15 Minuten) wird nur bei sicheren Eingängen fortgesetzt. Während der Pause bleibt die Sitzung aktiv, der Rasen nass und die Wasserbuchung offen. Verbrauch am gemeinsamen Zähler wird während der Pause ausgeschlossen. Vor Wiederaufnahme wird dessen Basis neu gesetzt. Nach einem Neustart wird auch eine pausierte Sitzung beendet. Das zweite Ventil bleibt ausschließlich ein Leseeingang.
+
+Unter **Entwicklerwerkzeuge → Aktionen** stehen folgende Aktionen zur Verfügung:
+
+| Aktion | Zusätzliche Felder | Verhalten |
+| --- | --- | --- |
+| `rasenpflege_assistent.start_irrigation` | `target_liters` **oder** `target_mm`, optional | Startet manuell; ein Mengenziel erfordert einen Wasserzähler. |
+| `rasenpflege_assistent.stop_irrigation` | keine | Beendet die eigene laufende oder pausierte Sitzung. |
+| `rasenpflege_assistent.suspend_irrigation` | `until`, optional | Sperrt nur die Automatik bis zum Zeitpunkt; ohne `until` wird die Sperre aufgehoben. |
+
+Alle Aktionen benötigen `config_entry_id`; im Aktionsdialog lässt sich die Rasen-Konfiguration auswählen. Die Kennung ist außerdem über `{{ config_entry_id('sensor.DEINE_RASEN_ENTITAET') }}` unter **Entwicklerwerkzeuge → Template** ermittelbar. `until` ist ein zukünftiger ISO-Zeitstempel **mit Zeitzone**, beispielsweise `2026-10-02T08:00:00+02:00`.
+
+Ein explizites Mengenziel hat Vorrang vor der sonst geltenden manuellen Mindestdauer. Ziele oberhalb der Sicherheitsgrenze werden abgelehnt. Die Abschaltung erfolgt nach dem gemeldeten Zählerwert; Mess- und Schaltverzögerungen können zu einer Überschreitung führen. 1 mm entspricht 1 Liter je Quadratmeter Rasenfläche. Ohne explizites Ziel bleibt die bisherige Schaltfläche **Bewässerung erfassen** erhalten.
+
+Eine temporäre Sperre beendet eine bereits laufende automatische Sitzung. Sie verändert den Automatikschalter nicht und aktiviert ihn nach Ablauf nicht eigenständig. Manuelle Starts bleiben möglich. Bei Frost werden Start und Wiederaufnahme gesperrt und eine laufende Sitzung beendet, sobald die Temperaturinformation vorliegt.
+
+## Blattnässe, Verlauf und Verbrauch
+
+Unter **Konfigurieren → Eingangssensoren** ist ein optionaler Blattnässe-Binärsensor wählbar: `on` bedeutet nass, `off` trocken. Ein frischer Trockenwert kann die historische Abtrocknungsschätzung nach Regen/Bewässerung aufheben. Laufende oder pausierte Bewässerung sperrt das Mähen weiterhin. Fehlende, ungültige oder alte Blattnässewerte verwenden wieder die bisherige Schätzung. Das maximale Alter wird unter **Boden- und Wassermodell** eingestellt (Standard: 360 Minuten); der Sensor sollte seine Werte regelmäßig melden.
+
+Die Aktionen `record_mowing`, `record_fertilizing` und `record_watering` akzeptieren optional `recorded_at` als vergangenen ISO-Zeitstempel mit Zeitzone. Nachgetragene Bewässerungen benötigen eine ausdrückliche `amount_mm`. Sie erscheinen im Verlauf und Verbrauch, verändern aber den heutigen Bodenspeicher nicht: Eine nachträgliche vollständige Wasserbilanz mit damaligem Regen und Verdunstung wird nicht simuliert. Ein älteres Pflegeereignis verdrängt kein bereits neueres Datum. Ohne Zeitstempel gilt die bisherige Buchung für jetzt.
+
+Die Verbrauchssensoren summieren bekannte erfasste Mengen für die lokale Kalenderwoche (Montag bis heute) beziehungsweise den laufenden Kalendermonat. Attribute trennen Ventilmessungen, manuell gemeldete Mengen, manuelle Schätzungen, ungemessene Sitzungen und Sitzungen mit Messlücken. Unbekannte Mengen werden nicht erfunden; Summen mit Messlücken sind unvollständig. Neue Verbrauchswerte beginnen mit 3.7.0, frühere Sitzungen werden nicht rückwirkend aus der begrenzten Historie geschätzt. Das Verbrauchsjournal wird für etwa ein Jahr gehalten, der Pflegeverlauf weiterhin für die letzten 20 Einträge. Rückgängigmachen entfernt den zugehörigen Verbrauchseintrag; während kontrollierter Bewässerung ist es gesperrt.
+
+## Neue Diagnoseattribute und Dashboard-Vorlagen
+
+Die Diagnose liest vorhandene Zustände; sie löst keine zusätzlichen regelmäßigen OpenWeatherMap-Abfragen aus. Eine laufende Robotersitzung aktualisiert ihre Minuten lokal alle 30 Sekunden. Sie bleibt eine Schätzung und wird nach Neustart verworfen.
+
+| Entität / Attribut | Einheit | Bedeutung |
+| --- | --- | --- |
+| Bewässerungsstatus: `session_target_liters`, `session_liters`, `session_remaining_liters` | L | Ziel, bekannte Lieferung und Restmenge; ohne Mengenziel ist die Restmenge unbekannt. |
+| `session_progress_percent`, `session_delivered_mm` | %, mm | Fortschritt und ausgebrachte Wassermenge; im ungemessenen Timerbetrieb unbekannt. |
+| `session_flow_l_min` | L/min | Durchfluss während der aktiven Ventilöffnung; aus Rate oder zuletzt gemessenem Zählerzuwachs. |
+| `session_active_seconds`, `session_paused_seconds`, `session_remaining_seconds` | s | Aktive Zeit, Pausen und verbleibende maximale Gesamtdauer. |
+| `session_cycle_number`, `session_pause_reason`, `session_resume_after` | Anzahl / Code / ISO-Zeit | Aktueller Abschnitt, Pausengrund und früheste Wiederaufnahme. |
+| `last_session` | Objekt | Beginn, Ende, Liter, mm, tatsächlich wirksamer Modellbeitrag, Dauer, Quelle, Messlücke und Abschlussgrund. |
+| Bewässerungsdiagnose: `automatic_conditions`, `automatic_blockers`, `automatic_blockers_text` | Objekt / Listen | Alle Startbedingungen und gleichzeitig blockierende Gründe, zusätzlich lesbar. |
+| `automation_suspended_until` | ISO-Zeit | Ende einer temporären Automatiksperre; nach Ablauf blockiert sie nicht mehr. |
+| Bodenfeuchte / Datenqualität: `input_diagnostics` | Objekt | Entität, Wert, Einheit, Alter, Höchstalter und Verwerfungsgrund für Boden- und Blattnässesensoren. |
+| Datenqualität: `forecast_diagnostics` | Objekt | Wetterentität, Aktualisierung je Prognosetyp, Anzahl Einträge und fehlende Eingangswerte. |
+| Mähroboterstatus: `live_robot_session` | Objekt | Aktive Minuten, Beginn und Beobachtungsstatus; kein Nachweis vollständiger Flächenabdeckung. |
+| `last_robot_session_started_at`, `last_robot_session_finished_at`, `last_robot_session_active_minutes` | ISO-Zeit, min | Letzte geschätzte Robotersitzung ohne Pausen und Rückfahrt. |
+| Erfasste Bewässerung diese Woche / diesen Monat | L | Bekannte erfasste Mengen; Herkunft und unbekannte Sitzungen stehen in den Attributen. |
+
+Kopierbare Mushroom-Vorlagen: [Rasenübersicht](docs/dashboard/overview.de.yaml), [Bewässerung mit Bedienung](docs/dashboard/irrigation.de.yaml), [Mähen](docs/dashboard/mowing.de.yaml) und [Diagnose mit Verbrauch](docs/dashboard/diagnostics.de.yaml). Sie benötigen die Mushroom-Karten. Entitätsnamen sind **Beispiele** und müssen anhand **Entwicklerwerkzeuge → Zustände** ersetzt werden. Vor Bedienaktionen muss außerdem `REPLACE_WITH_ENTRY_ID` durch die Kennung der richtigen Rasenfläche ersetzt werden. YAML in eine manuelle Dashboard-Karte kopieren.
+
+## Bewässerungsereignisse für eigene Automationen
+
+Das Ereignis `rasenpflege_assistent_irrigation` liefert `config_entry_id`, `phase`, `reason`, `source`, `started_at`, `liters` und `measurement_gap`. Phasen sind `started`, `paused`, `resumed`, `completed` oder `stopped`. Abschlussereignisse werden erst nach erfolgreicher Speicherung gesendet und bei einem Speicher-Wiederholungsversuch nicht doppelt erzeugt. Ereignisse sind aktuelle Meldungen und werden nach Neustart nicht wiederholt. Die Integration versendet selbst keine Nachrichten.
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: rasenpflege_assistent_irrigation
+    event_data:
+      config_entry_id: REPLACE_WITH_ENTRY_ID
+      phase: stopped
+actions:
+  - action: persistent_notification.create
+    data:
+      title: Rasenbewässerung beendet
+      message: "Grund: {{ trigger.event.data.reason }}; bekannte Menge: {{ trigger.event.data.liters }} L"
+```
 
 ## Installation
 
@@ -50,8 +117,8 @@ Gefälle, Verdichtung, Bewässerungseffizienz und Regenkorrektur einstellen.
 Bei der Ersteinrichtung genügen Name, OpenWeatherMap-Wetterentität und die
 grundlegenden Rasendaten. **Konfigurieren** öffnet danach die getrennten Seiten
 **Grundeinstellungen**, **Eingangssensoren**, **Mähen**, **Bewässerung**, **Boden- und
-Wassermodell** und **Pflegeverlauf**. Mit Ventil erscheint zusätzlich
-**Bewässerung – Sicherheit**. Die Dauer und andere Zahlen werden in Feldern
+Wassermodell** und **Pflegeverlauf**. Mit Ventil erscheinen zusätzlich
+**Bewässerung – Sicherheit** und **Bewässerung – Zeitplan und Etappen**. Die Dauer und andere Zahlen werden in Feldern
 mit sichtbaren Werten eingegeben. Während eine Bewässerung läuft oder pausiert,
 muss sie vor einer Konfigurationsänderung gestoppt werden.
 Optional sind Außentemperatur, Niederschlag, Bodentemperatur und Bodenfeuchte
@@ -151,10 +218,9 @@ gutgeschrieben. Der manuelle Zeitbetrieb ohne Messgerät protokolliert den
 Bewässerungstag, ohne dem Bodenmodell eine ungemessene Menge gutzuschreiben.
 Nach ausreichend gemessenem Regen oder einer Bewässerung empfiehlt der
 Mähroboterstatus frühestens am nächsten lokalen Tag und nach zwölf Stunden
-wieder das Mähen; ein Blattnässesensor ist dafür nicht vorhanden.
+wieder das Mähen, sofern kein frischer Blattnässesensor eine genauere Freigabe liefert.
 Ein geräteseitiger Abschalttimer ist zusätzlich sinnvoll,
-weil Home Assistant bei eigener Abschaltung oder Funkverlust keine Schaltbefehle
-senden kann. Bei einem fehlgeschlagenen Schließversuch versucht die Integration
+weil Home Assistant bei einem plötzlichen Ausfall oder Funkverlust keine Schaltbefehle mehr senden kann. Beim regulären Herunterfahren versucht die Integration das eigene Ventil vorher zu schließen. Bei einem fehlgeschlagenen Schließversuch versucht die Integration
 es erneut; prüfe in diesem Fall das Ventil vor Ort.
 
 Die Integration benötigt keinen weiteren OpenWeatherMap-API-Schlüssel. Sie
@@ -170,7 +236,7 @@ liest vorhandene Entitäten und ruft Vorhersagen über Home Assistants
 | Mähroboterstatus | Start, regelmäßiges Mähen, Pause bei nassem Rasen oder Winterabschaltung; frühester Mähzeitpunkt als Attribut |
 | Modellierte Bodenfeuchte | Geschätzte Feuchte, Wasservorrat und Wasserbilanz |
 | Bewässerungsempfehlung | Zeitpunkt, mm, Liter, Regenprognose und empfohlenes Zeitfenster |
-| Bewässerungsstatus (mit Ventil) | Laufend, wegen zweitem Ventil pausiert, abgeschlossen oder gestoppt; letzte gemessene Menge und Stoppgrund |
+| Bewässerungsstatus (mit Ventil) | Laufend, wegen zweitem Ventil oder Versickerung pausiert, abgeschlossen oder gestoppt; letzte gemessene Menge und Stoppgrund |
 | Bewässerung – Diagnose (mit Ventil) | Startfreigabe, beide Ventilzustände, Mäherstandort, Zählerwert und Alter, Laufzeit, Zielmenge und Abschaltgrund |
 | Automatische Bewässerung – Entscheidung (mit Ventil) | Übersetzter Grund, weshalb ein automatischer Start möglich oder blockiert ist; gegebenenfalls Zeitpunkt des nächsten Versuchs |
 | Grünlandtemperatursumme | Vegetationsindikator mit Angaben zur Vollständigkeit |
@@ -195,8 +261,7 @@ Tageswerte beziehen sich auf die lokale Zeitzone von Home Assistant.
 
 Ohne Messwert für gefallenen Regen bleibt dessen Anteil in der Bodenbilanz
 unbekannt. Lokale Schauer, Bodenunterschiede und Schatten können vom Modell
-abweichen. Bei Bedarf die Bodenfeuchte über **Konfigurieren → Modellierte
-Bodenfeuchte neu kalibrieren** korrigieren. NPK und Produktmenge sind
+abweichen. Bei Bedarf den Ausgangswert unter **Konfigurieren → Pflegeverlauf → Geschätzte Bodenfeuchte beim Start** korrigieren. NPK und Produktmenge sind
 Richtwerte; Herstellerdosierung und Bodenanalyse haben Vorrang.
 Der Diagnosewert **Beobachteter Regen heute** bleibt unbekannt, wenn kein
 Messwert vorliegt oder die Messreihe für den Tag unterbrochen war. Nach einer

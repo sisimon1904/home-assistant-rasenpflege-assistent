@@ -1,5 +1,32 @@
 # Changelog
 
+## 3.7.0
+
+### Added
+
+- Manual irrigation targets in liters or millimeters, with metering and safety-limit validation.
+- Optional watering cycles with supervised soaking pauses and shared-meter baseline resets.
+- Local weekday/time schedules, including overnight windows, and persisted temporary automation holds.
+- Optional leaf wetness input with freshness checks and safe fallback to estimated drying delays.
+- Weekly and monthly consumption sensors with separate recorded, estimated, unmetered and incomplete-session details.
+- Backdated mowing, fertilizing and watering actions; historical water does not alter today's soil balance.
+- Entry-scoped irrigation start, pause, resume and completion events for user automations.
+- Simultaneous irrigation condition diagnostics, detailed last-session accounting, sensor rejection reasons and forecast-source diagnostics.
+- Live estimated robot session minutes updated locally without weather polling.
+- German and English Mushroom dashboard templates, service descriptions and attribute tables.
+
+### Fixed
+
+- Block irrigation starts/resumes and stop active watering on freezing air or soil readings.
+- Reject unknown, negative or non-finite wind and invalid/freezing temperatures in watering windows.
+- Normalize naive and timezone-aware forecast timestamps before comparison and sorting.
+- Restore all robot session details when undoing a mowing event.
+- Complete watering/fertilizer explanations and add wet-lawn/frost status colors.
+- Keep shared-meter flow out of paused-session diagnostics and consumption accounting.
+- Persist usage and final water credit together; retries do not duplicate ledger entries or completion events.
+- Keep older maintenance records from replacing newer dates and remove linked usage on undo.
+- Correct README menu paths and distinguish orderly shutdown from sudden outages.
+
 ## 3.6.0
 
 ### Added

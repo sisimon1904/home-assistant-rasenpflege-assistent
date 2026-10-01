@@ -183,9 +183,16 @@ class RuntimeState:
     irrigation_last_paused_seconds: float | None = None
     irrigation_last_measurement_gap: bool = False
 
+    irrigation_suspended_until: str | None = None
+    irrigation_last_session: dict[str, Any] | None = None
+    water_usage: list[dict[str, Any]] = field(default_factory=list)
+
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable representation."""
         return {
+            "irrigation_suspended_until": self.irrigation_suspended_until,
+            "irrigation_last_session": self.irrigation_last_session,
+            "water_usage": self.water_usage,
             "year": self.year,
             "gts": self.gts,
             "sample_date": self.sample_date,

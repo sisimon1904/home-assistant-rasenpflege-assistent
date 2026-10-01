@@ -956,3 +956,261 @@ async def test_failed_resume_stays_closed_until_storage_recovers(
     assert hass.states.get("switch.garden_water").state == "on"
     assert controller.state.irrigation_session["paused_at"] is None
     assert hass.states.get("switch.other").state == "off"
+
+
+@pytest.mark.parametrize("field", ["current_temperature", "soil_temperature"])
+async def test_frost_blocks_start_and_stops_running_session(
+    hass, enable_custom_integrations, field
+):
+    """Fresh freezing air or soil temperatures protect starts and active watering."""
+    controller = _controller(hass)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    controller.coordinator.async_set_updated_data(LawnData(current_temperature=10))
+    await controller.async_start(manual=True, target_liters=100)
+    setattr(controller.coordinator.data, field, -1)
+    await controller.async_check()
+    assert not controller.active
+    assert controller.state.irrigation_last_reason == "frost"
+    with pytest.raises(ServiceValidationError, match="frost"):
+        await controller.async_start(manual=True)
+
+
+async def test_requested_liters_stop_before_manual_minimum(
+    hass, enable_custom_integrations
+):
+    """An explicit volume is honored without an unrelated five-minute minimum."""
+    controller = _controller(hass, max_flow_l_min=300)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await controller.async_start(manual=True, target_liters=10)
+    hass.states.async_set(
+        "sensor.garden_water_liters", "10", {"unit_of_measurement": "L"}
+    )
+    await controller.async_check()
+    assert not controller.active
+    assert controller.state.irrigation_last_reason == "target_reached"
+    assert controller.state.irrigation_last_session["delivered_mm"] == 0.1
+    assert controller.state.irrigation_last_session[
+        "effective_model_mm"
+    ] == pytest.approx(0.085)
+    assert len(controller.state.water_usage) == 1
+    await controller.coordinator.async_undo_last_action()
+    assert not controller.state.water_usage
+
+
+async def test_requested_mm_convert_to_liters(hass, enable_custom_integrations):
+    """One millimeter corresponds to one liter per configured square meter."""
+    controller = _controller(hass)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await controller.async_start(manual=True, target_mm=3)
+    assert controller.state.irrigation_session["target_liters"] == 300
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        {"target_liters": 1, "target_mm": 1},
+        {"target_mm": -1},
+        {"target_liters": float("nan")},
+        {"target_liters": 3000},
+    ],
+)
+async def test_invalid_volume_never_opens(hass, enable_custom_integrations, arguments):
+    """Ambiguous, nonfinite and above-limit requests are rejected before opening."""
+    controller = _controller(hass)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    with pytest.raises(ServiceValidationError):
+        await controller.async_start(manual=True, **arguments)
+    assert hass.states.get("switch.garden_water").state == "off"
+
+
+async def test_volume_target_requires_a_meter(hass, enable_custom_integrations):
+    """Timer mode cannot pretend to deliver a selected water volume."""
+    controller = _controller(hass, irrigation_flow=None, allow_unmetered_manual=True)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    with pytest.raises(ServiceValidationError):
+        await controller.async_start(manual=True, target_liters=10)
+    assert not controller.active
+
+
+async def test_soak_cycle_excludes_shared_consumption_and_requires_safe_resume(
+    hass, enable_custom_integrations
+):
+    """Soaking closes only the owned valve and resets the shared baseline on resume."""
+    controller = _controller(
+        hass,
+        irrigation_cycle_minutes=1,
+        irrigation_soak_minutes=2,
+        max_flow_l_min=300,
+        other_valve="switch.other",
+    )
+    hass.states.async_set("switch.other", "off")
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await controller.async_start(manual=True, target_liters=100)
+    session = controller.state.irrigation_session
+    session["segment_started_at"] = (dt_util.now() - timedelta(minutes=1)).isoformat()
+    hass.states.async_set(
+        "sensor.garden_water_liters", "5", {"unit_of_measurement": "L"}
+    )
+    await controller.async_check()
+    assert session["paused_at"]
+    assert session["pause_reason"] == "soak_pause"
+    assert hass.states.get("switch.garden_water").state == "off"
+    await controller._async_maybe_resume()
+    assert session["paused_at"]
+    hass.states.async_set(
+        "sensor.garden_water_liters", "25", {"unit_of_measurement": "L"}
+    )
+    session["resume_after"] = (dt_util.now() - timedelta(seconds=1)).isoformat()
+    hass.states.async_set("switch.other", "on")
+    await controller._async_maybe_resume()
+    assert hass.states.get("switch.other").state == "on"
+    assert hass.states.get("switch.garden_water").state == "off"
+    hass.states.async_set("switch.other", "off")
+    await controller._async_maybe_resume()
+    assert not session["paused_at"]
+    assert session["cycle_number"] == 2
+    hass.states.async_set(
+        "sensor.garden_water_liters", "30", {"unit_of_measurement": "L"}
+    )
+    await controller.async_check()
+    assert session["liters"] == 10
+    await controller.async_stop()
+    assert len(controller.state.water_usage) == 1
+    assert controller.state.water_usage[0]["liters"] == 10
+
+
+async def test_soak_pause_does_not_extend_maximum_duration(
+    hass, enable_custom_integrations
+):
+    """Even an intentionally long soaking pause cannot bypass total-runtime safety."""
+    controller = _controller(hass, max_irrigation_minutes=5)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await controller.async_start(manual=True, target_liters=100)
+    await controller._async_pause_locked("soak_pause")
+    controller.state.irrigation_session["started_at"] = (
+        dt_util.now() - timedelta(minutes=6)
+    ).isoformat()
+    await controller.async_check()
+    assert not controller.active
+    assert controller.state.irrigation_last_reason == "maximum_runtime"
+
+
+def _automatic_ready(controller):
+    now = dt_util.now()
+    controller.state.irrigation_enabled = True
+    controller.coordinator.async_set_updated_data(
+        LawnData(
+            current_temperature=20,
+            watering_status="water_now",
+            watering_recommended=True,
+            watering_mm=5,
+            watering_confidence="high",
+            soil_model_confidence="high",
+            observed_rain_today_mm=0,
+            watering_window_start=(now - timedelta(minutes=1)).isoformat(),
+            watering_window_end=(now + timedelta(minutes=30)).isoformat(),
+        )
+    )
+
+
+async def test_automation_hold_expires_without_enabling_master_switch(
+    hass, enable_custom_integrations
+):
+    """A temporary hold is independent of the persistent automation switch."""
+    controller = _controller(hass)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    _automatic_ready(controller)
+    until = dt_util.now() + timedelta(minutes=5)
+    await controller.async_suspend_automation(until)
+    assert controller.automatic_blocker() == "automation_suspended"
+    assert not controller.automatic_conditions()["not_suspended"]
+    with patch(
+        "custom_components.rasenpflege_assistent.irrigation.dt_util.now",
+        return_value=until + timedelta(seconds=1),
+    ):
+        assert controller.automatic_blocker() is None
+    await controller.async_suspend_automation(None)
+    assert controller.state.irrigation_suspended_until is None
+    assert controller.state.irrigation_enabled
+    controller.state.irrigation_enabled = False
+    assert controller.automatic_blocker() == "automation_disabled"
+
+
+async def test_suspend_stops_auto_but_allows_manual(hass, enable_custom_integrations):
+    """A hold stops automatic watering while preserving voluntary safe watering."""
+    controller = _controller(hass)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    _automatic_ready(controller)
+    await controller.async_start(manual=False)
+    await controller.async_suspend_automation(dt_util.now() + timedelta(hours=1))
+    assert not controller.active
+    assert controller.state.irrigation_last_reason == "automation_suspended"
+    await controller.async_start(manual=True, target_liters=100)
+    assert controller.active
+
+
+async def test_automation_schedule_enforced_at_start_and_while_running(
+    hass, enable_custom_integrations
+):
+    """Scheduled eligibility is rechecked under the session lock and while open."""
+    controller = _controller(hass)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    _automatic_ready(controller)
+    with patch(
+        "custom_components.rasenpflege_assistent.irrigation.schedule_allowed",
+        return_value=False,
+    ):
+        assert controller.automatic_blocker() == "outside_schedule"
+        with pytest.raises(ServiceValidationError):
+            await controller.async_start(manual=False)
+    await controller.async_start(manual=False)
+    with patch(
+        "custom_components.rasenpflege_assistent.irrigation.schedule_allowed",
+        return_value=False,
+    ):
+        await controller.async_check()
+    assert not controller.active
+    assert controller.state.irrigation_last_reason == "outside_schedule"
+
+
+async def test_diagnostics_show_independent_failures_together(
+    hass, enable_custom_integrations
+):
+    """A bad mower, meter and weather are shown simultaneously."""
+    controller = _controller(hass)
+    hass.states.async_set("lawn_mower.garden", "mowing")
+    hass.states.async_set("sensor.garden_water_liters", "unavailable")
+    diagnostics = controller.diagnostic_attributes()
+    assert {"mower_docked", "meter_available", "weather_available"} <= set(
+        diagnostics["automatic_blockers"]
+    )
+
+
+async def test_irrigation_events_are_entry_scoped_and_not_replayed(
+    hass, enable_custom_integrations
+):
+    """A committed completion emits one event; storage retries do not duplicate it."""
+    controller = _controller(hass, max_flow_l_min=300)
+    events = []
+    hass.bus.async_listen(f"{DOMAIN}_irrigation", events.append)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await controller.async_start(manual=True, target_liters=100)
+    hass.states.async_set(
+        "sensor.garden_water_liters", "10", {"unit_of_measurement": "L"}
+    )
+    await controller.async_check()
+    controller.coordinator._store.async_save.side_effect = OSError("disk full")
+    await controller.async_stop()
+    await hass.async_block_till_done()
+    assert [event.data["phase"] for event in events] == ["started"]
+    assert not controller.state.water_usage
+    controller.coordinator._store.async_save.side_effect = None
+    await controller.async_check()
+    await controller.async_check()
+    await hass.async_block_till_done()
+    assert [event.data["phase"] for event in events] == ["started", "stopped"]
+    assert (
+        events[-1].data["config_entry_id"]
+        == controller.coordinator.config_entry.entry_id
+    )
+    assert len(controller.state.water_usage) == 1
