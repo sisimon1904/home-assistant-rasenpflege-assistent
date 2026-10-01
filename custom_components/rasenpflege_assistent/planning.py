@@ -17,6 +17,12 @@ def schedule_allowed(settings: dict, now: datetime) -> bool:
         end = time.fromisoformat(settings.get("irrigation_end_time", "00:00:00"))
     except (TypeError, ValueError):
         return False
+    if (
+        start.tzinfo is not None
+        or end.tzinfo is not None
+        or not isinstance(weekdays, (list, tuple, set))
+    ):
+        return False
     current = now.time().replace(tzinfo=None)
     owner_day = now.date()
     if start == end:
@@ -100,7 +106,7 @@ def allocate_volume(start: datetime, end: datetime, liters: float) -> list[dict]
     """
     first = start.astimezone(timezone.utc)
     last = end.astimezone(timezone.utc)
-    if liters <= 0:
+    if not math.isfinite(liters) or liters <= 0:
         return []
     duration = (last - first).total_seconds()
     if duration <= 0:

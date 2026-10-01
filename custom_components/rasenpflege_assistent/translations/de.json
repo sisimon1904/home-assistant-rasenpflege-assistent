@@ -82,6 +82,13 @@
           "irrigation_daily_limit_liters": "0 deaktiviert das Limit. Alle erfassten Bewässerungen zählen. Unvollständige Mengen sperren die Automatik im betroffenen Zeitraum. Manuelle Starts bleiben möglich.",
           "irrigation_weekly_limit_liters": "Kalenderwoche ab Montag, 0 deaktiviert. Alle erfassten Bewässerungen zählen; unvollständige Mengen sperren die Automatik."
         }
+      },
+      "reconfigure": {
+        "title": "Wetterquelle ändern",
+        "description": "Eine vorhandene OpenWeatherMap-Wetterentität auswählen. Rasenmodell und Verlauf bleiben erhalten.",
+        "data": {
+          "weather_entity": "OpenWeatherMap-Wetter"
+        }
       }
     },
     "error": {
@@ -95,10 +102,12 @@
       "valve_already_used": "Ein anderer Rasen steuert dieses Ventil bereits.",
       "other_valve_same": "Das zweite Ventil darf nicht das Rasenventil sein.",
       "maximum_below_minimum": "Der Maximalwert muss über dem Minimalwert liegen.",
-      "safe_state_required": "Gib den Zustand für einen an der Station befindlichen Roboter ein."
+      "safe_state_required": "Gib den Zustand für einen an der Station befindlichen Roboter ein.",
+      "invalid_number": "Eine endliche Zahl angeben."
     },
     "abort": {
-      "already_configured": "Ein Rasen mit diesem Namen ist bereits eingerichtet."
+      "already_configured": "Ein Rasen mit diesem Namen ist bereits eingerichtet.",
+      "reconfigure_successful": "Wetterquelle aktualisiert."
     }
   },
   "options": {
@@ -308,7 +317,8 @@
       "maximum_below_minimum": "Der Maximalwert muss über dem Minimalwert liegen.",
       "safe_state_required": "Gib den Zustand für einen an der Station befindlichen Roboter ein.",
       "irrigation_active": "Bewässerung vor dem Ändern der Einstellungen stoppen.",
-      "mowing_states_invalid": "Gib unterschiedliche gültige Zustände für Mähen und Station an; Fehler- und Pausenzustände sind nicht zulässig."
+      "mowing_states_invalid": "Gib unterschiedliche gültige Zustände für Mähen und Station an; Fehler- und Pausenzustände sind nicht zulässig.",
+      "invalid_number": "Eine endliche Zahl angeben."
     }
   },
   "selector": {
@@ -860,6 +870,530 @@
           "description": "Dauer in Stunden, alternativ zu until. Ohne beide Felder wird die Pause aufgehoben."
         }
       }
+    }
+  },
+  "exceptions": {
+    "action_1": {
+      "message": "Der Raseneintrag wurde nicht gefunden oder ist nicht geladen: {entry_id}"
+    },
+    "action_2": {
+      "message": "Für recorded_at einen vergangenen ISO-Zeitpunkt mit Zeitzone verwenden."
+    },
+    "action_3": {
+      "message": "Entweder until oder duration_hours angeben."
+    },
+    "action_4": {
+      "message": "Für until einen ISO-Zeitpunkt mit Zeitzone verwenden."
+    },
+    "action_5": {
+      "message": "Während einer gesteuerten Bewässerung kann Wasser nicht manuell erfasst werden."
+    },
+    "action_6": {
+      "message": "Für vergangene Bewässerung muss amount_mm ausdrücklich angegeben werden."
+    },
+    "action_7": {
+      "message": "Vor dem Rückgängigmachen die gesteuerte Bewässerung stoppen."
+    },
+    "action_8": {
+      "message": "Die Automatikpause muss in der Zukunft enden."
+    },
+    "action_9": {
+      "message": "Die Automatikpause konnte nicht gespeichert werden."
+    },
+    "action_10": {
+      "message": "Das zweite Ventil darf ausschließlich gelesen werden."
+    },
+    "action_11": {
+      "message": "Entweder Liter oder Millimeter angeben."
+    },
+    "action_12": {
+      "message": "Eine ausdrücklich angegebene Wassermenge ist nur beim manuellen Start erlaubt."
+    },
+    "action_13": {
+      "message": "Die Zielmenge muss eine endliche positive Zahl sein."
+    },
+    "action_14": {
+      "message": "Es ist kein Bewässerungsventil konfiguriert."
+    },
+    "action_15": {
+      "message": "Eine Bewässerung läuft bereits."
+    },
+    "action_16": {
+      "message": "Die automatische Bewässerung ist deaktiviert."
+    },
+    "action_17": {
+      "message": "Ein funktionierender Wasserzähler ist erforderlich."
+    },
+    "action_18": {
+      "message": "Für eine angegebene Wassermenge ist ein funktionierender Wasserzähler erforderlich."
+    },
+    "action_19": {
+      "message": "Die angegebene Menge überschreitet die Sicherheitsgrenze."
+    },
+    "action_20": {
+      "message": "Der Bewässerungszustand konnte nicht gespeichert werden."
+    },
+    "action_21": {
+      "message": "Die Automatikeinstellung konnte nicht gespeichert werden."
+    },
+    "irrigation_blocked_ready": {
+      "message": "Start möglich"
+    },
+    "irrigation_blocked_running": {
+      "message": "Bewässerung läuft"
+    },
+    "irrigation_blocked_paused": {
+      "message": "Pausiert – zweites Ventil geöffnet"
+    },
+    "irrigation_blocked_stopping": {
+      "message": "Ventil wird geschlossen"
+    },
+    "irrigation_blocked_completed": {
+      "message": "Abgeschlossen"
+    },
+    "irrigation_blocked_stopped": {
+      "message": "Abgebrochen"
+    },
+    "irrigation_blocked_mower_not_docked": {
+      "message": "Mäher ist nicht an der Station"
+    },
+    "irrigation_blocked_valve_not_closed": {
+      "message": "Rasenventil ist nicht geschlossen"
+    },
+    "irrigation_blocked_other_valve_open": {
+      "message": "Zweites Ventil ist offen"
+    },
+    "irrigation_blocked_other_valve_unavailable": {
+      "message": "Status des zweiten Ventils fehlt"
+    },
+    "irrigation_blocked_meter_unavailable": {
+      "message": "Wasserzähler nicht verfügbar"
+    },
+    "irrigation_blocked_not_configured": {
+      "message": "Kein Ventil eingerichtet"
+    },
+    "irrigation_blocked_meter_stale": {
+      "message": "Durchflussmesswert zu alt"
+    },
+    "irrigation_blocked_storage_error": {
+      "message": "Speicherfehler"
+    },
+    "irrigation_blocked_homeassistant_stopping": {
+      "message": "Home Assistant wird beendet"
+    },
+    "irrigation_blocked_idle": {
+      "message": "Bereit"
+    },
+    "irrigation_blocked_collecting_data": {
+      "message": "Daten werden gesammelt"
+    },
+    "irrigation_blocked_winter_dormancy": {
+      "message": "Winterruhe (Wachstumsstopp)"
+    },
+    "irrigation_blocked_early_spring": {
+      "message": "Vorfrühling"
+    },
+    "irrigation_blocked_drought_stress": {
+      "message": "Trockenstress"
+    },
+    "irrigation_blocked_water_now": {
+      "message": "Jetzt wässern"
+    },
+    "irrigation_blocked_water_soon": {
+      "message": "Bald wässern"
+    },
+    "irrigation_blocked_wait_for_rain": {
+      "message": "Auf Regen warten"
+    },
+    "irrigation_blocked_fertilizing_recommended": {
+      "message": "Düngung empfohlen"
+    },
+    "irrigation_blocked_mowing_recommended": {
+      "message": "Mähen empfohlen"
+    },
+    "irrigation_blocked_good_condition": {
+      "message": "Guter Zustand"
+    },
+    "irrigation_blocked_lawn_wet": {
+      "message": "Rasen nass"
+    },
+    "irrigation_blocked_water_lawn": {
+      "message": "Rasen wässern"
+    },
+    "irrigation_blocked_prepare_watering": {
+      "message": "Bewässerung vorbereiten"
+    },
+    "irrigation_blocked_fertilize_lawn": {
+      "message": "Rasen düngen"
+    },
+    "irrigation_blocked_start_mower": {
+      "message": "Mähroboter wieder starten"
+    },
+    "irrigation_blocked_mow_lawn": {
+      "message": "Rasen mähen"
+    },
+    "irrigation_blocked_winterize_mower": {
+      "message": "Mähroboter für den Winter abschalten"
+    },
+    "irrigation_blocked_no_action": {
+      "message": "Keine Aktion erforderlich"
+    },
+    "irrigation_blocked_wait_to_mow": {
+      "message": "Bis zum nächsten Mähzeitpunkt warten"
+    },
+    "irrigation_blocked_wait_for_irrigation": {
+      "message": "Bewässerung abwarten"
+    },
+    "irrigation_blocked_first_awakening": {
+      "message": "Erstes Erwachen (zaghaftes Wachstum)"
+    },
+    "irrigation_blocked_sustained_growth_start": {
+      "message": "Nachhaltiger Vegetationsbeginn (volles Wachstum)"
+    },
+    "irrigation_blocked_active_growth": {
+      "message": "Aktives Wachstum"
+    },
+    "irrigation_blocked_slow_growth": {
+      "message": "Langsames Wachstum"
+    },
+    "irrigation_blocked_autumn_slowdown": {
+      "message": "Wachstum verlangsamt (Herbst)"
+    },
+    "irrigation_blocked_heat_drought_stress": {
+      "message": "Hitze- oder Trockenstress (Wachstum pausiert)"
+    },
+    "irrigation_blocked_winter_off": {
+      "message": "Für den Winter abschalten"
+    },
+    "irrigation_blocked_keep_off": {
+      "message": "Noch ausgeschaltet lassen"
+    },
+    "irrigation_blocked_mow_regularly": {
+      "message": "Regelmäßig mähen – Rasen wächst"
+    },
+    "irrigation_blocked_mow_less": {
+      "message": "Seltener mähen"
+    },
+    "irrigation_blocked_reduce_mowing": {
+      "message": "Mähhäufigkeit im Herbst reduzieren"
+    },
+    "irrigation_blocked_pause_drought": {
+      "message": "Wegen Trockenstress pausieren"
+    },
+    "irrigation_blocked_pause_wet": {
+      "message": "Wegen nassem Rasen pausieren"
+    },
+    "irrigation_blocked_pause_frost": {
+      "message": "Pause wegen Frost"
+    },
+    "irrigation_blocked_season_pause": {
+      "message": "Saisonpause"
+    },
+    "irrigation_blocked_not_due": {
+      "message": "Bodenfeuchte ausreichend"
+    },
+    "irrigation_blocked_good": {
+      "message": "Gut"
+    },
+    "irrigation_blocked_limited": {
+      "message": "Eingeschränkt"
+    },
+    "irrigation_blocked_insufficient": {
+      "message": "Unzureichend"
+    },
+    "irrigation_blocked_high": {
+      "message": "Hoch"
+    },
+    "irrigation_blocked_medium": {
+      "message": "Mittel"
+    },
+    "irrigation_blocked_low": {
+      "message": "Niedrig"
+    },
+    "irrigation_blocked_penman_monteith_estimated_radiation": {
+      "message": "Penman-Monteith mit geschätzter Strahlung"
+    },
+    "irrigation_blocked_hargreaves_samani": {
+      "message": "Hargreaves-Samani als Rückfallverfahren"
+    },
+    "irrigation_blocked_estimated_fallback": {
+      "message": "Saisonale Schätzung (Temperatur fehlt)"
+    },
+    "irrigation_blocked_unavailable": {
+      "message": "Nicht verfügbar"
+    },
+    "irrigation_blocked_automation_disabled": {
+      "message": "Automatische Bewässerung ist aus"
+    },
+    "irrigation_blocked_session_active": {
+      "message": "Bewässerung läuft"
+    },
+    "irrigation_blocked_meter_required": {
+      "message": "Wasserzähler für Automatik erforderlich"
+    },
+    "irrigation_blocked_waiting_for_weather": {
+      "message": "Warte auf Wetterdaten"
+    },
+    "irrigation_blocked_rain_unavailable": {
+      "message": "Gemessener Regen fehlt"
+    },
+    "irrigation_blocked_weather_unavailable": {
+      "message": "Wetter oder Vorhersage fehlt"
+    },
+    "irrigation_blocked_low_confidence": {
+      "message": "Wetter- oder Bodenmodelldaten zu unsicher"
+    },
+    "irrigation_blocked_already_watered_today": {
+      "message": "Rasen wurde heute bereits bewässert"
+    },
+    "irrigation_blocked_retry_cooldown": {
+      "message": "Wartezeit nach fehlgeschlagenem Start"
+    },
+    "irrigation_blocked_watering_not_due": {
+      "message": "Bewässerung ist nicht fällig"
+    },
+    "irrigation_blocked_no_suitable_window": {
+      "message": "Kein geeignetes Bewässerungsfenster"
+    },
+    "irrigation_blocked_waiting_for_window": {
+      "message": "Warte auf das Bewässerungsfenster"
+    },
+    "irrigation_blocked_window_expired": {
+      "message": "Bewässerungsfenster ist abgelaufen"
+    },
+    "irrigation_blocked_irrigation_running": {
+      "message": "Bewässerung läuft; Mähpause bis der Rasen abgetrocknet ist."
+    },
+    "irrigation_blocked_irrigation_paused": {
+      "message": "Bewässerung ist pausiert; der Rasen gilt weiterhin als nass."
+    },
+    "irrigation_blocked_last_watering_unknown": {
+      "message": "Letzte Bewässerung ist unbekannt."
+    },
+    "irrigation_blocked_last_watering_known": {
+      "message": "Letzte Bewässerung wird berücksichtigt."
+    },
+    "irrigation_blocked_forecast_precipitation_unavailable": {
+      "message": "Regenprognose fehlt oder ist unvollständig."
+    },
+    "irrigation_blocked_sufficient_rain_forecast": {
+      "message": "Ausreichend Regen ist vorhergesagt."
+    },
+    "irrigation_blocked_insufficient_rain_forecast": {
+      "message": "Vorhergesagter Regen reicht nicht aus."
+    },
+    "irrigation_blocked_heat_increases_water_demand": {
+      "message": "Hitze erhöht den Wasserbedarf."
+    },
+    "irrigation_blocked_modeled_soil_moisture_used": {
+      "message": "Bodenfeuchte wird aus dem Modell geschätzt."
+    },
+    "irrigation_blocked_target_reached": {
+      "message": "Bewässerungsziel erreicht."
+    },
+    "irrigation_blocked_stopped_manually": {
+      "message": "Bewässerung manuell beendet."
+    },
+    "irrigation_blocked_mower_left_dock": {
+      "message": "Mäher hat die sichere Position verlassen."
+    },
+    "irrigation_blocked_no_flow": {
+      "message": "Kein ausreichender Durchfluss erkannt."
+    },
+    "irrigation_blocked_excessive_flow": {
+      "message": "Durchfluss überschreitet den Grenzwert."
+    },
+    "irrigation_blocked_maximum_runtime": {
+      "message": "Maximale Bewässerungsdauer erreicht."
+    },
+    "irrigation_blocked_maximum_volume": {
+      "message": "Maximale Wassermenge erreicht."
+    },
+    "irrigation_blocked_valve_closed_externally": {
+      "message": "Ventil wurde außerhalb der Integration geschlossen."
+    },
+    "irrigation_blocked_integration_unloaded": {
+      "message": "Integration wird beendet."
+    },
+    "irrigation_blocked_robot_estimate": {
+      "message": "Geschätzte Mähdauer; Rückkehr zur Station bestätigt keine vollständige Flächenabdeckung."
+    },
+    "irrigation_blocked_valve_unavailable": {
+      "message": "Ventilstatus ist nicht verfügbar."
+    },
+    "irrigation_blocked_valve_open_failed": {
+      "message": "Öffnen des Ventils fehlgeschlagen; es wird geschlossen."
+    },
+    "irrigation_blocked_valve_did_not_open": {
+      "message": "Ventil hat das Öffnen nicht bestätigt."
+    },
+    "irrigation_blocked_meter_reset": {
+      "message": "Wasserzähler wurde während der Bewässerung zurückgesetzt."
+    },
+    "irrigation_blocked_meter_unit_changed": {
+      "message": "Einheit des Wasserzählers wurde geändert."
+    },
+    "irrigation_blocked_interrupted_by_restart": {
+      "message": "Bewässerung durch Neustart unterbrochen; Messlücke wird nicht geschätzt."
+    },
+    "irrigation_blocked_rain": {
+      "message": "Rasen nach Regen noch nass."
+    },
+    "irrigation_blocked_watering": {
+      "message": "Rasen nach Bewässerung noch nass."
+    },
+    "irrigation_blocked_cool_calm_dry_period": {
+      "message": "Kühles, windarmes und trockenes Zeitfenster."
+    },
+    "irrigation_blocked_best_available_period": {
+      "message": "Bestes verfügbares Bewässerungszeitfenster."
+    },
+    "irrigation_blocked_outside_watering_season": {
+      "message": "Außerhalb der Bewässerungssaison."
+    },
+    "irrigation_blocked_gts_below_200": {
+      "message": "Grünlandtemperatursumme noch unter 200."
+    },
+    "irrigation_blocked_gts_reached_200": {
+      "message": "Grünlandtemperatursumme hat 200 erreicht."
+    },
+    "irrigation_blocked_main_growth_and_interval_reached": {
+      "message": "Hauptwachstum und Düngeabstand erreicht."
+    },
+    "irrigation_blocked_avoid_nitrogen_during_heat_or_drought": {
+      "message": "Bei Hitze oder Trockenheit keinen Stickstoff düngen."
+    },
+    "irrigation_blocked_potassium_supports_winter_hardiness": {
+      "message": "Kalium unterstützt die Winterhärte."
+    },
+    "irrigation_blocked_outside_fertilizing_season": {
+      "message": "Außerhalb der Düngesaison."
+    },
+    "irrigation_blocked_last_fertilizing_known": {
+      "message": "Letzte Düngung wird berücksichtigt."
+    },
+    "irrigation_blocked_last_fertilizing_unknown": {
+      "message": "Letzte Düngung ist unbekannt."
+    },
+    "irrigation_blocked_frost": {
+      "message": "Bewässerung wegen Frost gesperrt."
+    },
+    "irrigation_blocked_leaf_wetness": {
+      "message": "Blattnässesensor meldet nassen Rasen."
+    },
+    "irrigation_blocked_soak_pause": {
+      "message": "Versickerungspause zwischen Bewässerungsetappen."
+    },
+    "irrigation_blocked_automation_suspended": {
+      "message": "Automatische Bewässerung vorübergehend gesperrt."
+    },
+    "irrigation_blocked_outside_schedule": {
+      "message": "Außerhalb der erlaubten Bewässerungszeit."
+    },
+    "irrigation_blocked_configured": {
+      "message": "Kein Ventil eingerichtet."
+    },
+    "irrigation_blocked_automation_enabled": {
+      "message": "Automatik ausgeschaltet."
+    },
+    "irrigation_blocked_no_active_session": {
+      "message": "Keine laufende Bewässerung"
+    },
+    "irrigation_blocked_homeassistant_running": {
+      "message": "Home Assistant wird beendet."
+    },
+    "irrigation_blocked_storage_available": {
+      "message": "Speicher nicht verfügbar."
+    },
+    "irrigation_blocked_mower_docked": {
+      "message": "Mäher nicht an Station."
+    },
+    "irrigation_blocked_valve_closed": {
+      "message": "Eigenes Ventil nicht geschlossen."
+    },
+    "irrigation_blocked_other_valve_closed": {
+      "message": "Zweites Ventil offen oder unbekannt."
+    },
+    "irrigation_blocked_meter_available": {
+      "message": "Wasserzähler fehlt oder ist ungültig."
+    },
+    "irrigation_blocked_meter_fresh": {
+      "message": "Wasserzähler fehlt oder ist zu alt."
+    },
+    "irrigation_blocked_weather_available": {
+      "message": "Wetterdaten fehlen oder sind zu alt."
+    },
+    "irrigation_blocked_rain_available": {
+      "message": "Gemessener Regen fehlt."
+    },
+    "irrigation_blocked_confidence_sufficient": {
+      "message": "Datenvertrauen zu gering."
+    },
+    "irrigation_blocked_frost_free": {
+      "message": "Frost oder unbekannte Temperatur."
+    },
+    "irrigation_blocked_not_suspended": {
+      "message": "Automatische Bewässerung vorübergehend gesperrt."
+    },
+    "irrigation_blocked_schedule_allowed": {
+      "message": "Außerhalb der erlaubten Bewässerungszeit."
+    },
+    "irrigation_blocked_not_watered_today": {
+      "message": "Heute bereits bewässert."
+    },
+    "irrigation_blocked_retry_allowed": {
+      "message": "Wartezeit vor erneutem Start."
+    },
+    "irrigation_blocked_watering_due": {
+      "message": "Bewässerung nicht erforderlich."
+    },
+    "irrigation_blocked_forecast_window_active": {
+      "message": "Kein aktuell geeignetes Vorhersagefenster."
+    },
+    "irrigation_blocked_rain_detected": {
+      "message": "Bewässerung wegen Regen beendet"
+    },
+    "irrigation_blocked_wind_too_strong": {
+      "message": "Bewässerung wegen starkem Wind beendet"
+    },
+    "irrigation_blocked_budget_uncertain": {
+      "message": "Verbrauch unvollständig; Automatik gesperrt"
+    },
+    "irrigation_blocked_water_budget_exhausted": {
+      "message": "Verbrauchslimit erreicht"
+    },
+    "irrigation_blocked_water_budget_available": {
+      "message": "Verbrauchslimit oder Messqualität prüfen"
+    },
+    "irrigation_blocked_irrigation": {
+      "message": "Ventilmessung"
+    },
+    "irrigation_blocked_manual_record": {
+      "message": "Manueller Eintrag"
+    },
+    "irrigation_blocked_manual_estimate": {
+      "message": "Manuelle Schätzung"
+    },
+    "irrigation_blocked_schedule_ends_before_target": {
+      "message": "Erlaubtes Zeitfenster endet voraussichtlich vor Erreichen der Zielmenge"
+    },
+    "irrigation_blocked_current_weather_safe": {
+      "message": "Aktuell Regen oder starken Wind abwarten"
+    },
+    "irrigation_blocked_planned_start": {
+      "message": "Voraussichtlicher Start im erlaubten Wetterfenster"
+    },
+    "irrigation_blocked_no_schedule_overlap": {
+      "message": "Zeitplan und Wetterfenster überschneiden sich nicht"
+    },
+    "irrigation_blocked_waiting_for_flow": {
+      "message": "Restlaufzeit erst bei messbarem Durchfluss verfügbar"
+    },
+    "irrigation_blocked_estimated_completion": {
+      "message": "Geschätztes Ende einschließlich Einweichpausen"
+    },
+    "irrigation_blocked_maximum_runtime_before_target": {
+      "message": "Zielmenge voraussichtlich nicht vor Sicherheitsende erreichbar"
     }
   }
 }

@@ -77,7 +77,10 @@ class MowingObserver:
         ):
             entry.async_on_unload(
                 async_track_time_interval(
-                    self.coordinator.hass, self._tick, timedelta(seconds=30)
+                    self.coordinator.hass,
+                    self._tick,
+                    timedelta(seconds=30),
+                    cancel_on_shutdown=True,
                 )
             )
             entry.async_on_unload(

@@ -57,9 +57,16 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     def _coordinator(call: ServiceCall) -> LawnCoordinator:
         entry_id = call.data["config_entry_id"]
         entry = hass.config_entries.async_get_entry(entry_id)
-        if entry is None or entry.domain != DOMAIN or entry.runtime_data is None:
+        if (
+            entry is None
+            or entry.domain != DOMAIN
+            or getattr(entry, "runtime_data", None) is None
+        ):
             raise ServiceValidationError(
-                f"Unknown Lawn Care Assistant entry: {entry_id}"
+                f"Unknown Lawn Care Assistant entry: {entry_id}",
+                translation_domain=DOMAIN,
+                translation_key="action_1",
+                translation_placeholders={"entry_id": entry_id},
             )
         return entry.runtime_data
 
@@ -70,7 +77,9 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         at = dt_util.parse_datetime(value)
         if at is None or at.tzinfo is None or at > dt_util.now():
             raise ServiceValidationError(
-                "Use a past ISO timestamp with timezone for recorded_at"
+                "Use a past ISO timestamp with timezone for recorded_at",
+                translation_domain=DOMAIN,
+                translation_key="action_2",
             )
         return at
 
@@ -89,10 +98,18 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         value = call.data.get("until")
         duration = call.data.get("duration_hours")
         if value and duration is not None:
-            raise ServiceValidationError("Choose until or duration_hours")
+            raise ServiceValidationError(
+                "Choose until or duration_hours",
+                translation_domain=DOMAIN,
+                translation_key="action_3",
+            )
         until = dt_util.parse_datetime(value) if value else None
         if value and (until is None or until.tzinfo is None):
-            raise ServiceValidationError("Use an ISO timestamp with timezone for until")
+            raise ServiceValidationError(
+                "Use an ISO timestamp with timezone for until",
+                translation_domain=DOMAIN,
+                translation_key="action_4",
+            )
         if duration is not None:
             until = dt_util.utcnow() + timedelta(hours=duration)
         await _coordinator(call).irrigation.async_suspend_automation(until)
@@ -101,12 +118,16 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         coordinator = _coordinator(call)
         if coordinator.irrigation and coordinator.irrigation.active:
             raise ServiceValidationError(
-                "Cannot manually record water during a controlled irrigation session"
+                "Cannot manually record water during a controlled irrigation session",
+                translation_domain=DOMAIN,
+                translation_key="action_5",
             )
         at = _recorded_at(call)
         if at is not None and "amount_mm" not in call.data:
             raise ServiceValidationError(
-                "Historical watering requires an explicit amount_mm"
+                "Historical watering requires an explicit amount_mm",
+                translation_domain=DOMAIN,
+                translation_key="action_6",
             )
         await coordinator.async_mark_watered(call.data.get("amount_mm"), recorded_at=at)
 
@@ -205,98 +226,111 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
     coordinator.irrigation = IrrigationController(hass, coordinator)
-    if (
-        coordinator.irrigation.configured
-        or coordinator.irrigation.active
-        or coordinator._state.irrigation_recent_valve_id
-    ):
-        await coordinator.irrigation.async_initialize()
-        await coordinator.async_request_refresh()
-
-    registry = er.async_get(hass)
-    if not coordinator.irrigation.configured and not coordinator.irrigation.active:
-        _remove_unused_irrigation_entities(hass, entry.entry_id)
-    for key in (
-        "watering_due",
-        "fertilizing_due",
-        "mower_can_be_switched_off",
-        "mower_start_recommended",
-    ):
-        entity_id = registry.async_get_entity_id(
-            "binary_sensor", DOMAIN, f"{entry.entry_id}_{key}"
-        )
-        if entity_id:
-            registry.async_remove(entity_id)
-
-    async def _async_record_event(event: Event, action: str) -> None:
-        """Record a maintenance event only for a real off-to-on transition."""
-        old_state = event.data.get("old_state")
-        new_state = event.data.get("new_state")
+    entry.async_on_unload(coordinator.irrigation.detach)
+    try:
         if (
-            old_state is None
-            or new_state is None
-            or old_state.state != STATE_OFF
-            or new_state.state != STATE_ON
+            coordinator.irrigation.configured
+            or coordinator.irrigation.active
+            or coordinator._state.irrigation_recent_valve_id
         ):
-            return
-        if action == "mowed":
-            await coordinator.async_mark_mowed(
-                event_id=f"{new_state.entity_id}:{new_state.last_changed.isoformat()}",
-                recorded_at=event.time_fired,
-                source="completion_input",
-            )
-        else:
-            if coordinator.irrigation and coordinator.irrigation.active:
-                return
-            await coordinator.async_mark_watered(deduplicate=True)
-
-    for config_key, action in (
-        (CONF_MOWED_ENTITY, "mowed"),
-        (CONF_WATERED_ENTITY, "watered"),
-    ):
-        entity_id = coordinator.settings.get(config_key)
-        if entity_id:
-
-            async def _async_handle_event(
-                event: Event, selected_action: str = action
-            ) -> None:
-                await _async_record_event(event, selected_action)
-
-            entry.async_on_unload(
-                async_track_state_change_event(
-                    hass,
-                    [entity_id],
-                    _async_handle_event,
-                )
-            )
-
-    coordinator.mowing_observer = MowingObserver(coordinator)
-    coordinator.mowing_observer.subscribe(entry)
-    leaf_id = coordinator.settings.get(CONF_LEAF_WETNESS_ENTITY)
-    if leaf_id:
-
-        async def _leaf_changed(_event):
+            await coordinator.irrigation.async_initialize()
             await coordinator.async_request_refresh()
 
-        entry.async_on_unload(
-            async_track_state_change_event(hass, [leaf_id], _leaf_changed)
-        )
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    return True
+        registry = er.async_get(hass)
+        if not coordinator.irrigation.configured and not coordinator.irrigation.active:
+            _remove_unused_irrigation_entities(hass, entry.entry_id)
+        for key in (
+            "watering_due",
+            "fertilizing_due",
+            "mower_can_be_switched_off",
+            "mower_start_recommended",
+        ):
+            entity_id = registry.async_get_entity_id(
+                "binary_sensor", DOMAIN, f"{entry.entry_id}_{key}"
+            )
+            if entity_id:
+                registry.async_remove(entity_id)
+
+        async def _async_record_event(event: Event, action: str) -> None:
+            """Record a maintenance event only for a real off-to-on transition."""
+            old_state = event.data.get("old_state")
+            new_state = event.data.get("new_state")
+            if (
+                old_state is None
+                or new_state is None
+                or old_state.state != STATE_OFF
+                or new_state.state != STATE_ON
+            ):
+                return
+            if action == "mowed":
+                await coordinator.async_mark_mowed(
+                    event_id=f"{new_state.entity_id}:{new_state.last_changed.isoformat()}",
+                    recorded_at=event.time_fired,
+                    source="completion_input",
+                )
+            else:
+                if coordinator.irrigation and coordinator.irrigation.active:
+                    return
+                await coordinator.async_mark_watered(deduplicate=True)
+
+        for config_key, action in (
+            (CONF_MOWED_ENTITY, "mowed"),
+            (CONF_WATERED_ENTITY, "watered"),
+        ):
+            entity_id = coordinator.settings.get(config_key)
+            if entity_id:
+
+                async def _async_handle_event(
+                    event: Event, selected_action: str = action
+                ) -> None:
+                    await _async_record_event(event, selected_action)
+
+                entry.async_on_unload(
+                    async_track_state_change_event(
+                        hass,
+                        [entity_id],
+                        _async_handle_event,
+                    )
+                )
+
+        coordinator.mowing_observer = MowingObserver(coordinator)
+        coordinator.mowing_observer.subscribe(entry)
+        leaf_id = coordinator.settings.get(CONF_LEAF_WETNESS_ENTITY)
+        if leaf_id:
+
+            async def _leaf_changed(_event):
+                await coordinator.async_request_refresh()
+
+            entry.async_on_unload(
+                async_track_state_change_event(hass, [leaf_id], _leaf_changed)
+            )
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        return True
+    except BaseException:
+        if await coordinator.irrigation.async_shutdown():
+            coordinator.irrigation.detach()
+        raise
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool:
     """Unload a config entry."""
     if (
         entry.runtime_data.irrigation
-        and not await entry.runtime_data.irrigation.async_shutdown()
+        and not await entry.runtime_data.irrigation.async_shutdown(detach=False)
     ):
         return False
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        entry.runtime_data.irrigation.detach()
+    else:
+        entry.runtime_data.irrigation._shutting_down = False
+    return unloaded
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool:
     """Migrate older configuration entries without losing user settings."""
+    if entry.version > 9:
+        return False
     if entry.version == 1:
         data = {
             **entry.data,

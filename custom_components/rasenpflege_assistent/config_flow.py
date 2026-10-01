@@ -2,18 +2,14 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 from uuid import uuid4
 
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.config_entries import ConfigFlowResult
-
-try:
-    from homeassistant.config_entries import OptionsFlowWithReload
-except ImportError:  # Compatibility with older Home Assistant test runtimes.
-    from homeassistant.config_entries import OptionsFlow as OptionsFlowWithReload
+from homeassistant.config_entries import ConfigFlowResult, OptionsFlowWithReload
 from homeassistant.const import UnitOfArea
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
@@ -574,9 +570,22 @@ def _validate_openweathermap_entities(
         errors[CONF_WEATHER_ENTITY] = "not_openweathermap"
     else:
         weather_state = hass.states.get(user_input[CONF_WEATHER_ENTITY])
-        if weather_state is None or "temperature" not in weather_state.attributes:
+        if (
+            weather_state is None
+            or weather_state.state in {"unknown", "unavailable"}
+            or "temperature" not in weather_state.attributes
+        ):
             errors[CONF_WEATHER_ENTITY] = "weather_data_unavailable"
     return errors
+
+
+def _validate_finite_numbers(values: dict[str, Any]) -> dict[str, str]:
+    """Number selectors must never allow NaN or infinity into saved settings."""
+    return {
+        key: "invalid_number"
+        for key, value in values.items()
+        if isinstance(value, (float, int)) and not math.isfinite(value)
+    }
 
 
 def _validate_calibration(user_input: dict[str, Any]) -> dict[str, str]:
@@ -645,6 +654,7 @@ class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             errors = {
                 **_validate_openweathermap_entities(self.hass, user_input),
+                **_validate_finite_numbers(user_input),
             }
             name = user_input[CONF_NAME].strip()
             if not name:
@@ -687,6 +697,33 @@ class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=self.add_suggested_values_to_schema(
                 _schema(fields=GENERAL_FIELDS), suggested
             ),
+        )
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Replace the existing HA weather source while preserving lawn history."""
+        entry = self._get_reconfigure_entry()
+        settings = {**entry.data, **entry.options}
+        errors = {}
+        if user_input is not None:
+            errors = _validate_openweathermap_entities(self.hass, user_input)
+            if not errors:
+                options = dict(entry.options)
+                options.pop(CONF_WEATHER_ENTITY, None)
+                return self.async_update_reload_and_abort(
+                    entry,
+                    data_updates=user_input,
+                    options=options,
+                    reload_even_if_entry_is_unchanged=False,
+                )
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=self.add_suggested_values_to_schema(
+                _schema(fields=(CONF_WEATHER_ENTITY,)),
+                settings,
+            ),
+            errors=errors,
         )
 
     @staticmethod
@@ -782,6 +819,7 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
                         self.hass, merged, self.config_entry.entry_id
                     )
                 )
+        errors.update(_validate_finite_numbers(merged))
         errors = {
             key if key == "base" or key in fields else "base": value
             for key, value in errors.items()

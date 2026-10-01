@@ -11,8 +11,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
-      - run: python -m pip install pytest ruff pytest-homeassistant-custom-component
+          python-version: "3.14"
+      - run: python -m pip install pytest ruff==0.16.10 pytest-cov pytest-homeassistant-custom-component==0.13.367
       - run: python -m ruff format --check custom_components tests
       - run: python -m ruff check custom_components tests
-      - run: python -m pytest -q
+      - run: python -m pytest -q --cov=custom_components.rasenpflege_assistent --cov-branch --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=83
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage.xml

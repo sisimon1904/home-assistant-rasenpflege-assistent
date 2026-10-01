@@ -7,11 +7,11 @@ import logging
 import math
 from datetime import date, datetime, timedelta
 from statistics import fmean
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTemperature
+from homeassistant.const import UnitOfLength, UnitOfSpeed, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_registry as er
@@ -19,7 +19,11 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
-from homeassistant.util.unit_conversion import TemperatureConverter
+from homeassistant.util.unit_conversion import (
+    DistanceConverter,
+    SpeedConverter,
+    TemperatureConverter,
+)
 
 from .calculations import (
     days_since,
@@ -98,6 +102,9 @@ from .const import (
 )
 from .models import LawnData, RuntimeState
 
+if TYPE_CHECKING:
+    from .irrigation import IrrigationController
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -116,9 +123,11 @@ def _parse_date(value: Any) -> date | None:
 class LawnCoordinator(DataUpdateCoordinator[LawnData]):
     """Collect OpenWeatherMap state and calculate lawn recommendations."""
 
-    config_entry: ConfigEntry
+    config_entry: ConfigEntry[LawnCoordinator]
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+    def __init__(
+        self, hass: HomeAssistant, entry: ConfigEntry[LawnCoordinator]
+    ) -> None:
         """Initialize the coordinator."""
         super().__init__(
             hass,
@@ -133,11 +142,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         )
         self._state: RuntimeState | None = None
         self._forecast_cache: list[dict[str, Any]] = []
-        self._forecast_updated_at = None
+        self._forecast_updated_at: datetime | None = None
         self._hourly_forecast_cache: list[dict[str, Any]] = []
-        self._hourly_forecast_updated_at = None
-        self.irrigation = None
+        self._hourly_forecast_updated_at: datetime | None = None
+        self.irrigation: IrrigationController | None = None
         self._mowing_lock = asyncio.Lock()
+        self._weather_unavailable = False
 
     @property
     def settings(self) -> dict[str, Any]:
@@ -546,6 +556,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                     value = TemperatureConverter.convert(
                         value, unit, UnitOfTemperature.CELSIUS
                     )
+                if not -90 <= value <= 70:
+                    raise ValueError("Implausible temperature")
                 return value, temperature_entity, self._age_minutes(now, reported_at)
             except (TypeError, ValueError, HomeAssistantError):
                 pass
@@ -564,6 +576,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                     value = TemperatureConverter.convert(
                         value, unit, UnitOfTemperature.CELSIUS
                     )
+                if not -90 <= value <= 70:
+                    raise ValueError("Implausible temperature")
                 return (
                     value,
                     self.settings[CONF_WEATHER_ENTITY],
@@ -620,7 +634,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 dew_point = TemperatureConverter.convert(
                     dew_point, temperature_unit, UnitOfTemperature.CELSIUS
                 )
-            except HomeAssistantError:
+            except (HomeAssistantError, TypeError, ValueError):
                 dew_point = None
         return {
             "reported_at": reported_at.isoformat(),
@@ -667,6 +681,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             entity_data.get("forecast", []) if isinstance(entity_data, dict) else []
         )
         if isinstance(forecast, list):
+            forecast = self._normalize_forecast(forecast, weather_entity)
             if forecast_type == "hourly":
                 self._hourly_forecast_cache = forecast
                 self._hourly_forecast_updated_at = now
@@ -675,6 +690,81 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 self._forecast_updated_at = now
             return forecast
         return cached
+
+    def _normalize_forecast(
+        self, forecast: list, entity_id: str
+    ) -> list[dict[str, Any]]:
+        """Normalize HA display units before using forecasts in the model."""
+        state = self.hass.states.get(entity_id)
+        attrs = state.attributes if state else {}
+        conversions = {
+            "temperature": (
+                TemperatureConverter,
+                attrs.get("temperature_unit", "°C"),
+                UnitOfTemperature.CELSIUS,
+            ),
+            "templow": (
+                TemperatureConverter,
+                attrs.get("temperature_unit", "°C"),
+                UnitOfTemperature.CELSIUS,
+            ),
+            "dew_point": (
+                TemperatureConverter,
+                attrs.get("temperature_unit", "°C"),
+                UnitOfTemperature.CELSIUS,
+            ),
+            "precipitation": (
+                DistanceConverter,
+                attrs.get("precipitation_unit", "mm"),
+                UnitOfLength.MILLIMETERS,
+            ),
+            "wind_speed": (
+                SpeedConverter,
+                attrs.get("wind_speed_unit", "m/s"),
+                UnitOfSpeed.METERS_PER_SECOND,
+            ),
+        }
+        result = []
+        for item in forecast:
+            if not isinstance(item, dict):
+                continue
+            normalized = dict(item)
+            if normalized.get("datetime") is not None:
+                timestamp = dt_util.parse_datetime(str(normalized["datetime"]))
+                if timestamp is None:
+                    continue
+                normalized["datetime"] = dt_util.as_utc(timestamp).isoformat()
+            if normalized.get("precipitation_probability") is not None:
+                try:
+                    probability = float(normalized["precipitation_probability"])
+                    if not math.isfinite(probability) or not 0 <= probability <= 100:
+                        continue
+                    normalized["precipitation_probability"] = probability
+                except (TypeError, ValueError):
+                    continue
+            valid = True
+            for key, (converter, source, target) in conversions.items():
+                if normalized.get(key) is None:
+                    continue
+                try:
+                    value = float(normalized[key])
+                    if not math.isfinite(value):
+                        raise ValueError("Non-finite forecast")
+                    value = converter.convert(value, source, target)
+                    if (
+                        key in {"temperature", "templow", "dew_point"}
+                        and not -90 <= value <= 70
+                    ):
+                        raise ValueError("Implausible temperature")
+                    if key in {"precipitation", "wind_speed"} and value < 0:
+                        raise ValueError("Negative forecast")
+                    normalized[key] = value
+                except (TypeError, ValueError, HomeAssistantError):
+                    valid = False
+                    break
+            if valid:
+                result.append(normalized)
+        return result
 
     def _soil_sensor_fresh(self, state) -> bool:
         """Accept physical soil measurements only within the configured age."""
@@ -916,12 +1006,18 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             self._reset_precipitation_sample(source=entity_id, mode=configured_mode)
             return "unavailable", 0.0, configured_mode, 0.0
         try:
-            value = max(0.0, float(state.state))
+            value = float(state.state)
+            if not math.isfinite(value) or value < 0:
+                raise ValueError("Invalid precipitation")
         except (TypeError, ValueError):
             self._state.daily_rain_unknown = True
             self._reset_precipitation_sample(source=entity_id, mode=configured_mode)
             return "unavailable", 0.0, configured_mode, 0.0
         unit = str(state.attributes.get("unit_of_measurement", "mm"))
+        if unit not in {"mm", "mm/h", "in", "in/h"}:
+            self._state.daily_rain_unknown = True
+            self._reset_precipitation_sample(source=entity_id, mode=configured_mode)
+            return "unavailable", 0.0, configured_mode, 0.0
         if unit.startswith("in"):
             value *= 25.4
         mode = configured_mode
@@ -1321,6 +1417,15 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         temperature, temperature_source, temperature_age_minutes = (
             self._read_temperature(now)
         )
+        unavailable = temperature is None
+        if unavailable != self._weather_unavailable:
+            if unavailable:
+                _LOGGER.warning(
+                    "Lawn temperature input unavailable; automatic irrigation is blocked"
+                )
+            else:
+                _LOGGER.info("Lawn temperature input available again")
+            self._weather_unavailable = unavailable
         weather_conditions = self._read_weather_conditions(now)
         weather_input_ages = [
             value
@@ -1471,15 +1576,10 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 "clayey": 0.7,
             }.get(settings.get(CONF_SOIL_TYPE), 0.85),
         )
-        weather_state_wind_unit = (
-            str(weather_state.attributes.get("wind_speed_unit", "m/s"))
-            if weather_state is not None
-            else "m/s"
-        )
         watering_window = recommended_watering_window(
             usable_hourly_forecast,
             dt_util.as_local(now),
-            wind_speed_unit=weather_state_wind_unit,
+            wind_speed_unit="m/s",
         )
         if precipitation_source in {"not_measured", "unavailable"}:
             watering["confidence"] = (
@@ -1810,6 +1910,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
     ) -> None:
         """Record watering and add the calculated or configured amount."""
         assert self._state is not None
+        if usage and self.irrigation and self.irrigation.active:
+            raise ServiceValidationError(
+                "Cannot manually record water during a controlled irrigation session",
+                translation_domain=DOMAIN,
+                translation_key="action_5",
+            )
         if deduplicate and self._is_recent_maintenance_event(
             "watering", timedelta(minutes=30)
         ):
@@ -1970,7 +2076,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         assert self._state is not None
         if self.irrigation and self.irrigation.active:
             raise ServiceValidationError(
-                "Stop controlled irrigation before undoing maintenance"
+                "Stop controlled irrigation before undoing maintenance",
+                translation_domain=DOMAIN,
+                translation_key="action_7",
             )
         if not self._state.maintenance_history:
             return

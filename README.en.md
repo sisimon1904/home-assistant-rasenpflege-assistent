@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.8.0 · [Changelog](CHANGELOG.md)
+Version 3.8.1 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -12,6 +12,14 @@ OpenWeatherMap data in Home Assistant. It calculates the grassland temperature
 sum, modeled soil moisture, and recommendations for watering, fertilizing, and
 mowing. It can optionally control an existing irrigation valve; it does not
 control the robotic mower.
+
+## New in 3.8.1
+
+This maintenance release fixes forecast unit conversion, irrigation unload safety, automation-toggle storage failures and cancelled valve commands. Invalid rain readings remain unknown. Action errors and icons use Home Assistant translations.
+
+Use **Settings → Devices & services → Lawn Care Assistant → Menu → Reconfigure** to replace the weather source. Other lawn settings remain under **Configure**.
+
+See the [quality audit](docs/quality-audit.md) for checks, applicability and remaining Quality Scale requirements. This release does not claim to be error-free or officially graded.
 
 ## New in 3.8.0
 
@@ -302,3 +310,9 @@ returns the stable English machine state for automations.
 See the [changelog](CHANGELOG.md) for details of previous versions.
 
 
+
+## Removal and troubleshooting
+
+Stop controlled irrigation first. Delete the lawn entry from **Settings → Devices & services**. Unload closes the owned valve; if closure cannot be confirmed, unloading fails and supervision stays active. Remove the integration files through HACS afterwards and restart Home Assistant. Separately configured weather and device integrations are preserved.
+
+Download entry diagnostics and inspect irrigation readiness, automatic decision and repair issues. Automatic starts require fresh weather, a safe mower position and complete metering. For storage errors, check free space and write permissions; a successful save clears the issue. Review settings before enabling automation again.

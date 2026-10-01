@@ -743,12 +743,20 @@ class IrrigationController:
     async def async_suspend_automation(self, until) -> None:
         """Persist a temporary automation hold; manual starts remain available."""
         if until is not None and until <= dt_util.now():
-            raise ServiceValidationError("Suspension must end in the future")
+            raise ServiceValidationError(
+                "Suspension must end in the future",
+                translation_domain=DOMAIN,
+                translation_key="action_8",
+            )
         previous = self.state.irrigation_suspended_until
         self.state.irrigation_suspended_until = until.isoformat() if until else None
         if not await self._async_persist_state():
             self.state.irrigation_suspended_until = previous
-            raise ServiceValidationError("Suspension could not be saved")
+            raise ServiceValidationError(
+                "Suspension could not be saved",
+                translation_domain=DOMAIN,
+                translation_key="action_9",
+            )
         if until and self.active and self.state.irrigation_session["source"] == "auto":
             await self.async_stop("automation_suspended")
         self._publish_session()
@@ -999,7 +1007,11 @@ class IrrigationController:
     async def _async_command_valve(self, entity_id: str, *, open_valve: bool) -> None:
         """Bound slow device service calls so the watchdog can retry closure."""
         if entity_id == self.coordinator.settings.get(CONF_OTHER_VALVE):
-            raise ServiceValidationError("The second valve is a read-only input")
+            raise ServiceValidationError(
+                "The second valve is a read-only input",
+                translation_domain=DOMAIN,
+                translation_key="action_10",
+            )
         await asyncio.wait_for(
             self.hass.services.async_call(
                 "switch",
@@ -1030,6 +1042,8 @@ class IrrigationController:
                 CONF_PRECIPITATION_ENTITY,
             )
         ]
+        if self.state.irrigation_session:
+            inputs.append(self.state.irrigation_session.get("valve_entity_id"))
         inputs.append(self._recent_owned_valve_id)
         inputs.append(self.coordinator._find_openweathermap_precipitation_entity())
         self._unsubscribers.append(
@@ -1045,6 +1059,7 @@ class IrrigationController:
                 self._async_watchdog,
                 IRRIGATION_WATCHDOG_INTERVAL,
                 name="lawn_irrigation_watchdog",
+                cancel_on_shutdown=True,
             )
         )
         self._unsubscribers.append(
@@ -1061,6 +1076,8 @@ class IrrigationController:
         """Close owned watering before the regular HA shutdown completes."""
         self._shutting_down = True
         await self.async_stop("homeassistant_stopping")
+        if not self.active:
+            self.detach()
 
     async def _async_input_changed(self, _event) -> None:
         """Check mower, valve and meter immediately when their state changes."""
@@ -1104,7 +1121,8 @@ class IrrigationController:
             async with self._lock:
                 await self._async_persist_state()
         await self.async_check()
-        if self.active and self.state.irrigation_session.get("paused_at"):
+        session = self.state.irrigation_session
+        if session and session.get("paused_at"):
             await self._async_maybe_resume()
         elif not self.active:
             await self._async_maybe_auto_start()
@@ -1212,7 +1230,7 @@ class IrrigationController:
                 await self._async_command_valve(
                     session["valve_entity_id"], open_valve=True
                 )
-            except Exception:
+            except (Exception, asyncio.CancelledError):
                 session["closing_reason"] = "valve_open_failed"
                 self.state.irrigation_last_status = "stopping"
                 await self._async_persist_state()
@@ -1224,16 +1242,23 @@ class IrrigationController:
 
     async def async_set_auto_enabled(self, enabled: bool) -> None:
         """Expose a user-facing, persisted automation master switch."""
-        self.state.irrigation_enabled = enabled
-        await self._async_persist_state()
-        self._publish_session()
-        if (
-            not enabled
-            and self.active
-            and self.state.irrigation_session["source"] == "auto"
-        ):
+        async with self._lock:
+            previous = self.state.irrigation_enabled
+            self.state.irrigation_enabled = enabled
+            saved = await self._async_persist_state()
+            if not saved and enabled:
+                self.state.irrigation_enabled = previous
+            self._publish_session()
+        session = self.state.irrigation_session
+        if not enabled and session and session["source"] == "auto":
             await self.async_stop("automation_disabled")
         await self.coordinator.async_request_refresh()
+        if not saved:
+            raise ServiceValidationError(
+                "Automation setting could not be saved",
+                translation_domain=DOMAIN,
+                translation_key="action_21",
+            )
 
     async def _async_maybe_auto_start(self) -> None:
         """Start at most one well-supported recommended session per local day."""
@@ -1254,23 +1279,51 @@ class IrrigationController:
     ) -> None:
         """Open a valve only after the mower and meter pass validation."""
         if target_liters is not None and target_mm is not None:
-            raise ServiceValidationError("Choose either liters or millimeters")
+            raise ServiceValidationError(
+                "Choose either liters or millimeters",
+                translation_domain=DOMAIN,
+                translation_key="action_11",
+            )
         if not manual and (target_liters is not None or target_mm is not None):
-            raise ServiceValidationError("Explicit targets are manual only")
+            raise ServiceValidationError(
+                "Explicit targets are manual only",
+                translation_domain=DOMAIN,
+                translation_key="action_12",
+            )
         for value in (target_liters, target_mm):
             if value is not None and (not math.isfinite(value) or value <= 0):
-                raise ServiceValidationError("Target must be finite and positive")
+                raise ServiceValidationError(
+                    "Target must be finite and positive",
+                    translation_domain=DOMAIN,
+                    translation_key="action_13",
+                )
         explicit_target = target_liters is not None or target_mm is not None
         if not self.configured:
-            raise ServiceValidationError("No irrigation valve is configured")
+            raise ServiceValidationError(
+                "No irrigation valve is configured",
+                translation_domain=DOMAIN,
+                translation_key="action_14",
+            )
         async with self._lock:
             if self.active:
-                raise ServiceValidationError("Irrigation is already running")
+                raise ServiceValidationError(
+                    "Irrigation is already running",
+                    translation_domain=DOMAIN,
+                    translation_key="action_15",
+                )
             if not manual and not self.state.irrigation_enabled:
-                raise ServiceValidationError("Automatic irrigation is disabled")
+                raise ServiceValidationError(
+                    "Automatic irrigation is disabled",
+                    translation_domain=DOMAIN,
+                    translation_key="action_16",
+                )
             blocker = self.start_blocker() if manual else self.automatic_blocker()
             if blocker:
-                raise ServiceValidationError(blocker)
+                raise ServiceValidationError(
+                    blocker,
+                    translation_domain=DOMAIN,
+                    translation_key=f"irrigation_blocked_{blocker}",
+                )
             meter_id = self.coordinator.settings.get(CONF_IRRIGATION_FLOW)
             meter_state = self.hass.states.get(meter_id) if meter_id else None
             meter = _meter_reading(meter_state)
@@ -1278,14 +1331,20 @@ class IrrigationController:
                 if not manual or not self.coordinator.settings.get(
                     CONF_ALLOW_UNMETERED_MANUAL, False
                 ):
-                    raise ServiceValidationError("A working water meter is required")
+                    raise ServiceValidationError(
+                        "A working water meter is required",
+                        translation_domain=DOMAIN,
+                        translation_key="action_17",
+                    )
                 kind, baseline = "timer", 0.0
             else:
                 kind, baseline = meter
                 # Idle cumulative meters may not publish until water flows.
             if explicit_target and kind == "timer":
                 raise ServiceValidationError(
-                    "A requested volume requires a working meter"
+                    "A requested volume requires a working meter",
+                    translation_domain=DOMAIN,
+                    translation_key="action_18",
                 )
             now = dt_util.now()
             area = float(self.coordinator.settings.get(CONF_AREA, DEFAULT_AREA))
@@ -1314,7 +1373,9 @@ class IrrigationController:
                     requested_liters = min(requested_liters, remaining)
             if explicit_target and requested_liters > maximum_liters:
                 raise ServiceValidationError(
-                    "Requested amount exceeds the safety volume limit"
+                    "Requested amount exceeds the safety volume limit",
+                    translation_domain=DOMAIN,
+                    translation_key="action_19",
                 )
             session = {
                 "session_id": uuid4().hex,
@@ -1373,13 +1434,17 @@ class IrrigationController:
                 self.state.irrigation_last_status = "stopped"
                 self.state.irrigation_last_reason = "storage_error"
                 self._publish_session()
-                raise ServiceValidationError("Irrigation state could not be saved")
+                raise ServiceValidationError(
+                    "Irrigation state could not be saved",
+                    translation_domain=DOMAIN,
+                    translation_key="action_20",
+                )
             self._publish_session()
             try:
                 await self._async_command_valve(
                     self.coordinator.settings[CONF_IRRIGATION_VALVE], open_valve=True
                 )
-            except Exception:
+            except (Exception, asyncio.CancelledError):
                 # Even a failed service call may have reached the hardware.
                 session["closing_reason"] = "valve_open_failed"
                 self.state.irrigation_last_status = "stopping"
@@ -2052,13 +2117,21 @@ class IrrigationController:
             if not await self._async_persist_state():
                 raise OSError("Irrigation completion could not be saved")
 
-    async def async_shutdown(self) -> bool:
-        """Stop an active session before removing the safety watchdog."""
-        if self.active:
-            await self.async_stop("integration_unloaded")
-        if self.active:
-            return False
+    def detach(self) -> None:
+        """Remove listeners only when entry setup/unload has completed."""
+        self._shutting_down = True
         for unsubscribe in self._unsubscribers:
             unsubscribe()
         self._unsubscribers.clear()
+
+    async def async_shutdown(self, *, detach: bool = True) -> bool:
+        """Close owned water before unloading, retaining safety on failure."""
+        self._shutting_down = True
+        if self.active:
+            await self.async_stop("integration_unloaded")
+        if self.active:
+            self._shutting_down = False
+            return False
+        if detach:
+            self.detach()
         return True

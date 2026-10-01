@@ -12,7 +12,7 @@ class LawnData:
     """Calculated lawn data exposed by the coordinator."""
 
     gts: float = 0.0
-    lawn_status: str = "unavailable"
+    lawn_status: str = "collecting_data"
     watering_recommended: bool = False
     watering_status: str = "not_due"
     watering_mm: float = 0.0

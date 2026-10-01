@@ -8,10 +8,12 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .coordinator import LawnCoordinator
 from .entity import LawnEntity
 
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: ConfigEntry[LawnCoordinator],
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Only add a toggle if valve control is configured."""
@@ -23,7 +25,6 @@ async def async_setup_entry(
 class AutomaticIrrigationSwitch(LawnEntity, SwitchEntity):
     """Enable or suspend automatic watering without changing manual controls."""
 
-    _attr_icon = "mdi:sprinkler-variant"
     _attr_translation_key = "automatic_irrigation"
 
     def __init__(self, coordinator: LawnCoordinator) -> None:

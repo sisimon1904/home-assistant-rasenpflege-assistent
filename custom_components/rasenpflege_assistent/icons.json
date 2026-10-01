@@ -1,8 +1,93 @@
 {
   "services": {
-    "record_watering": {"service": "mdi:watering-can"},
-    "record_fertilizing": {"service": "mdi:leaf"},
-    "record_mowing": {"service": "mdi:robot-mower"},
-    "undo_last_action": {"service": "mdi:undo-variant"}
+    "record_watering": {
+      "service": "mdi:watering-can"
+    },
+    "record_fertilizing": {
+      "service": "mdi:leaf"
+    },
+    "record_mowing": {
+      "service": "mdi:robot-mower"
+    },
+    "undo_last_action": {
+      "service": "mdi:undo-variant"
+    },
+    "start_irrigation": {
+      "service": "mdi:sprinkler-variant"
+    },
+    "stop_irrigation": {
+      "service": "mdi:water-off"
+    },
+    "suspend_irrigation": {
+      "service": "mdi:pause-circle-outline"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "gts": {
+        "default": "mdi:thermometer-lines"
+      },
+      "watering_amount": {
+        "default": "mdi:water"
+      },
+      "fertilizer_amount": {
+        "default": "mdi:weight-kilogram"
+      },
+      "forecast_coverage": {
+        "default": "mdi:timeline-clock-outline"
+      },
+      "forecast_age": {
+        "default": "mdi:clock-outline"
+      },
+      "temperature_source": {
+        "default": "mdi:thermometer-check"
+      },
+      "precipitation_source": {
+        "default": "mdi:water-check-outline"
+      },
+      "soil_water": {
+        "default": "mdi:cup-water"
+      },
+      "daily_evapotranspiration": {
+        "default": "mdi:weather-sunny-alert"
+      },
+      "irrigation_remaining_time": {
+        "default": "mdi:timer-sand"
+      },
+      "water_consumption_day": {
+        "default": "mdi:water"
+      },
+      "water_consumption_week": {
+        "default": "mdi:water"
+      },
+      "water_consumption_month": {
+        "default": "mdi:water"
+      }
+    },
+    "button": {
+      "mark_mowing_started": {
+        "default": "mdi:robot-mower"
+      },
+      "mark_watered": {
+        "default": "mdi:watering-can"
+      },
+      "stop_irrigation": {
+        "default": "mdi:water-off"
+      },
+      "mark_fertilized": {
+        "default": "mdi:leaf"
+      },
+      "undo_last_action": {
+        "default": "mdi:undo-variant"
+      },
+      "start_irrigation": {
+        "default": "mdi:sprinkler-variant"
+      }
+    },
+    "switch": {
+      "automatic_irrigation": {
+        "default": "mdi:sprinkler-variant"
+      }
+    }
   }
 }

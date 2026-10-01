@@ -174,7 +174,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="status",
         translation_key="status",
-        icon="mdi:leaf-circle-outline",
         device_class=SensorDeviceClass.ENUM,
         options=[
             "collecting_data",
@@ -206,7 +205,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="next_action",
         translation_key="next_action",
-        icon="mdi:clipboard-check-outline",
         device_class=SensorDeviceClass.ENUM,
         options=[
             "collecting_data",
@@ -235,7 +233,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="growth_status",
         translation_key="growth_status",
-        icon="mdi:grass",
         device_class=SensorDeviceClass.ENUM,
         options=[
             "collecting_data",
@@ -258,7 +255,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="mower_status",
         translation_key="mower_status",
-        icon="mdi:robot-mower-outline",
         device_class=SensorDeviceClass.ENUM,
         options=[
             "collecting_data",
@@ -310,7 +306,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="soil_moisture",
         translation_key="soil_moisture",
-        icon="mdi:water-percent",
         device_class=SensorDeviceClass.MOISTURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
@@ -338,7 +333,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="gts",
         translation_key="gts",
-        icon="mdi:thermometer-lines",
         native_unit_of_measurement="°C·d",
         suggested_display_precision=1,
         value_fn=lambda data: data.gts,
@@ -350,7 +344,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="watering_recommendation",
         translation_key="watering_recommendation",
-        icon="mdi:watering-can-outline",
         device_class=SensorDeviceClass.ENUM,
         options=[
             "season_pause",
@@ -398,7 +391,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="irrigation_status",
         translation_key="irrigation_status",
-        icon="mdi:sprinkler-variant",
         device_class=SensorDeviceClass.ENUM,
         options=["idle", "running", "paused", "stopping", "completed", "stopped"],
         value_fn=lambda data: data.irrigation_status,
@@ -411,7 +403,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="irrigation_readiness",
         translation_key="irrigation_readiness",
-        icon="mdi:water-check-outline",
         entity_category=EntityCategory.DIAGNOSTIC,
         device_class=SensorDeviceClass.ENUM,
         options=[
@@ -437,7 +428,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="irrigation_auto_decision",
         translation_key="irrigation_auto_decision",
-        icon="mdi:water-clock-outline",
         entity_category=EntityCategory.DIAGNOSTIC,
         device_class=SensorDeviceClass.ENUM,
         options=[
@@ -477,7 +467,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="watering_amount",
         translation_key="watering_amount",
-        icon="mdi:water",
         native_unit_of_measurement=UnitOfVolume.LITERS,
         suggested_display_precision=0,
         entity_registry_enabled_default=False,
@@ -487,7 +476,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="fertilizer_amount",
         translation_key="fertilizer_amount",
-        icon="mdi:weight-kilogram",
         native_unit_of_measurement=UnitOfMass.KILOGRAMS,
         suggested_display_precision=2,
         entity_registry_enabled_default=False,
@@ -500,7 +488,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="data_quality",
         translation_key="data_quality",
-        icon="mdi:database-check-outline",
         device_class=SensorDeviceClass.ENUM,
         options=["good", "limited", "insufficient"],
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -525,7 +512,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="forecast_coverage",
         translation_key="forecast_coverage",
-        icon="mdi:timeline-clock-outline",
         native_unit_of_measurement=UnitOfTime.HOURS,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -535,7 +521,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="soil_model_confidence",
         translation_key="soil_model_confidence",
-        icon="mdi:gauge",
         device_class=SensorDeviceClass.ENUM,
         options=["high", "medium", "low"],
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -544,7 +529,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="watering_confidence",
         translation_key="watering_confidence",
-        icon="mdi:gauge",
         device_class=SensorDeviceClass.ENUM,
         options=["high", "medium", "low"],
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -553,7 +537,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="forecast_age",
         translation_key="forecast_age",
-        icon="mdi:clock-outline",
         native_unit_of_measurement=UnitOfTime.MINUTES,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -562,7 +545,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="forecast_rain_24h",
         translation_key="forecast_rain_24h",
-        icon="mdi:weather-rainy",
         device_class=SensorDeviceClass.PRECIPITATION,
         native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
         state_class=SensorStateClass.MEASUREMENT,
@@ -572,7 +554,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="forecast_rain_72h",
         translation_key="forecast_rain_72h",
-        icon="mdi:weather-pouring",
         device_class=SensorDeviceClass.PRECIPITATION,
         native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
         state_class=SensorStateClass.MEASUREMENT,
@@ -583,7 +564,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="observed_rain_today",
         translation_key="observed_rain_today",
-        icon="mdi:weather-rainy",
         device_class=SensorDeviceClass.PRECIPITATION,
         native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -594,7 +574,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="temperature_source",
         translation_key="temperature_source",
-        icon="mdi:thermometer-check",
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
         value_fn=lambda data: data.temperature_source,
@@ -602,7 +581,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="precipitation_source",
         translation_key="precipitation_source",
-        icon="mdi:water-check-outline",
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
         value_fn=lambda data: data.precipitation_source,
@@ -610,7 +588,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="soil_water",
         translation_key="soil_water",
-        icon="mdi:cup-water",
         native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -621,7 +598,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="daily_evapotranspiration",
         translation_key="daily_evapotranspiration",
-        icon="mdi:weather-sunny-alert",
         native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
         state_class=SensorStateClass.TOTAL_INCREASING,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -631,7 +607,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="evapotranspiration_method",
         translation_key="evapotranspiration_method",
-        icon="mdi:weather-sunny",
         device_class=SensorDeviceClass.ENUM,
         options=[
             "penman_monteith_estimated_radiation",
@@ -656,7 +631,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="last_soil_update",
         translation_key="last_soil_update",
-        icon="mdi:water-sync",
         device_class=SensorDeviceClass.TIMESTAMP,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
@@ -668,7 +642,6 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="last_calculation",
         translation_key="last_calculation",
-        icon="mdi:calculator-variant-outline",
         device_class=SensorDeviceClass.TIMESTAMP,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
@@ -681,7 +654,6 @@ SENSORS += tuple(
     LawnSensorDescription(
         key=key,
         translation_key=key,
-        icon="mdi:water",
         native_unit_of_measurement=UnitOfVolume.LITERS,
         suggested_display_precision=1,
         value_fn=lambda data: None,
@@ -698,7 +670,6 @@ SENSORS += (
     LawnSensorDescription(
         key="care_plan",
         translation_key="care_plan",
-        icon="mdi:calendar-check",
         device_class=SensorDeviceClass.ENUM,
         options=next(item.options for item in SENSORS if item.key == "next_action"),
         value_fn=lambda data: data.next_action,
@@ -706,14 +677,12 @@ SENSORS += (
     LawnSensorDescription(
         key="next_automatic_start",
         translation_key="next_automatic_start",
-        icon="mdi:water-clock",
         device_class=SensorDeviceClass.TIMESTAMP,
         value_fn=lambda data: None,
     ),
     LawnSensorDescription(
         key="irrigation_remaining_time",
         translation_key="irrigation_remaining_time",
-        icon="mdi:timer-sand",
         native_unit_of_measurement=UnitOfTime.MINUTES,
         suggested_display_precision=1,
         value_fn=lambda data: None,
@@ -723,7 +692,7 @@ SENSORS += (
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: ConfigEntry[LawnCoordinator],
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up lawn sensors."""

@@ -1,5 +1,26 @@
 # Changelog
 
+## 3.8.1
+
+### Fixed
+
+- Normalize HA forecast temperature, precipitation and wind units, without converting wind twice.
+- Reject malformed, non-finite and physically implausible forecast and rain readings.
+- Retain valve safety supervision when platform unloading fails; clean up setup failures and shutdown timers.
+- Close owned valves when opening/resume commands are cancelled.
+- Report automation-toggle storage failures and roll back failed enable requests.
+- Reject actions on never-loaded entries, future config-entry migrations and malformed imported schedules.
+- Prevent direct maintenance water recording during an owned irrigation session.
+
+### Changed
+
+- Add weather-source reconfiguration while preserving lawn settings and history.
+- Translate action exceptions and move entity icons to HA icon translations.
+- Declare switch update concurrency and type platform config-entry runtime data.
+- Expand real HA lifecycle, platform, diagnostics, unit and storage regression tests.
+- Use Python 3.14 and pinned HA 2026.9.4 test dependencies in CI, with coverage reporting.
+- Document audit evidence and remaining Quality Scale coverage/typing requirements.
+
 ## 3.8.0
 
 ### Added

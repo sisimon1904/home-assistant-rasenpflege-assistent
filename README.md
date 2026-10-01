@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.8.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.8.1 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -12,6 +12,14 @@ vorhandenen OpenWeatherMap-Daten in Home Assistant. Sie berechnet die
 Grünlandtemperatursumme, modellierte Bodenfeuchte sowie Empfehlungen zum
 Bewässern, Düngen und Mähen. Optional kann sie ein vorhandenes Bewässerungsventil
 steuern; sie schaltet den Mähroboter nicht.
+
+## Neu in 3.8.1
+
+Diese Wartungsversion behebt die Umrechnung von Wettervorhersagen, das Entladen der Bewässerungsüberwachung, Speicherfehler am Automatikschalter und abgebrochene Ventilbefehle. Ungültige Niederschlagswerte werden als unbekannt behandelt. Aktionsfehler und Icons verwenden Home Assistants Übersetzungssystem.
+
+Die Wetterquelle lässt sich über **Einstellungen → Geräte & Dienste → Rasenpflege-Assistent → Menü → Neu konfigurieren** wechseln. Weitere Raseneinstellungen bleiben unter **Konfigurieren** verfügbar.
+
+Prüfumfang, Ausnahmen und noch offene Quality-Scale-Anforderungen stehen im [Qualitätsaudit](docs/quality-audit.md). Es wird keine Fehlerfreiheit und keine offizielle Quality-Scale-Einstufung zugesagt.
 
 ## Neu in 3.8.0
 
@@ -317,3 +325,9 @@ liefert den englischen Rohzustand für Automationen.
 Für Einzelheiten früherer Versionen siehe den [Änderungsverlauf](CHANGELOG.md).
 
 
+
+## Entfernen und Fehlerdiagnose
+
+Die gesteuerte Bewässerung zunächst stoppen. Unter **Einstellungen → Geräte & Dienste** den Raseneintrag im Menü löschen. Ein laufendes eigenes Ventil wird beim Entladen geschlossen; kann HA die Schließung nicht bestätigen, wird das Entladen verweigert und die Überwachung bleibt aktiv. HACS kann anschließend die Integrationsdateien entfernen; danach Home Assistant neu starten. Die separat eingerichteten Wetter- und Geräteintegrationen bleiben erhalten.
+
+Bei Problemen die Diagnose des Raseneintrags herunterladen und die Sensoren **Bewässerungsbereitschaft**, **Automatikentscheidung** sowie die Reparaturmeldungen prüfen. Automatikstart benötigt verfügbare, frische Wetterdaten, eine sichere Mäherposition und vollständige Mengenmessung. Nach einer Speicherfehlermeldung zuerst freien Speicherplatz und Schreibrechte prüfen; die Meldung wird nach erfolgreichem Speichern aufgehoben. Vor dem erneuten Aktivieren die Einstellungen kontrollieren.
