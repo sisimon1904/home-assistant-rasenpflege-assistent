@@ -112,20 +112,32 @@ def forecast_coverage_hours(
                 timestamp.replace(tzinfo=reference.tzinfo) for timestamp in timestamps
             ]
         timestamps = [timestamp for timestamp in timestamps if timestamp >= reference]
-    if len(timestamps) >= 2:
+    if timestamps:
         intervals = sorted(
-            max(0.0, (current - previous).total_seconds() / 3600)
+            (current - previous).total_seconds() / 3600
             for previous, current in pairwise(timestamps)
             if current > previous
         )
-        step = intervals[len(intervals) // 2] if intervals else 1.0
-        step = max(1.0, min(24.0, step))
-        hourly_coverage = min(
-            maximum_hours,
-            round((timestamps[-1] - timestamps[0]).total_seconds() / 3600 + step),
-        )
-    elif timestamps:
-        hourly_coverage = min(maximum_hours, 1)
+        step = min(3.0, max(1.0, intervals[0])) if intervals else 1.0
+        reference = now or timestamps[0]
+        if reference.tzinfo is None and timestamps[0].tzinfo is not None:
+            reference = reference.replace(tzinfo=timestamps[0].tzinfo)
+        elif reference.tzinfo is not None and timestamps[0].tzinfo is None:
+            timestamps = [
+                stamp.replace(tzinfo=reference.tzinfo) for stamp in timestamps
+            ]
+        if timestamps[0] - reference > timedelta(hours=step):
+            hourly_coverage = 0
+        else:
+            contiguous_end = timestamps[0]
+            for timestamp in timestamps[1:]:
+                if timestamp - contiguous_end > timedelta(hours=step * 1.5):
+                    break
+                contiguous_end = timestamp
+            hourly_coverage = min(
+                maximum_hours,
+                int((contiguous_end - timestamps[0]).total_seconds() / 3600 + step),
+            )
     elif had_timestamps:
         hourly_coverage = 0
     else:

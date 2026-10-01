@@ -780,3 +780,36 @@ def test_shade_lawn_uses_reduced_fertilizer_dose() -> None:
     )
     assert result["dose"] == 22
     assert result["total_kg"] == 2.2
+
+
+def test_forecast_starting_in_two_days_has_no_current_coverage():
+    """Future coverage cannot substitute for the missing next 24 hours."""
+    now = datetime(2026, 7, 20, 12, tzinfo=timezone.utc)
+    forecast = [
+        {"datetime": (now + timedelta(hours=48 + i)).isoformat(), "precipitation": 0}
+        for i in range(24)
+    ]
+    assert forecast_coverage_hours(forecast, [], now=now) == 0
+    result = watering_recommendation(
+        today=now.date(),
+        area_m2=100,
+        sun_exposure="sunny",
+        soil_type="loamy",
+        current_temperature=20,
+        forecast=[],
+        hourly_forecast=forecast,
+        last_watering=date(2026, 7, 1),
+        soil_moisture_percent=20,
+        now=now,
+    )
+    assert result["confidence"] == "low"
+
+
+def test_forecast_internal_gap_limits_coverage():
+    """Two disconnected forecast periods are not a continuous day."""
+    now = datetime(2026, 7, 20, 12, tzinfo=timezone.utc)
+    forecast = [
+        {"datetime": (now + timedelta(hours=i)).isoformat()}
+        for i in [0, 1, 2, 12, 13, 14, 23]
+    ]
+    assert forecast_coverage_hours(forecast, [], now=now) == 3

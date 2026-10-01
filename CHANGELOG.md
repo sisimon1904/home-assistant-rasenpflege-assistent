@@ -1,5 +1,22 @@
 # Changelog
 
+## 3.5.1
+
+### Fixed
+
+- Persist completed irrigation sessions and their water credit together.
+- Exclude shared-meter consumption during restart gaps and preserve wet-lawn protection.
+- Integrate flow rates at their report timestamps instead of applying new rates retroactively.
+- Account for final volume reports received before an external valve closure.
+- Renew the valve-opening grace period when resuming a paused session.
+- Keep temperature sampling independent of extra coordinator refreshes.
+- Discard outdated temperature history after missing days.
+- Reject non-finite temperatures and cached temperatures on unavailable weather entities.
+- Synchronize corrected or cleared watering dates with the wet-grass timestamp.
+- Require contiguous near-term hourly forecasts before reporting high confidence.
+- Preserve existing model values when migrating older configuration entries.
+- Add regression coverage for irrigation, temperature, forecasts and configuration migration.
+
 ## 3.5.0
 
 ### Added
@@ -341,3 +358,4 @@
 - The OpenWeatherMap forecast is cached for one hour and is only read through
   Home Assistant's `weather.get_forecasts` action.
 - All Python source values and status keys are English.
+

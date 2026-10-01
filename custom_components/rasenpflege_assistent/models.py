@@ -116,6 +116,7 @@ class RuntimeState:
     sample_date: str
     temperature_sum: float = 0.0
     temperature_samples: int = 0
+    temperature_sample_at: str | None = None
     last_watering: str | None = None
     last_fertilizing: str | None = None
     last_mowing: str | None = None
@@ -126,6 +127,7 @@ class RuntimeState:
     configured_last_mowing_revision: str | None = None
     configured_initial_gts: float = 0.0
     configured_last_watering: str | None = None
+    configured_last_watering_revision: str | None = None
     configured_last_fertilizing: str | None = None
     temperature_min: float | None = None
     temperature_max: float | None = None
@@ -182,6 +184,7 @@ class RuntimeState:
             "sample_date": self.sample_date,
             "temperature_sum": self.temperature_sum,
             "temperature_samples": self.temperature_samples,
+            "temperature_sample_at": self.temperature_sample_at,
             "last_watering": self.last_watering,
             "last_fertilizing": self.last_fertilizing,
             "last_mowing": self.last_mowing,
@@ -192,6 +195,7 @@ class RuntimeState:
             "configured_last_mowing_revision": self.configured_last_mowing_revision,
             "configured_initial_gts": self.configured_initial_gts,
             "configured_last_watering": self.configured_last_watering,
+            "configured_last_watering_revision": self.configured_last_watering_revision,
             "configured_last_fertilizing": self.configured_last_fertilizing,
             "temperature_min": self.temperature_min,
             "temperature_max": self.temperature_max,

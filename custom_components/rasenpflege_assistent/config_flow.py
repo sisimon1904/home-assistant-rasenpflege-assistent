@@ -593,6 +593,7 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
             )
             if state is not None:
                 current[CONF_LAST_MOWING] = state.last_mowing
+                current[CONF_LAST_WATERING] = state.last_watering
         show_watered = not bool(current.get(CONF_IRRIGATION_VALVE))
         if step_id == "irrigation" and user_input is not None:
             show_watered = not bool(user_input.get(CONF_IRRIGATION_VALVE))
@@ -670,6 +671,13 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
                 self.config_entry, title=updates[CONF_NAME]
             )
         if step_id == "maintenance":
+            if (
+                state is not None
+                and updates.get(CONF_LAST_WATERING) == state.last_watering
+            ):
+                updates.pop(CONF_LAST_WATERING, None)
+            else:
+                updates["last_watering_revision"] = dt_util.now().isoformat()
             if state is not None and updates.get(CONF_LAST_MOWING) == state.last_mowing:
                 # Saving fertilizer or model history must not replace an exact
                 # mowing timestamp with midnight for an unchanged date.

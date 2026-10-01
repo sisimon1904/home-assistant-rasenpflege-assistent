@@ -372,7 +372,7 @@ async def test_unchanged_mowing_date_preserves_exact_record_on_history_save(hass
     )
     entry.add_to_hass(hass)
     entry.runtime_data = SimpleNamespace(
-        _state=SimpleNamespace(last_mowing="2026-07-20")
+        _state=SimpleNamespace(last_mowing="2026-07-20", last_watering=None)
     )
     flow = LawnCareOptionsFlow()
     flow.hass = hass
@@ -382,3 +382,17 @@ async def test_unchanged_mowing_date_preserves_exact_record_on_history_save(hass
     )
     assert "last_mowing_revision" not in result["data"]
     assert "last_mowing" not in result["data"]
+
+
+async def test_migration_preserves_model_values_in_data(hass):
+    """Absent option overrides inherit existing data rather than defaults."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"root_depth_cm": 20, "rain_correction": 1.4},
+        options={"rain_correction": 1.2},
+        version=6,
+    )
+    entry.add_to_hass(hass)
+    assert await async_migrate_entry(hass, entry)
+    assert entry.options["root_depth_cm"] == 20
+    assert entry.options["rain_correction"] == 1.2

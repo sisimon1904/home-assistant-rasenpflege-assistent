@@ -175,3 +175,89 @@ async def test_mower_wet_pause_uses_latest_measured_rain_or_watering(
     assert reason == "rain"
     assert until == event + timedelta(hours=26)
     assert mower["status"] == "pause_wet"
+
+
+async def test_extra_refreshes_do_not_overweight_temperature(hass, freezer):
+    """Sampling remains spaced by 30 minutes, including across reloads."""
+    freezer.move_to("2026-07-20T10:00:00+00:00")
+    c = _coordinator(hass)
+    c._state = RuntimeState(year=2026, gts=0, sample_date="2026-07-20")
+    c._roll_day_and_sample(date(2026, 7, 20), 10)
+    for _ in range(100):
+        c._roll_day_and_sample(date(2026, 7, 20), 30)
+    assert c._state.temperature_samples == 1
+    assert c._state.temperature_sum == 10
+    stored = c._state.as_dict()
+    c._store.async_load = AsyncMock(return_value=stored)
+    await c._async_setup()
+    c._roll_day_and_sample(date(2026, 7, 20), 30)
+    assert c._state.temperature_samples == 1
+    freezer.tick(timedelta(minutes=30))
+    c._roll_day_and_sample(date(2026, 7, 20), 30)
+    assert c._state.temperature_sum / c._state.temperature_samples == 20
+
+
+async def test_temperature_history_expires_after_gap(hass):
+    """August samples must not masquerade as October's seven-day mean."""
+    c = _coordinator(hass)
+    c._state = RuntimeState(
+        year=2026,
+        gts=1000,
+        sample_date="2026-08-01",
+        daily_temperature_history=[25] * 7,
+    )
+    c._roll_day_and_sample(date(2026, 10, 1), 7)
+    assert c._state.daily_temperature_history == []
+
+
+async def test_unavailable_and_nonfinite_temperature_use_fallback(hass):
+    """Invalid sensor values fall back; unavailable weather is not trusted."""
+    c = _coordinator(hass, temperature_entity="sensor.outside")
+    hass.states.async_set("weather.openweathermap", "sunny", {"temperature": 15})
+    for bad in ("nan", "inf", "-inf"):
+        hass.states.async_set("sensor.outside", bad, {"unit_of_measurement": "°C"})
+        assert c._read_temperature(dt_util.now())[0] == 15
+    hass.states.async_set("weather.openweathermap", "unavailable", {"temperature": 15})
+    assert c._read_temperature(dt_util.now())[0] is None
+    hass.states.async_set(
+        "weather.openweathermap", "sunny", {"temperature": float("nan")}
+    )
+    assert c._read_temperature(dt_util.now())[0] is None
+
+
+async def test_watering_date_correction_updates_wet_timestamp(hass, freezer):
+    """Correcting or clearing a date also corrects the mowing wet interlock."""
+    freezer.move_to("2026-07-20T10:00:00+00:00")
+    c = _coordinator(hass, last_watering="2026-07-20")
+    state = RuntimeState(
+        year=2026,
+        gts=100,
+        sample_date="2026-07-20",
+        last_watering="2026-07-01",
+        configured_last_watering="2026-07-01",
+    )
+    c._store.async_load = AsyncMock(return_value=state.as_dict())
+    await c._async_setup()
+    assert c._state.last_watering_at == dt_util.now().isoformat()
+    saved = c._state.as_dict()
+    c = _coordinator(hass, last_watering=None)
+    c._store.async_load = AsyncMock(return_value=saved)
+    await c._async_setup()
+    assert c._state.last_watering_at is None
+
+
+async def test_clearing_automatic_watering_date_uses_revision(hass):
+    """A cleared date must override automatic history even if config was empty."""
+    c = _coordinator(hass, last_watering=None, last_watering_revision="new")
+    state = RuntimeState(
+        year=2026,
+        gts=100,
+        sample_date=dt_util.now().date().isoformat(),
+        last_watering="2026-07-20",
+        last_watering_at="2026-07-20T10:00:00+00:00",
+        configured_last_watering=None,
+    )
+    c._store.async_load = AsyncMock(return_value=state.as_dict())
+    await c._async_setup()
+    assert c._state.last_watering is None
+    assert c._state.last_watering_at is None

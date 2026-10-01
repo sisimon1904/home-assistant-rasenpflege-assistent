@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.5.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.5.1 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -212,3 +212,4 @@ tap_action:
 liefert den englischen Rohzustand für Automationen.
 
 Für Einzelheiten früherer Versionen siehe den [Änderungsverlauf](CHANGELOG.md).
+

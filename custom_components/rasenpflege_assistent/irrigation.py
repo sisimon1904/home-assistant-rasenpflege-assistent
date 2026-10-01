@@ -351,6 +351,7 @@ class IrrigationController:
         if self.active:
             # A restart cannot prove how long the valve was open or how much
             # water was delivered. Close it instead of resuming an old timer.
+            self.state.irrigation_session["measurement_gap"] = True
             await self.async_stop("interrupted_by_restart")
         await self._async_close_late_open()
 
@@ -450,12 +451,14 @@ class IrrigationController:
                 float(session.get("paused_seconds", 0))
                 + (now - dt_util.parse_datetime(session["paused_at"])).total_seconds()
             )
+            session["meter_rate_l_min"] = 0.0
             session["last_meter_at"] = now.isoformat()
             session["last_volume_change_at"] = now.isoformat()
             session["last_flow_at"] = None
             session["flow_seen"] = False
             session["paused_at"] = None
             session["segment_started_at"] = now.isoformat()
+            session["opening_started_at"] = now.isoformat()
             session["segment_accounted"] = False
             session["confirmed_open"] = False
             self.state.irrigation_last_status = "running"
@@ -542,6 +545,7 @@ class IrrigationController:
                     else None
                 ),
                 "meter_baseline": baseline,
+                "meter_rate_l_min": 0.0,
                 "last_meter_at": now.isoformat(),
                 "last_volume_change_at": now.isoformat(),
                 "active_seconds": 0.0,
@@ -631,12 +635,29 @@ class IrrigationController:
                 session["ever_confirmed_open"] = True
             if valve_state == "off" and not session.get("confirmed_open"):
                 if (
-                    now - dt_util.parse_datetime(session["started_at"])
+                    now
+                    - dt_util.parse_datetime(
+                        session.get("opening_started_at") or session["started_at"]
+                    )
                 ).total_seconds() < 30:
                     return
                 await self._async_stop_locked("valve_did_not_open")
                 return
             if valve_state == "off":
+                valve = self.hass.states.get(session["valve_entity_id"])
+                closed_at = min(now, valve.last_changed)
+                meter_id = session.get("meter_entity_id")
+                meter = self.hass.states.get(meter_id) if meter_id else None
+                reported = (
+                    (getattr(meter, "last_reported", None) or meter.last_updated)
+                    if meter
+                    else None
+                )
+                if reported is not None and reported <= closed_at:
+                    if self._sample_meter(session, closed_at):
+                        session["measurement_gap"] = True
+                elif session["meter_kind"] != "timer":
+                    session["measurement_gap"] = True
                 await self._async_finish_locked("valve_closed_externally")
                 return
             started = dt_util.parse_datetime(session["started_at"])
@@ -648,7 +669,13 @@ class IrrigationController:
             ):
                 await self._async_stop_locked("maximum_runtime")
                 return
-            if self._valve_state() not in {"on", "off"} and elapsed > 30:
+            opening_elapsed = (
+                now
+                - dt_util.parse_datetime(
+                    session.get("opening_started_at") or session["started_at"]
+                )
+            ).total_seconds()
+            if self._valve_state() not in {"on", "off"} and opening_elapsed > 30:
                 await self._async_stop_locked("valve_unavailable")
                 return
             fault = self._sample_meter(session, now)
@@ -781,7 +808,6 @@ class IrrigationController:
             return "meter_stale"
         kind, value = reading
         previous = dt_util.parse_datetime(session["last_meter_at"])
-        elapsed = max(0.0, (now - previous).total_seconds())
         if kind == "volume":
             delta = value - session["meter_baseline"]
             if delta < -0.01:
@@ -825,6 +851,7 @@ class IrrigationController:
             )
             if reported_at <= segment_start:
                 # An old non-zero shared-meter rate is not proof of lawn flow.
+                session["meter_rate_l_min"] = 0.0
                 session["last_meter_at"] = now.isoformat()
                 return None
             if value > float(
@@ -844,8 +871,16 @@ class IrrigationController:
             ):
                 session["flow_seen"] = True
                 session["last_flow_at"] = reported_at.isoformat()
-            # The watchdog caps elapsed integration after process stalls.
-            session["liters"] += value * min(elapsed, 30) / 60
+            # Hold each rate forward to its report edge; never apply a new
+            # zero or spike retroactively to the whole preceding interval.
+            bounded_start = max(previous, now - timedelta(seconds=30))
+            edge = max(bounded_start, min(now, reported_at))
+            old_rate = float(session.get("meter_rate_l_min", 0.0))
+            session["liters"] += (
+                old_rate * (edge - bounded_start).total_seconds()
+                + value * (now - edge).total_seconds()
+            ) / 60
+            session["meter_rate_l_min"] = value
         session["last_meter_at"] = now.isoformat()
         return None
 
@@ -862,7 +897,8 @@ class IrrigationController:
             session["confirmed_open"] = True
             session["ever_confirmed_open"] = True
         if (
-            self._valve_state() == "on"
+            reason != "interrupted_by_restart"
+            and self._valve_state() == "on"
             and not session.get("paused_at")
             and self._other_valve_state() == "off"
         ):
@@ -986,28 +1022,36 @@ class IrrigationController:
         self._recent_owned_valve_id = session.get("valve_entity_id")
         self.state.irrigation_recent_valve_id = self._recent_owned_valve_id
         self.state.irrigation_recent_until = self._recent_owned_until.isoformat()
-        await self.coordinator._store.async_save(self.state.as_dict())
+        # The final session state and its water credit are persisted together
+        # by async_mark_watered, with no intermediate save losing the credit.
         if liters is not None and liters > 0:
             area = float(self.coordinator.settings.get(CONF_AREA, DEFAULT_AREA))
             await self.coordinator.async_mark_watered(liters / area)
         elif (
-            session["meter_kind"] == "timer"
-            and (session.get("ever_confirmed_open") or session.get("confirmed_open"))
-            and float(session.get("active_seconds", 0))
-            + (
-                0
-                if session.get("paused_at") or session.get("segment_accounted")
-                else (
-                    dt_util.now()
-                    - dt_util.parse_datetime(
-                        session.get("segment_started_at") or session["started_at"]
-                    )
-                ).total_seconds()
+            (
+                session["meter_kind"] == "timer"
+                and (
+                    session.get("ever_confirmed_open") or session.get("confirmed_open")
+                )
+                and float(session.get("active_seconds", 0))
+                + (
+                    0
+                    if session.get("paused_at") or session.get("segment_accounted")
+                    else (
+                        dt_util.now()
+                        - dt_util.parse_datetime(
+                            session.get("segment_started_at") or session["started_at"]
+                        )
+                    ).total_seconds()
+                )
+                >= 60
             )
-            >= 60
+            or reason == "interrupted_by_restart"
+            and (session.get("ever_confirmed_open") or session.get("confirmed_open"))
         ):
             await self.coordinator.async_mark_watered(0, was_wet=True)
         else:
+            await self.coordinator._store.async_save(self.state.as_dict())
             await self.coordinator.async_request_refresh()
 
     async def async_shutdown(self) -> bool:

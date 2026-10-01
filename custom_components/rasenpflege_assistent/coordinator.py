@@ -165,6 +165,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 sample_date=str(stored.get("sample_date", today.isoformat())),
                 temperature_sum=float(stored.get("temperature_sum", 0.0)),
                 temperature_samples=int(stored.get("temperature_samples", 0)),
+                temperature_sample_at=stored.get("temperature_sample_at"),
                 last_watering=stored.get("last_watering"),
                 last_fertilizing=stored.get("last_fertilizing"),
                 last_mowing=stored.get("last_mowing"),
@@ -179,6 +180,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                     stored.get("configured_initial_gts", initial_gts)
                 ),
                 configured_last_watering=stored.get("configured_last_watering"),
+                configured_last_watering_revision=stored.get(
+                    "configured_last_watering_revision"
+                ),
                 configured_last_fertilizing=stored.get("configured_last_fertilizing"),
                 temperature_min=stored.get("temperature_min"),
                 temperature_max=stored.get("temperature_max"),
@@ -282,6 +286,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 configured_last_mowing_revision=settings.get("last_mowing_revision"),
                 configured_initial_gts=initial_gts,
                 configured_last_watering=initial_watering,
+                configured_last_watering_revision=settings.get(
+                    "last_watering_revision"
+                ),
                 configured_last_fertilizing=initial_fertilizing,
                 soil_water_mm=capacity * initial_moisture / 100,
                 configured_initial_soil_moisture=initial_moisture,
@@ -347,9 +354,30 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             if (
                 configured_value != getattr(self._state, configured_key)
                 or mowing_changed
+                or (
+                    setting_key == CONF_LAST_WATERING
+                    and settings.get("last_watering_revision")
+                    != self._state.configured_last_watering_revision
+                )
             ):
                 setattr(self._state, state_key, configured_value)
                 setattr(self._state, configured_key, configured_value)
+                if setting_key == CONF_LAST_WATERING:
+                    self._state.configured_last_watering_revision = settings.get(
+                        "last_watering_revision"
+                    )
+                    watering_date = _parse_date(configured_value)
+                    self._state.last_watering_at = (
+                        (
+                            dt_util.now()
+                            if watering_date == today
+                            else dt_util.as_utc(
+                                dt_util.start_of_local_day(watering_date)
+                            )
+                        ).isoformat()
+                        if watering_date
+                        else None
+                    )
                 if setting_key == CONF_LAST_MOWING:
                     self._state.configured_last_mowing_revision = settings.get(
                         "last_mowing_revision"
@@ -359,6 +387,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                     self._state.last_mowing_source = (
                         "manual_correction" if configured_value else None
                     )
+
+        if self._state.last_watering and not self._state.last_watering_at:
+            watering_date = _parse_date(self._state.last_watering)
+            if watering_date is not None:
+                self._state.last_watering_at = dt_util.as_utc(
+                    dt_util.start_of_local_day(watering_date)
+                ).isoformat()
 
         # Older versions knew only a local date. Preserve that fact and use
         # local midnight as an explicitly estimated time, never the load time.
@@ -431,6 +466,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 if now - reported_at > CURRENT_WEATHER_STALE_AFTER:
                     raise ValueError("selected temperature is stale")
                 value = float(state.state)
+                if not math.isfinite(value):
+                    raise ValueError("temperature is not finite")
                 unit = state.attributes.get("unit_of_measurement")
                 if unit and unit != UnitOfTemperature.CELSIUS:
                     value = TemperatureConverter.convert(
@@ -441,12 +478,14 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 pass
 
         weather = self.hass.states.get(self.settings[CONF_WEATHER_ENTITY])
-        if weather is not None:
+        if weather is not None and weather.state not in ("unknown", "unavailable"):
             try:
                 reported_at = self._reported_at(weather)
                 if now - reported_at > CURRENT_WEATHER_STALE_AFTER:
                     return None, "unavailable", self._age_minutes(now, reported_at)
                 value = float(weather.attributes["temperature"])
+                if not math.isfinite(value):
+                    raise ValueError("weather temperature is not finite")
                 unit = weather.attributes.get("temperature_unit")
                 if unit and unit != UnitOfTemperature.CELSIUS:
                     value = TemperatureConverter.convert(
@@ -702,6 +741,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             return None
         try:
             value = float(state.state)
+            if not math.isfinite(value):
+                return None
             unit = state.attributes.get("unit_of_measurement")
             if unit and unit != UnitOfTemperature.CELSIUS:
                 value = TemperatureConverter.convert(
@@ -847,6 +888,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         """Finalize temperature history and GTS for one completed day."""
         assert self._state is not None
         if not self._state.temperature_samples:
+            self._state.daily_temperature_history.clear()
             self._state.missing_temperature_days += 1
             return
         mean = self._state.temperature_sum / self._state.temperature_samples
@@ -1081,7 +1123,10 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 self._state.missing_temperature_days += max(
                     0, (today - previous_day).days - 1
                 )
+            if previous_day and (today - previous_day).days > 1:
+                self._state.daily_temperature_history.clear()
             self._state.sample_date = today.isoformat()
+            self._state.temperature_sample_at = None
             self._state.temperature_sum = 0.0
             self._state.temperature_samples = 0
             self._state.temperature_min = None
@@ -1102,7 +1147,14 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 0, (today - date(today.year, 1, 1)).days
             )
 
-        if temperature is not None:
+        if temperature is not None and math.isfinite(temperature):
+            now = dt_util.now()
+            last_sample = dt_util.parse_datetime(
+                self._state.temperature_sample_at or ""
+            )
+            if last_sample is not None and now - last_sample < UPDATE_INTERVAL:
+                return
+            self._state.temperature_sample_at = now.isoformat()
             self._state.temperature_sum += temperature
             self._state.temperature_samples += 1
             self._state.temperature_min = (

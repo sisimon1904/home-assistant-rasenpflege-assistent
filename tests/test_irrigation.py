@@ -698,3 +698,98 @@ async def test_restart_during_pause_does_not_resume_or_command_other_valve(
     assert hass.states.get("switch.garden_water").state == "off"
     assert hass.states.get("switch.other_water").state == "on"
     assert await restarted.async_shutdown()
+
+
+async def test_rate_zero_report_keeps_preceding_water(hass, freezer):
+    """A falling rate cannot erase flow delivered before its report edge."""
+    freezer.move_to("2026-07-20T10:00:00+00:00")
+    c = _controller(hass, irrigation_flow="sensor.flow", min_irrigation_minutes=5)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    hass.states.async_set("sensor.flow", "0", {"unit_of_measurement": "L/min"})
+    await c.async_start(manual=True)
+    freezer.tick(timedelta(seconds=10))
+    hass.states.async_set("sensor.flow", "12", {"unit_of_measurement": "L/min"})
+    await c.async_check()
+    assert c.state.irrigation_session["liters"] == 0
+    freezer.tick(timedelta(seconds=10))
+    hass.states.async_set("sensor.flow", "0", {"unit_of_measurement": "L/min"})
+    await c.async_check()
+    assert c.state.irrigation_session["liters"] == pytest.approx(2)
+
+
+async def test_external_closure_credits_last_preclosure_counter(hass, freezer):
+    """An already reported final volume is sampled before finishing."""
+    freezer.move_to("2026-07-20T10:00:00+00:00")
+    c = _controller(hass, max_flow_l_min=300)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await c.async_start(manual=True)
+    freezer.tick(timedelta(seconds=10))
+    hass.states.async_set(
+        "sensor.garden_water_liters", "10", {"unit_of_measurement": "L"}
+    )
+    freezer.tick(timedelta(seconds=1))
+    hass.states.async_set("switch.garden_water", "off")
+    await c.async_check()
+    assert c.state.irrigation_last_liters == 10
+    assert c.state.soil_water_mm == pytest.approx(10.085)
+
+
+async def test_restart_never_credits_shared_counter_gap(hass):
+    """Only the previously saved volume is credited across a restart."""
+    c = _controller(hass, max_flow_l_min=300)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await c.async_start(manual=True)
+    c.state.irrigation_session["liters"] = 5
+    hass.states.async_set(
+        "sensor.garden_water_liters", "25", {"unit_of_measurement": "L"}
+    )
+    restarted = IrrigationController(hass, c.coordinator)
+    await restarted.async_initialize()
+    assert restarted.state.irrigation_last_liters == 5
+    assert restarted.state.irrigation_last_measurement_gap
+    assert restarted.state.soil_water_mm == pytest.approx(10.0425)
+    assert await restarted.async_shutdown()
+
+
+async def test_session_completion_and_water_credit_share_one_save(hass):
+    """No persisted completed session can precede its water credit."""
+    c = _controller(hass, max_flow_l_min=300)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await c.async_start(manual=True)
+    c.state.irrigation_session["liters"] = 10
+    c.coordinator._store.async_save.reset_mock()
+    await c.async_stop()
+    completed = [
+        call.args[0]
+        for call in c.coordinator._store.async_save.call_args_list
+        if call.args[0]["irrigation_session"] is None
+    ]
+    assert len(completed) == 1
+    assert completed[0]["soil_water_mm"] == pytest.approx(10.085)
+    assert completed[0]["last_watering_at"] is not None
+
+
+async def test_resumed_valve_receives_new_opening_grace(hass, freezer):
+    """A delayed on report after a long pause gets a fresh 30 seconds."""
+    freezer.move_to("2026-07-20T10:00:00+00:00")
+    c = _controller(hass, other_valve="switch.other", flow_start_grace=600)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    hass.states.async_set("switch.other", "off")
+    await c.async_start(manual=True)
+    freezer.tick(timedelta(minutes=1))
+    hass.states.async_set("switch.other", "on")
+    await c.async_check()
+    assert c.state.irrigation_session["paused_at"]
+    hass.states.async_set("switch.other", "off")
+
+    async def delayed_open(_call):
+        return None
+
+    hass.services.async_register("switch", "turn_on", delayed_open)
+    await c._async_maybe_resume()
+    assert c.active
+    assert c.state.irrigation_session["paused_at"] is None
+    freezer.tick(timedelta(seconds=31))
+    await c.async_check()
+    assert not c.active
+    assert c.state.irrigation_last_reason == "valve_did_not_open"

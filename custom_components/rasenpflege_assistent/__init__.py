@@ -261,7 +261,10 @@ async def async_migrate_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bo
         }
         options = {
             **entry.options,
-            **{key: entry.options.get(key, value) for key, value in defaults.items()},
+            **{
+                key: entry.options.get(key, entry.data.get(key, value))
+                for key, value in defaults.items()
+            },
         }
         hass.config_entries.async_update_entry(
             entry,
