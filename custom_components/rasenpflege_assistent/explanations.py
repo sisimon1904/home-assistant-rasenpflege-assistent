@@ -356,6 +356,59 @@ for _code, _texts in _RELEASE_EXPLANATIONS.items():
     EXPLANATIONS["en"][_code] = _texts[1]
 
 
+_NEW_EXPLANATIONS = {
+    "rain_detected": ("Bewässerung wegen Regen beendet", "Watering stopped for rain"),
+    "wind_too_strong": (
+        "Bewässerung wegen starkem Wind beendet",
+        "Watering stopped for strong wind",
+    ),
+    "budget_uncertain": (
+        "Verbrauch unvollständig; Automatik gesperrt",
+        "Consumption incomplete; automation blocked",
+    ),
+    "water_budget_exhausted": ("Verbrauchslimit erreicht", "Water budget exhausted"),
+    "water_budget_available": (
+        "Verbrauchslimit oder Messqualität prüfen",
+        "Check the consumption budget or measurement quality",
+    ),
+    "irrigation": ("Ventilmessung", "Valve measurement"),
+    "manual_record": ("Manueller Eintrag", "Manual record"),
+    "manual_estimate": ("Manuelle Schätzung", "Manual estimate"),
+    "schedule_ends_before_target": (
+        "Erlaubtes Zeitfenster endet voraussichtlich vor Erreichen der Zielmenge",
+        "Allowed schedule likely ends before the target is reached",
+    ),
+    "current_weather_safe": (
+        "Aktuell Regen oder starken Wind abwarten",
+        "Wait for current rain or strong wind to subside",
+    ),
+    "planned_start": (
+        "Voraussichtlicher Start im erlaubten Wetterfenster",
+        "Estimated start in an allowed weather window",
+    ),
+    "no_schedule_overlap": (
+        "Zeitplan und Wetterfenster überschneiden sich nicht",
+        "Schedule and forecast window do not overlap",
+    ),
+    "no_active_session": ("Keine laufende Bewässerung", "No active irrigation session"),
+    "waiting_for_flow": (
+        "Restlaufzeit erst bei messbarem Durchfluss verfügbar",
+        "Remaining time requires measurable flow",
+    ),
+    "estimated_completion": (
+        "Geschätztes Ende einschließlich Einweichpausen",
+        "Estimated completion including soak pauses",
+    ),
+    "maximum_runtime_before_target": (
+        "Zielmenge voraussichtlich nicht vor Sicherheitsende erreichbar",
+        "Target likely exceeds the safety runtime",
+    ),
+}
+for _code, _texts in _NEW_EXPLANATIONS.items():
+    EXPLANATIONS["de"][_code] = _texts[0]
+    EXPLANATIONS["en"][_code] = _texts[1]
+
+
 def reason_text(code: str | None, language: str) -> str | None:
     """Return a localized explanation, preserving unknown codes for diagnosis."""
     if code is None:

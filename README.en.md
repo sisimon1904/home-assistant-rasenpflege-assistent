@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.7.0 · [Changelog](CHANGELOG.md)
+Version 3.8.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -13,14 +13,40 @@ sum, modeled soil moisture, and recommendations for watering, fertilizing, and
 mowing. It can optionally control an existing irrigation valve; it does not
 control the robotic mower.
 
-## New in 3.7.0
+## New in 3.8.0
 
-- Manual irrigation with a requested amount in liters or millimeters.
-- Optional watering cycles and soaking pauses; the maximum total duration still includes every pause.
-- Weekday/local-time schedules and temporary automatic irrigation holds.
-- Optional leaf wetness input to refine estimated drying delays.
-- Weekly/monthly consumption, backdated maintenance, irrigation events and expanded diagnostics.
-- Frost protection, stricter weather validation, complete robot-session undo and completed explanations/colors.
+- Immediate frost checks using live air/soil readings and state events.
+- Automatic irrigation stops for sustained rain or strong wind; manual starts remain available.
+- Optional daily/weekly automation budgets, daily consumption and session history.
+- Combined care plan, next-start prediction and remaining-time estimates including soak pauses.
+- Calendar-boundary consumption allocation and explicit undone-session diagnostics.
+- Care-plan/history dashboards, selectable volume presets and duration-based automation holds.
+
+### Weather stops and consumption budgets
+
+Configure the new options under **Configure → Irrigation safety**. Weather stops default to enabled: rain at 0.5 mm/h for rate sensors or 0.5 mm measured since session start for amount/cumulative sensors, wind at 8 m/s, and 120 seconds of confirmation. Short rate/wind spikes reset the timer when they subside. Currently reported rain or strong wind blocks automatic starts immediately. Without a valid rain sensor, current weather conditions provide the fallback. Missing weather is not treated as measured rainfall. Inputs use existing HA entities; there is no additional regular OWM API polling.
+
+Daily/weekly budgets default to **0 (disabled)**. All recorded watering counts, including manual amounts and estimates; unknown or incomplete amounts block automatic starts for the affected budget period. Automatic targets are capped at the remaining budget. Reporting and valve delays can still cause overshoot. Manual starts retain the existing safety limits. The second valve remains strictly read-only.
+
+### Predictions, history and undo
+
+The **care plan** combines mowing, watering and fertilizing with available times and blockers. **Next automatic irrigation start** intersects the cached forecast window with weekdays/hours, holds and retry cooldowns. Missing overlaps or prerequisites leave the timestamp unknown with an explanatory reason. This is an estimate rather than a reservation or a complete multi-day simulation.
+
+**Remaining irrigation time** estimates active minutes from flow; `session_estimated_end` includes soak pauses. Other-valve pauses have an unknown end time. No achievable completion timestamp is given when the overall safety runtime is insufficient.
+
+**Water consumption today**, weekly and monthly totals include completed or manually recorded watering. Active sessions are shown separately in irrigation diagnostics and included in budget checks. `recent_records` exposes the last ten records; `recent_sessions` exposes the last ten valve sessions. Cumulative readings crossing midnight are allocated in proportion to elapsed time and marked `allocation_estimated`; known total volume is preserved. Old records without measurement intervals retain their original date allocation.
+
+Undo removes ledger volume and soil-model credit. Physical measurements remain in last-session diagnostics with `undone: true`, `undone_at` and `effective_model_mm: 0`. The once-per-day automatic watering lock is retained for safety; undo does not trigger another automatic session.
+
+`suspend_irrigation` now accepts **`duration_hours`** (0.25–168), alternatively to `until`. Omit both to clear a hold. New templates: [Care plan](docs/dashboard/care-plan.en.yaml), [Consumption and history](docs/dashboard/consumption.en.yaml). The [irrigation card](docs/dashboard/irrigation.en.yaml) provides 1/3/5 mm, 100 liters and 2/24-hour holds. Other custom quantities are available in the HA action dialog.
+
+| New diagnostic attributes | Meaning |
+| --- | --- |
+| `next_start_plan` | Estimated timestamp, reason and estimate flag. |
+| `session_remaining_active_minutes`, `session_estimated_end`, `session_eta_reason` | Remaining time, estimated end and limitations. |
+| `water_budget` | Known daily/weekly consumption, remaining budget and incomplete measurement. |
+| `action_hint` | Concrete user action for the current automation blocker. |
+| `allocations`, `allocation_estimated` | Per-day measured-volume shares and temporal estimate flag. |
 
 ## Irrigation targets, schedules and soaking cycles
 
@@ -36,7 +62,7 @@ Use **Developer tools → Actions** for these actions:
 | --- | --- | --- |
 | `rasenpflege_assistent.start_irrigation` | optional `target_liters` **or** `target_mm` | Manual start; volume targets require a water meter. |
 | `rasenpflege_assistent.stop_irrigation` | none | Stop the owned running or paused session. |
-| `rasenpflege_assistent.suspend_irrigation` | optional `until` | Hold automation until the timestamp; omit `until` to clear. |
+| `rasenpflege_assistent.suspend_irrigation` | optional `until` **or** `duration_hours` | Hold automation; omit both to clear. |
 
 All actions require `config_entry_id`. The action dialog lets you select the lawn configuration. Its ID can also be obtained with `{{ config_entry_id('sensor.YOUR_LAWN_ENTITY') }}` in **Developer tools → Template**. `until` must be a future ISO timestamp **with timezone**, such as `2026-10-02T08:00:00+02:00`.
 
@@ -76,7 +102,7 @@ Copyable Mushroom templates: [Overview](docs/dashboard/overview.en.yaml), [Irrig
 
 ## Irrigation events for your automations
 
-`rasenpflege_assistent_irrigation` provides `config_entry_id`, `phase`, `reason`, `source`, `started_at`, `liters` and `measurement_gap`. Phases are `started`, `paused`, `resumed`, `completed` and `stopped`. Completion events follow successful persistence and are not duplicated on storage retries. Events are live notifications and are not replayed after restart. The integration sends no messages itself.
+`rasenpflege_assistent_irrigation` provides `config_entry_id`, `phase`, `reason`, `source`, `started_at`, `liters`, `measurement_gap`, `session_id`, `target_liters` and `reason_text`. Phases are `started`, `paused`, `resumed`, `completed` and `stopped`. Completion events follow successful persistence and are not duplicated on storage retries. Events are live notifications and are not replayed after restart. The integration sends no messages itself.
 
 ```yaml
 triggers:
@@ -274,4 +300,5 @@ tap_action:
 returns the stable English machine state for automations.
 
 See the [changelog](CHANGELOG.md) for details of previous versions.
+
 

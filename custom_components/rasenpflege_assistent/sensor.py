@@ -467,6 +467,10 @@ SENSORS: tuple[LawnSensorDescription, ...] = (
             "window_expired",
             "automation_suspended",
             "outside_schedule",
+            "rain_detected",
+            "wind_too_strong",
+            "budget_uncertain",
+            "water_budget_exhausted",
         ],
         value_fn=lambda data: "not_configured",
     ),
@@ -682,7 +686,38 @@ SENSORS += tuple(
         suggested_display_precision=1,
         value_fn=lambda data: None,
     )
-    for key in ("water_consumption_week", "water_consumption_month")
+    for key in (
+        "water_consumption_day",
+        "water_consumption_week",
+        "water_consumption_month",
+    )
+)
+
+
+SENSORS += (
+    LawnSensorDescription(
+        key="care_plan",
+        translation_key="care_plan",
+        icon="mdi:calendar-check",
+        device_class=SensorDeviceClass.ENUM,
+        options=next(item.options for item in SENSORS if item.key == "next_action"),
+        value_fn=lambda data: data.next_action,
+    ),
+    LawnSensorDescription(
+        key="next_automatic_start",
+        translation_key="next_automatic_start",
+        icon="mdi:water-clock",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        value_fn=lambda data: None,
+    ),
+    LawnSensorDescription(
+        key="irrigation_remaining_time",
+        translation_key="irrigation_remaining_time",
+        icon="mdi:timer-sand",
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        suggested_display_precision=1,
+        value_fn=lambda data: None,
+    ),
 )
 
 
@@ -703,7 +738,13 @@ async def async_setup_entry(
         LawnSensor(coordinator, description)
         for description in SENSORS
         if description.key
-        not in {"irrigation_status", "irrigation_readiness", "irrigation_auto_decision"}
+        not in {
+            "irrigation_status",
+            "irrigation_readiness",
+            "irrigation_auto_decision",
+            "next_automatic_start",
+            "irrigation_remaining_time",
+        }
         or (coordinator.irrigation and coordinator.irrigation.configured)
     )
 
@@ -724,14 +765,23 @@ class LawnSensor(LawnEntity, SensorEntity):
     def native_value(self) -> Any:
         """Return the sensor value."""
         if self.entity_description.key in {
+            "water_consumption_day",
             "water_consumption_week",
             "water_consumption_month",
         }:
-            period = "week" if self.entity_description.key.endswith("week") else "month"
+            period = self.entity_description.key.rsplit("_", 1)[1]
             return consumption_summary(
                 self.coordinator._state.water_usage,
                 dt_util.as_local(dt_util.now()).date(),
             )[f"{period}_liters"]
+        if self.entity_description.key == "next_automatic_start":
+            return dt_util.parse_datetime(
+                self.coordinator.irrigation.next_start_details()["at"] or ""
+            )
+        if self.entity_description.key == "irrigation_remaining_time":
+            return self.coordinator.irrigation.remaining_time_details()[
+                "session_remaining_active_minutes"
+            ]
         if self.entity_description.key == "irrigation_readiness":
             return self.coordinator.irrigation.readiness()
         if self.entity_description.key == "irrigation_auto_decision":
@@ -743,14 +793,76 @@ class LawnSensor(LawnEntity, SensorEntity):
         """Return useful recommendation details."""
         key = self.entity_description.key
         language = self.coordinator.hass.config.language
-        if key in {"water_consumption_week", "water_consumption_month"}:
-            return consumption_summary(
-                self.coordinator._state.water_usage,
-                dt_util.as_local(dt_util.now()).date(),
-            )
+        if key == "next_automatic_start":
+            details = self.coordinator.irrigation.next_start_details()
+            return {**details, "reason_text": reason_text(details["reason"], language)}
+        if key == "irrigation_remaining_time":
+            details = self.coordinator.irrigation.remaining_time_details()
+            return {
+                **details,
+                "reason_text": reason_text(details["session_eta_reason"], language),
+            }
+        if key == "care_plan":
+            data = self.coordinator.data
+            irrigation = self.coordinator.irrigation
+            return {
+                "mowing": {
+                    "status": data.mower_status,
+                    "next_at": data.next_mowing_at,
+                    "wet_until": data.mower_wet_until,
+                    "reason": data.mowing_reason,
+                    "reason_text": reason_text(data.mowing_reason, language),
+                },
+                "watering": {
+                    "status": data.watering_status,
+                    "recommended_liters": data.watering_liters,
+                    "next_start": irrigation.next_start_details()
+                    if irrigation
+                    else None,
+                    "blocker": irrigation.automatic_blocker()
+                    if irrigation
+                    else "not_configured",
+                    "blocker_text": reason_text(
+                        irrigation.automatic_blocker()
+                        if irrigation
+                        else "not_configured",
+                        language,
+                    ),
+                },
+                "fertilizing": {
+                    "status": data.fertilizing_status,
+                    "window": data.next_fertilizing_window,
+                    "recommended_kg": data.fertilizer_total_kg,
+                    "reasons_text": [
+                        reason_text(code, language) for code in data.fertilizing_reasons
+                    ],
+                },
+                "forecast_estimated": True,
+            }
+        if key in {
+            "water_consumption_day",
+            "water_consumption_week",
+            "water_consumption_month",
+        }:
+            return {
+                **consumption_summary(
+                    self.coordinator._state.water_usage,
+                    dt_util.as_local(dt_util.now()).date(),
+                ),
+                "recent_records": [
+                    {
+                        **record,
+                        "source_text": reason_text(record.get("source"), language),
+                        "reason_text": reason_text(record.get("reason"), language),
+                    }
+                    for record in reversed(self.coordinator._state.water_usage)
+                ][:10],
+                "totals_include_active_session": False,
+            }
         if key in {"irrigation_readiness", "irrigation_auto_decision"}:
             details = self.coordinator.irrigation.diagnostic_attributes()
             details["reason_text"] = reason_text(self.native_value, language)
+            details["action_hint"] = self.coordinator.irrigation.action_hint(language)
             details["automatic_blockers_text"] = [
                 reason_text(code, language) for code in details["automatic_blockers"]
             ]
@@ -786,8 +898,13 @@ class LawnSensor(LawnEntity, SensorEntity):
                 if observer
                 else {"status": "not_configured", "active_minutes": 0}
             )
-        if key == "irrigation_status":
+        if key in {
+            "irrigation_status",
+            "irrigation_auto_decision",
+            "irrigation_readiness",
+        }:
             details.update(self.coordinator.irrigation.diagnostic_attributes())
+            details["action_hint"] = self.coordinator.irrigation.action_hint(language)
             if details.get("last_session"):
                 details["last_session"] = {
                     **details["last_session"],

@@ -134,6 +134,12 @@ SCHEDULE_FIELDS = (
     CONF_IRRIGATION_SOAK_MINUTES,
 )
 SAFETY_FIELDS = (
+    "irrigation_weather_stop",
+    "irrigation_rain_stop_mm",
+    "irrigation_wind_stop_m_s",
+    "irrigation_weather_stop_delay_seconds",
+    "irrigation_daily_limit_liters",
+    "irrigation_weekly_limit_liters",
     CONF_MIN_IRRIGATION_MINUTES,
     CONF_MAX_IRRIGATION_MINUTES,
     CONF_MAX_IRRIGATION_LITERS,
@@ -263,6 +269,62 @@ def _schema(
             ),
             vol.Optional(CONF_MOWER_SAFE_STATE, default="docked"): str,
             vol.Optional(CONF_ALLOW_UNMETERED_MANUAL, default=False): bool,
+            vol.Required("irrigation_weather_stop", default=True): bool,
+            vol.Required(
+                "irrigation_rain_stop_mm", default=0.5
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0.1,
+                    max=20,
+                    step="any",
+                    unit_of_measurement="mm",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Required(
+                "irrigation_wind_stop_m_s", default=8
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=1,
+                    max=30,
+                    step="any",
+                    unit_of_measurement="m/s",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Required(
+                "irrigation_weather_stop_delay_seconds", default=120
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0,
+                    max=600,
+                    step="any",
+                    unit_of_measurement="s",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Required(
+                "irrigation_daily_limit_liters", default=0
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0,
+                    max=100000,
+                    step="any",
+                    unit_of_measurement="L",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Required(
+                "irrigation_weekly_limit_liters", default=0
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0,
+                    max=500000,
+                    step="any",
+                    unit_of_measurement="L",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
             vol.Required(
                 CONF_MIN_IRRIGATION_MINUTES, default=DEFAULT_MIN_IRRIGATION_MINUTES
             ): selector.NumberSelector(

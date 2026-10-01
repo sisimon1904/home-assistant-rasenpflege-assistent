@@ -1,6 +1,7 @@
 """Local irrigation schedules and recorded consumption, without network access."""
 
-from datetime import date, datetime, time, timedelta
+import math
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 
 
@@ -32,26 +33,44 @@ def schedule_allowed(settings: dict, now: datetime) -> bool:
 def consumption_summary(records: list[dict[str, Any]], today: date) -> dict:
     """Sum local calendar periods; keep unknown and partial sessions explicit."""
     periods = {
+        "day": today,
         "week": today - timedelta(days=today.weekday()),
         "month": today.replace(day=1),
     }
     output = {}
     for label, start in periods.items():
         matching = []
+        amounts = []
         for record in records:
-            try:
-                day = date.fromisoformat(record["date"])
-            except (KeyError, TypeError, ValueError):
-                continue
-            if start <= day <= today:
+            allocations = record.get("allocations") or [record]
+            selected = []
+            for allocation in allocations:
+                try:
+                    day = date.fromisoformat(allocation["date"])
+                    liters = allocation.get("liters")
+                    if liters is not None:
+                        liters = float(liters)
+                        if not math.isfinite(liters) or liters < 0:
+                            continue
+                except (KeyError, TypeError, ValueError):
+                    continue
+                if start <= day <= today:
+                    selected.append(liters)
+            if not selected:
+                for raw_day in record.get("uncertainty_dates", []):
+                    try:
+                        day = date.fromisoformat(raw_day)
+                    except (TypeError, ValueError):
+                        continue
+                    if start <= day <= today:
+                        selected = [0.0]
+                        break
+            if selected:
                 matching.append(record)
-        output[f"{label}_liters"] = round(
-            sum(
-                float(record["liters"])
-                for record in matching
-                if record.get("liters") is not None
-            ),
-            2,
+                amounts.append((record, sum(v for v in selected if v is not None)))
+        output[f"{label}_liters"] = round(sum(v for _, v in amounts), 2)
+        output[f"{label}_allocation_estimated_sessions"] = sum(
+            bool(record.get("allocation_estimated")) for record in matching
         )
         output[f"{label}_unmetered_sessions"] = sum(
             record.get("liters") is None for record in matching
@@ -63,12 +82,75 @@ def consumption_summary(records: list[dict[str, Any]], today: date) -> dict:
         for source in ("irrigation", "manual_record", "manual_estimate"):
             output[f"{label}_{source}_liters"] = round(
                 sum(
-                    float(record["liters"])
-                    for record in matching
+                    liters
+                    for record, liters in amounts
                     if record.get("source") == source
-                    and record.get("liters") is not None
                 ),
                 2,
             )
         output[f"{label}_source"] = "recorded_water_only"
     return output
+
+
+def allocate_volume(start: datetime, end: datetime, liters: float) -> list[dict]:
+    """Split a measured interval at local midnight using actual elapsed seconds.
+
+    Callers supply the local timezone. Cumulative readings spanning a boundary
+    require an estimated temporal allocation, while their total stays measured.
+    """
+    first = start.astimezone(timezone.utc)
+    last = end.astimezone(timezone.utc)
+    if liters <= 0:
+        return []
+    duration = (last - first).total_seconds()
+    if duration <= 0:
+        return [{"date": end.date().isoformat(), "liters": liters}]
+    result = []
+    cursor = first
+    while cursor < last:
+        local = cursor.astimezone(end.tzinfo)
+        midnight = datetime.combine(
+            local.date() + timedelta(days=1), time(), end.tzinfo
+        )
+        edge = min(last, midnight.astimezone(timezone.utc))
+        result.append(
+            {
+                "date": local.date().isoformat(),
+                "liters": liters * (edge - cursor).total_seconds() / duration,
+            }
+        )
+        cursor = edge
+    return result
+
+
+def next_schedule_time(
+    settings: dict, earliest: datetime, latest: datetime
+) -> datetime | None:
+    """Find an allowed instant in a forecast interval, including DST transitions."""
+    if latest.astimezone(timezone.utc) <= earliest.astimezone(timezone.utc):
+        return None
+    if schedule_allowed(settings, earliest):
+        return earliest
+    try:
+        start = time.fromisoformat(settings.get("irrigation_start_time", "00:00:00"))
+        end = time.fromisoformat(settings.get("irrigation_end_time", "00:00:00"))
+        if start == end:
+            start = time()
+    except (TypeError, ValueError):
+        return None
+    day = earliest.date()
+    while day <= latest.date():
+        for fold in (0, 1):
+            candidate = datetime.combine(day, start, earliest.tzinfo).replace(fold=fold)
+            utc = candidate.astimezone(timezone.utc)
+            # Reject nonexistent local wall times in the spring DST gap.
+            actual = utc.astimezone(earliest.tzinfo)
+            if actual.replace(tzinfo=None) != candidate.replace(tzinfo=None):
+                candidate = actual
+                utc = candidate.astimezone(timezone.utc)
+            if earliest.astimezone(timezone.utc) <= utc < latest.astimezone(
+                timezone.utc
+            ) and schedule_allowed(settings, candidate):
+                return candidate
+        day += timedelta(days=1)
+    return None

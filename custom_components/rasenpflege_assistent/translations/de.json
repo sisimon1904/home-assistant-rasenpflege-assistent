@@ -42,7 +42,13 @@
           "irrigation_efficiency": "Bewässerungseffizienz",
           "rain_correction": "Korrekturfaktor für gemessenen Regen",
           "soil_sensor_dry": "Trockenreferenz des Bodensensors",
-          "soil_sensor_wet": "Nassreferenz des Bodensensors"
+          "soil_sensor_wet": "Nassreferenz des Bodensensors",
+          "irrigation_weather_stop": "Automatisch bei Regen oder Wind stoppen",
+          "irrigation_rain_stop_mm": "Regenschwelle",
+          "irrigation_wind_stop_m_s": "Windschwelle",
+          "irrigation_weather_stop_delay_seconds": "Bestätigungsdauer Wetterstopp",
+          "irrigation_daily_limit_liters": "Tageslimit Automatik",
+          "irrigation_weekly_limit_liters": "Wochenlimit Automatik"
         },
         "data_description": {
           "initial_gts": "Bei einer Installation mitten im Jahr kann hier ein bekannter Startwert eingetragen werden. Ab dem nächsten 1. Januar zählt die Integration automatisch ab 0.",
@@ -68,7 +74,13 @@
           "irrigation_efficiency": "Anteil der ausgebrachten Bewässerung, der den modellierten Wurzelraum erreicht.",
           "rain_correction": "Korrigiert eine systematische Über- oder Unterschätzung der Regenquelle. 1,0 verändert den Wert nicht.",
           "soil_sensor_dry": "Rohwert des physischen Sensors bei trockenem Boden.",
-          "soil_sensor_wet": "Rohwert des physischen Sensors nahe der Feldkapazität. Er muss größer als die Trockenreferenz sein."
+          "soil_sensor_wet": "Rohwert des physischen Sensors nahe der Feldkapazität. Er muss größer als die Trockenreferenz sein.",
+          "irrigation_weather_stop": "Gilt nur für automatische Sitzungen; Frostschutz bleibt immer aktiv.",
+          "irrigation_rain_stop_mm": "Regenrate in mm/h oder seit Sitzungsbeginn gemessene Regenmenge in mm. Ohne gültigen Regensensor wird der aktuelle Wetterzustand verwendet.",
+          "irrigation_wind_stop_m_s": "Automatik bei anhaltendem Wind ab dieser Geschwindigkeit stoppen.",
+          "irrigation_weather_stop_delay_seconds": "Regen oder Wind muss so lange anhalten. 0 stoppt sofort.",
+          "irrigation_daily_limit_liters": "0 deaktiviert das Limit. Alle erfassten Bewässerungen zählen. Unvollständige Mengen sperren die Automatik im betroffenen Zeitraum. Manuelle Starts bleiben möglich.",
+          "irrigation_weekly_limit_liters": "Kalenderwoche ab Montag, 0 deaktiviert. Alle erfassten Bewässerungen zählen; unvollständige Mengen sperren die Automatik."
         }
       }
     },
@@ -177,7 +189,13 @@
           "max_irrigation_liters": "Maximale Wassermenge je Vorgang (Liter)",
           "flow_start_grace_seconds": "Anlaufzeit für Durchfluss (Sekunden)",
           "min_flow_l_min": "Minimaler Durchfluss (L/min)",
-          "max_flow_l_min": "Maximaler Durchfluss (L/min)"
+          "max_flow_l_min": "Maximaler Durchfluss (L/min)",
+          "irrigation_weather_stop": "Automatisch bei Regen oder Wind stoppen",
+          "irrigation_rain_stop_mm": "Regenschwelle",
+          "irrigation_wind_stop_m_s": "Windschwelle",
+          "irrigation_weather_stop_delay_seconds": "Bestätigungsdauer Wetterstopp",
+          "irrigation_daily_limit_liters": "Tageslimit Automatik",
+          "irrigation_weekly_limit_liters": "Wochenlimit Automatik"
         },
         "data_description": {
           "min_irrigation_minutes": "Gilt für manuelle Starts, sofern kein Sicherheitsgrund früheres Schließen verlangt.",
@@ -185,7 +203,13 @@
           "max_irrigation_liters": "Sicherheitsgrenze, die Vorrang vor der Mindestdauer hat.",
           "flow_start_grace_seconds": "Maximale Zeit ohne plausiblen positiven Wasserdurchfluss.",
           "min_flow_l_min": "Kleinster plausibler Durchfluss bei geöffnetem Rasenventil. Geringere Werte bestätigen keine Wasserabgabe.",
-          "max_flow_l_min": "Höhere Durchflusswerte gelten als unplausibel und schließen das Rasenventil."
+          "max_flow_l_min": "Höhere Durchflusswerte gelten als unplausibel und schließen das Rasenventil.",
+          "irrigation_weather_stop": "Gilt nur für automatische Sitzungen; Frostschutz bleibt immer aktiv.",
+          "irrigation_rain_stop_mm": "Regenrate in mm/h oder seit Sitzungsbeginn gemessene Regenmenge in mm. Ohne gültigen Regensensor wird der aktuelle Wetterzustand verwendet.",
+          "irrigation_wind_stop_m_s": "Automatik bei anhaltendem Wind ab dieser Geschwindigkeit stoppen.",
+          "irrigation_weather_stop_delay_seconds": "Regen oder Wind muss so lange anhalten. 0 stoppt sofort.",
+          "irrigation_daily_limit_liters": "0 deaktiviert das Limit. Alle erfassten Bewässerungen zählen. Unvollständige Mengen sperren die Automatik im betroffenen Zeitraum. Manuelle Starts bleiben möglich.",
+          "irrigation_weekly_limit_liters": "Kalenderwoche ab Montag, 0 deaktiviert. Alle erfassten Bewässerungen zählen; unvollständige Mengen sperren die Automatik."
         }
       },
       "model": {
@@ -619,7 +643,11 @@
           "homeassistant_stopping": "Home Assistant wird beendet",
           "frost": "Frostsperre",
           "automation_suspended": "Automatik vorübergehend gesperrt",
-          "outside_schedule": "Außerhalb des Zeitplans"
+          "outside_schedule": "Außerhalb des Zeitplans",
+          "budget_uncertain": "Verbrauch unvollständig",
+          "water_budget_exhausted": "Verbrauchslimit erreicht",
+          "rain_detected": "Regen erkannt",
+          "wind_too_strong": "Wind zu stark"
         }
       },
       "water_consumption_week": {
@@ -627,6 +655,31 @@
       },
       "water_consumption_month": {
         "name": "Erfasste Bewässerung diesen Monat"
+      },
+      "water_consumption_day": {
+        "name": "Wasserverbrauch heute"
+      },
+      "care_plan": {
+        "name": "Pflegeplan",
+        "state": {
+          "collecting_data": "Daten werden gesammelt",
+          "water_lawn": "Rasen wässern",
+          "prepare_watering": "Bewässerung vorbereiten",
+          "wait_for_rain": "Auf Regen warten",
+          "fertilize_lawn": "Rasen düngen",
+          "start_mower": "Mähroboter starten",
+          "mow_lawn": "Rasen mähen",
+          "winterize_mower": "Mähroboter für den Winter abschalten",
+          "no_action": "Keine Aktion erforderlich",
+          "wait_to_mow": "Mit Mähen warten, bis der Rasen trocken ist",
+          "wait_for_irrigation": "Bewässerung abwarten"
+        }
+      },
+      "next_automatic_start": {
+        "name": "Nächster automatischer Bewässerungsstart"
+      },
+      "irrigation_remaining_time": {
+        "name": "Verbleibende Bewässerungsdauer"
       }
     },
     "binary_sensor": {
@@ -801,6 +854,10 @@
         "until": {
           "name": "Gesperrt bis",
           "description": "Zukünftiger ISO-Zeitstempel mit Zeitzone; leer lassen zum Aufheben."
+        },
+        "duration_hours": {
+          "name": "Pausendauer",
+          "description": "Dauer in Stunden, alternativ zu until. Ohne beide Felder wird die Pause aufgehoben."
         }
       }
     }

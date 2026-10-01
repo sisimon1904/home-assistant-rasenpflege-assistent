@@ -1,5 +1,25 @@
 # Changelog
 
+## 3.8.0
+
+### Added
+
+- Debounced rain/wind stops for automatic irrigation using existing HA entities.
+- Optional daily/weekly automation budgets, capped targets and incomplete-metering guards.
+- Combined care-plan, daily consumption, next automatic start and remaining-time sensors.
+- Completion estimates including soaking pauses and clear reasons for unavailable predictions.
+- Ten-record consumption/session histories and actionable irrigation diagnostics.
+- Duration-based automation holds, volume presets and German/English care-plan/history dashboards.
+- Stable irrigation session IDs, target volumes and localized reasons in events.
+
+### Fixed
+
+- Read live air/soil temperatures and react directly to temperature state changes.
+- Allocate measured intervals across local days, weeks and months, including DST; mark temporal estimates.
+- Mark undone irrigation diagnostics and remove their effective model credit while retaining physical measurements and the daily safety lock.
+- Mark bounded-rate integration gaps as incomplete measurement.
+- Combine all prerequisites in next-start predictions instead of hiding blockers behind schedule/hold conditions.
+
 ## 3.7.0
 
 ### Added
@@ -407,4 +427,5 @@
 - The OpenWeatherMap forecast is cached for one hour and is only read through
   Home Assistant's `weather.get_forecasts` action.
 - All Python source values and status keys are English.
+
 

@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.7.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.8.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -13,14 +13,40 @@ Grünlandtemperatursumme, modellierte Bodenfeuchte sowie Empfehlungen zum
 Bewässern, Düngen und Mähen. Optional kann sie ein vorhandenes Bewässerungsventil
 steuern; sie schaltet den Mähroboter nicht.
 
-## Neu in 3.7.0
+## Neu in 3.8.0
 
-- Manuelle Bewässerung mit Wunschmenge in Litern oder Millimetern.
-- Optionale Etappen mit Versickerungspausen; die maximale Gesamtdauer bleibt einschließlich aller Pausen verbindlich.
-- Wochenplan mit erlaubten lokalen Uhrzeiten und zeitlich begrenzte Automatiksperre.
-- Optionaler Blattnässesensor für eine gemessene Mähfreigabe statt einer reinen Abtrocknungsschätzung.
-- Wochen- und Monatsverbräuche, nachträgliche Pflegeeinträge, Bewässerungsereignisse und ausführlichere Diagnosen.
-- Frostsperre, strengere Wetterprüfung, vollständiges Rückgängigmachen von Robotersitzungen und vervollständigte Erklärungen/Farben.
+- Direkter Frostschutz durch aktuelle Luft-/Bodensensorwerte und Zustandsereignisse.
+- Automatische Bewässerung stoppt bei anhaltendem Regen oder starkem Wind; manuelle Starts bleiben möglich.
+- Optionales Tages-/Wochenlimit für die Automatik, Tagesverbrauch und Sitzungsverlauf.
+- Pflegeplan, nächste Startprognose und geschätzte Restlaufzeit einschließlich Einweichpausen.
+- Verbrauchsaufteilung über Mitternacht; rückgängig gemachte Sitzungen werden in der Diagnose kenntlich gemacht.
+- Dashboard-Vorlagen für Pflegeplan und Verlauf, auswählbare Mengenvorgaben und Automatikpausen.
+
+### Wetterstopps und Verbrauchslimits
+
+Unter **Konfigurieren → Bewässerung – Sicherheit** stehen die neuen Einstellungen. Der Wetterstopp ist standardmäßig aktiv: Regen ab 0,5 mm/h bei Ratensensoren beziehungsweise 0,5 mm seit Sitzungsbeginn bei Mengen-/Zählersensoren, Wind ab 8 m/s, Bestätigungsdauer 120 Sekunden. Kurzzeitige Rate-/Windausschläge setzen die Bestätigungszeit zurück, sobald sie abklingen. Bereits gemeldeter Regen oder starker Wind sperrt einen automatischen Start sofort. Ohne gültigen Regensensor verwendet die Integration den aktuellen Wetterzustand. Fehlende Wetterinformationen werden nicht als gemessener Regen interpretiert. Alle Eingaben stammen aus vorhandenen HA-Entitäten; es gibt keine zusätzlichen regelmäßigen OWM-API-Abfragen.
+
+Tages-/Wochenlimits sind mit **0 deaktiviert**. Sie zählen sämtliche erfassten Bewässerungsmengen einschließlich manueller Einträge und Schätzungen; unbekannte oder unvollständige Mengen blockieren automatische Starts im betroffenen Budgetzeitraum. Das automatische Mengenziel wird auf das verbleibende Budget begrenzt. Mess- und Schaltverzögerungen können dennoch Überschreitungen verursachen. Manuelle Starts bleiben durch die bisherigen Sicherheitsgrenzen geschützt. Das zweite Ventil bleibt ausschließlich eine Statusquelle und wird nie geschaltet.
+
+### Prognosen, Verlauf und Rückgängigmachen
+
+Der **Pflegeplan** fasst Mähen, Bewässern und Düngen mit Zeitangaben und Hindernissen zusammen. Der **nächste automatische Bewässerungsstart** schneidet das vorhandene Vorhersagefenster mit Zeitplan, Automatiksperre und Wiederholungswartezeit. Fehlt eine Überschneidung oder eine Voraussetzung, bleibt der Zeitpunkt unbekannt und die Diagnose erklärt den Grund. Die Prognose ist keine Terminreservierung und keine vollständige mehrtägige Simulation.
+
+Die **verbleibende Bewässerungsdauer** schätzt aktive Minuten aus dem Durchfluss; `session_estimated_end` berücksichtigt Einweichpausen. Bei einer Pause wegen des zweiten Ventils ist das Ende unbekannt. Wenn die maximale Gesamtdauer nicht ausreicht, wird kein erreichbares Abschlussdatum versprochen.
+
+**Wasserverbrauch heute** sowie Wochen-/Monatssummen enthalten abgeschlossene oder manuell erfasste Sitzungen. Eine laufende Sitzung wird separat im Bewässerungsstatus und bei den Budgetprüfungen berücksichtigt. `recent_records` zeigt die letzten zehn erfassten Bewässerungen; `recent_sessions` zeigt die letzten zehn Ventilsitzungen. Zählerzuwächse über Mitternacht werden zeitanteilig aufgeteilt und mit `allocation_estimated` gekennzeichnet. Bekannte Gesamtmengen bleiben erhalten. Alte Einträge ohne Messabschnitte behalten ihre bisherige Tageszuordnung.
+
+Rückgängigmachen entfernt den Verbrauch und die Modellgutschrift. Die physisch gemessene Sitzung bleibt zur Diagnose sichtbar, mit `undone: true`, `undone_at` und `effective_model_mm: 0`. Die einmalige automatische Tagesbewässerung bleibt aus Sicherheitsgründen gesperrt; Rückgängigmachen löst keine neue automatische Bewässerung aus.
+
+Die Aktion `suspend_irrigation` akzeptiert jetzt auch **`duration_hours`** (0,25 bis 168), alternativ zu `until`. Ohne beide Felder wird die Pause aufgehoben. Neue Vorlagen: [Pflegeplan](docs/dashboard/care-plan.de.yaml), [Verbrauch und Verlauf](docs/dashboard/consumption.de.yaml). Die [Bewässerungskarte](docs/dashboard/irrigation.de.yaml) bietet 1/3/5 mm, 100 Liter sowie Pausen für 2/24 Stunden. Weitere individuelle Mengen können im HA-Aktionsdialog gewählt werden.
+
+| Neue Diagnoseattribute | Bedeutung |
+| --- | --- |
+| `next_start_plan` | Voraussichtlicher Zeitpunkt, Grund und Schätzungskennzeichen. |
+| `session_remaining_active_minutes`, `session_estimated_end`, `session_eta_reason` | Restlaufzeit, geschätztes Ende und Einschränkung. |
+| `water_budget` | Bekannter Tages-/Wochenverbrauch, Restbudget und unvollständige Messung. |
+| `action_hint` | Konkreter Handlungshinweis zum aktuellen Automatik-Hindernis. |
+| `allocations`, `allocation_estimated` | Tagesanteile der gemessenen Menge und Schätzungskennzeichen der Zuordnung. |
 
 ## Bewässerung: Menge, Zeitplan und Etappen
 
@@ -36,7 +62,7 @@ Unter **Entwicklerwerkzeuge → Aktionen** stehen folgende Aktionen zur Verfügu
 | --- | --- | --- |
 | `rasenpflege_assistent.start_irrigation` | `target_liters` **oder** `target_mm`, optional | Startet manuell; ein Mengenziel erfordert einen Wasserzähler. |
 | `rasenpflege_assistent.stop_irrigation` | keine | Beendet die eigene laufende oder pausierte Sitzung. |
-| `rasenpflege_assistent.suspend_irrigation` | `until`, optional | Sperrt nur die Automatik bis zum Zeitpunkt; ohne `until` wird die Sperre aufgehoben. |
+| `rasenpflege_assistent.suspend_irrigation` | `until` **oder** `duration_hours`, optional | Sperrt nur die Automatik; ohne beide Felder wird die Sperre aufgehoben. |
 
 Alle Aktionen benötigen `config_entry_id`; im Aktionsdialog lässt sich die Rasen-Konfiguration auswählen. Die Kennung ist außerdem über `{{ config_entry_id('sensor.DEINE_RASEN_ENTITAET') }}` unter **Entwicklerwerkzeuge → Template** ermittelbar. `until` ist ein zukünftiger ISO-Zeitstempel **mit Zeitzone**, beispielsweise `2026-10-02T08:00:00+02:00`.
 
@@ -76,7 +102,7 @@ Kopierbare Mushroom-Vorlagen: [Rasenübersicht](docs/dashboard/overview.de.yaml)
 
 ## Bewässerungsereignisse für eigene Automationen
 
-Das Ereignis `rasenpflege_assistent_irrigation` liefert `config_entry_id`, `phase`, `reason`, `source`, `started_at`, `liters` und `measurement_gap`. Phasen sind `started`, `paused`, `resumed`, `completed` oder `stopped`. Abschlussereignisse werden erst nach erfolgreicher Speicherung gesendet und bei einem Speicher-Wiederholungsversuch nicht doppelt erzeugt. Ereignisse sind aktuelle Meldungen und werden nach Neustart nicht wiederholt. Die Integration versendet selbst keine Nachrichten.
+Das Ereignis `rasenpflege_assistent_irrigation` liefert `config_entry_id`, `phase`, `reason`, `source`, `started_at`, `liters`, `measurement_gap`, `session_id`, `target_liters` und `reason_text`. Phasen sind `started`, `paused`, `resumed`, `completed` oder `stopped`. Abschlussereignisse werden erst nach erfolgreicher Speicherung gesendet und bei einem Speicher-Wiederholungsversuch nicht doppelt erzeugt. Ereignisse sind aktuelle Meldungen und werden nach Neustart nicht wiederholt. Die Integration versendet selbst keine Nachrichten.
 
 ```yaml
 triggers:
@@ -289,4 +315,5 @@ tap_action:
 liefert den englischen Rohzustand für Automationen.
 
 Für Einzelheiten früherer Versionen siehe den [Änderungsverlauf](CHANGELOG.md).
+
 

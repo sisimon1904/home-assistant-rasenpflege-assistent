@@ -149,3 +149,71 @@ async def test_nonfinite_service_amounts_cannot_enter_usage(hass, value):
             blocking=True,
         )
     assert not entry.runtime_data._state.water_usage
+
+
+async def test_duration_hold_service_and_mutually_exclusive_until(hass, freezer):
+    entry = _entry(hass)
+    await async_setup(hass, {})
+    await hass.services.async_call(
+        DOMAIN,
+        "suspend_irrigation",
+        {"config_entry_id": entry.entry_id, "duration_hours": 2},
+        blocking=True,
+    )
+    assert dt_util.parse_datetime(
+        entry.runtime_data._state.irrigation_suspended_until
+    ) == dt_util.now() + timedelta(hours=2)
+    with pytest.raises(ServiceValidationError, match="Choose"):
+        await hass.services.async_call(
+            DOMAIN,
+            "suspend_irrigation",
+            {
+                "config_entry_id": entry.entry_id,
+                "duration_hours": 2,
+                "until": (dt_util.now() + timedelta(hours=1)).isoformat(),
+            },
+            blocking=True,
+        )
+
+
+async def test_new_daily_care_and_eta_entities_expose_attributes(hass):
+    from custom_components.rasenpflege_assistent.models import LawnData
+    from custom_components.rasenpflege_assistent.sensor import SENSORS, LawnSensor
+
+    entry = _entry(hass)
+    coordinator = entry.runtime_data
+    coordinator.async_set_updated_data(LawnData(next_action="water_lawn"))
+    coordinator.record_water_usage(dt_util.now(), 25, source="irrigation")
+    sensors = {item.key: LawnSensor(coordinator, item) for item in SENSORS}
+    assert sensors["water_consumption_day"].native_value == 25
+    assert (
+        sensors["water_consumption_day"].extra_state_attributes["recent_records"][0][
+            "liters"
+        ]
+        == 25
+    )
+    assert sensors["care_plan"].native_value == "water_lawn"
+    assert set(sensors["care_plan"].extra_state_attributes) >= {
+        "mowing",
+        "watering",
+        "fertilizing",
+    }
+    assert sensors["irrigation_remaining_time"].native_value is None
+    assert sensors["next_automatic_start"].native_value is None
+
+
+async def test_duration_hold_is_elapsed_hours_across_dst(hass, freezer):
+    await hass.config.async_set_time_zone("Europe/Berlin")
+    freezer.move_to("2026-10-25T00:30:00Z")
+    entry = _entry(hass)
+    await async_setup(hass, {})
+    await hass.services.async_call(
+        DOMAIN,
+        "suspend_irrigation",
+        {"config_entry_id": entry.entry_id, "duration_hours": 2},
+        blocking=True,
+    )
+    assert (
+        dt_util.parse_datetime(entry.runtime_data._state.irrigation_suspended_until)
+        - dt_util.utcnow()
+    ).total_seconds() == 7200

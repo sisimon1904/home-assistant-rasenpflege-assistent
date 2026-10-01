@@ -1756,6 +1756,10 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         *,
         source: str,
         measurement_gap: bool = False,
+        allocations: list[dict] | None = None,
+        allocation_estimated: bool = False,
+        session_id: str | None = None,
+        uncertainty_dates: list[str] | None = None,
     ) -> str:
         """Keep a separate one-year ledger; maintenance history remains bounded."""
         identifier = uuid4().hex
@@ -1765,6 +1769,19 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         self._state.water_usage = [
             item for item in self._state.water_usage if item.get("date", "") >= cutoff
         ]
+        if allocations and liters is not None:
+            allocations = [dict(item) for item in allocations]
+            remainder = liters - sum(item["liters"] for item in allocations)
+            if abs(remainder) < 0.02:
+                allocations[-1]["liters"] += remainder
+            elif remainder > 0:
+                allocations.append(
+                    {
+                        "date": dt_util.as_local(at).date().isoformat(),
+                        "liters": remainder,
+                    }
+                )
+                allocation_estimated = True
         self._state.water_usage.append(
             {
                 "id": identifier,
@@ -1773,6 +1790,10 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 "liters": liters,
                 "source": source,
                 "measurement_gap": measurement_gap,
+                "allocations": allocations or [],
+                "allocation_estimated": allocation_estimated,
+                "session_id": session_id,
+                "uncertainty_dates": uncertainty_dates or [],
             }
         )
         return identifier
@@ -1959,6 +1980,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             self._state.water_usage = [
                 item for item in self._state.water_usage if item.get("id") != usage_id
             ]
+        last_session = self._state.irrigation_last_session
+        if usage_id and last_session and last_session.get("usage_id") == usage_id:
+            # Retain the physical session for diagnosis, but make its undone
+            # ledger and model credit explicit. Keep the daily safety lock.
+            last_session["undone"] = True
+            last_session["undone_at"] = dt_util.now().isoformat()
+            last_session["effective_model_mm"] = 0.0
         if event.get("action") == "watering" and "applied_mm" in event.get(
             "details", {}
         ):

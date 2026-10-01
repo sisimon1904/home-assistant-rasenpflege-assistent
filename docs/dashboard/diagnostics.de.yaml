@@ -1,5 +1,3 @@
-# Entitäten unter Entwicklerwerkzeuge → Zustände ersetzen.
-# Für Bedienaktionen REPLACE_WITH_ENTRY_ID ersetzen.
 type: vertical-stack
 cards:
 - type: custom:mushroom-template-card
@@ -7,7 +5,9 @@ cards:
   primary: Bewässerungsfreigabe
   secondary: '{% set reasons = state_attr(entity, ''automatic_blockers_text'') or [] %}{{ reasons | join(''
 
-    '') if reasons else ''Alle Startbedingungen erfüllt.'' }}'
+    '') if reasons else ''Alle Startbedingungen erfüllt.'' }}
+
+    {{ state_attr(entity, ''action_hint'') or '''' }}'
   icon: mdi:shield-check
   multiline_secondary: true
   tap_action:
@@ -17,7 +17,9 @@ cards:
   primary: Datenqualität
   secondary: '{{ state_translated(entity) }}
 
-    {% set inputs = state_attr(entity, ''input_diagnostics'') or {} %}{% for key, value in inputs.items() %}{{ key }}: {{ value.get(''reason'') }} · {{ value.get(''age_minutes'') if value.get(''age_minutes'') is not none else ''—'' }} min
+    {% set inputs = state_attr(entity, ''input_diagnostics'') or {} %}{% for key, value in inputs.items() %}{{ key
+    }}: {{ value.get(''reason'') }} · {{ value.get(''age_minutes'') if value.get(''age_minutes'') is not none else
+    ''—'' }} min
 
     {% endfor %}'
   icon: mdi:database-check
@@ -27,5 +29,6 @@ cards:
 - type: entities
   title: Erfasste Bewässerung
   entities:
+  - sensor.rasen_wasserverbrauch_heute
   - sensor.rasen_erfasste_bewasserung_diese_woche
   - sensor.rasen_erfasste_bewasserung_diesen_monat

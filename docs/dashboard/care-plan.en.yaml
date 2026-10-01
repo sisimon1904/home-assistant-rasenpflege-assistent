@@ -1,0 +1,42 @@
+type: vertical-stack
+cards:
+- type: custom:mushroom-template-card
+  entity: sensor.lawn_care_plan
+  primary: Care plan
+  secondary: '{{ state_translated(entity) }}'
+  icon: mdi:calendar-check
+  tap_action:
+    action: more-info
+- type: custom:mushroom-template-card
+  entity: sensor.lawn_care_plan
+  primary: Mowing
+  secondary: '{% set p = state_attr(entity, ''mowing'') or {} %}{{ p.get(''reason_text'') or ''—'' }}
+
+    {{ p.get(''next_at'') or ''—'' }}'
+  multiline_secondary: true
+  icon: mdi:robot-mower
+  tap_action:
+    action: more-info
+- type: custom:mushroom-template-card
+  entity: sensor.lawn_care_plan
+  primary: Watering
+  secondary: '{% set p = state_attr(entity, ''watering'') or {} %}{% set start = p.get(''next_start'') or {} %}{{
+    start.get(''at'') or ''—'' }}
+
+    {{ p.get(''recommended_liters'') or 0 }} L
+
+    {{ p.get(''blocker_text'') or '''' }}'
+  multiline_secondary: true
+  icon: mdi:water
+  tap_action:
+    action: more-info
+- type: custom:mushroom-template-card
+  entity: sensor.lawn_care_plan
+  primary: Fertilizing
+  secondary: '{% set p = state_attr(entity, ''fertilizing'') or {} %}{{ p.get(''window'') or ''—'' }}
+
+    {{ (p.get(''reasons_text'') or []) | join('' · '') }}'
+  multiline_secondary: true
+  icon: mdi:flower
+  tap_action:
+    action: more-info

@@ -4,7 +4,7 @@ from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -1214,3 +1214,279 @@ async def test_irrigation_events_are_entry_scoped_and_not_replayed(
         == controller.coordinator.config_entry.entry_id
     )
     assert len(controller.state.water_usage) == 1
+
+
+async def test_live_freezing_sensor_overrides_old_calculated_temperature(hass):
+    """A fresh physical reading protects a start before the 30-minute calculation."""
+    controller = _controller(hass, temperature_entity="sensor.air")
+    hass.states.async_set("lawn_mower.garden", "docked")
+    controller.coordinator.async_set_updated_data(LawnData(current_temperature=15))
+    hass.states.async_set("sensor.air", "30", {"unit_of_measurement": "°F"})
+    with pytest.raises(ServiceValidationError, match="frost"):
+        await controller.async_start(manual=True)
+    assert hass.states.get("switch.garden_water").state == "off"
+
+
+@pytest.mark.parametrize(
+    "option,entity",
+    [("temperature_entity", "sensor.air"), ("soil_temperature_entity", "sensor.soil")],
+)
+async def test_frost_sensor_event_stops_immediately(hass, option, entity):
+    controller = _controller(hass, **{option: entity})
+    hass.states.async_set("lawn_mower.garden", "docked")
+    hass.states.async_set(entity, "12", {"unit_of_measurement": "°C"})
+    controller.coordinator.async_set_updated_data(LawnData(current_temperature=12))
+    await controller.async_initialize()
+    await controller.async_start(manual=True, target_liters=100)
+    hass.states.async_set(entity, "-1", {"unit_of_measurement": "°C"})
+    await hass.async_block_till_done()
+    assert not controller.active and controller.state.irrigation_last_reason == "frost"
+    assert await controller.async_shutdown()
+
+
+def _auto_ready(controller):
+    now = dt_util.now()
+    controller.state.irrigation_enabled = True
+    controller.coordinator.async_set_updated_data(
+        LawnData(
+            watering_status="water_now",
+            watering_recommended=True,
+            watering_mm=5,
+            watering_confidence="high",
+            soil_model_confidence="medium",
+            current_temperature=20,
+            observed_rain_today_mm=0,
+            watering_window_start=(now - timedelta(minutes=1)).isoformat(),
+            watering_window_end=(now + timedelta(hours=2)).isoformat(),
+        )
+    )
+
+
+async def test_wind_stop_debounces_resets_and_keeps_manual_available(hass, freezer):
+    controller = _controller(hass, irrigation_weather_stop_delay_seconds=60)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    _auto_ready(controller)
+    await controller.async_start(manual=False)
+    hass.states.async_set(
+        "weather.openweathermap",
+        "sunny",
+        {"temperature": 20, "wind_speed": 36, "wind_speed_unit": "km/h"},
+    )
+    await controller.async_check()
+    freezer.tick(timedelta(seconds=30))
+    hass.states.async_set(
+        "weather.openweathermap",
+        "sunny",
+        {"temperature": 20, "wind_speed": 1, "wind_speed_unit": "m/s"},
+    )
+    await controller.async_check()
+    assert not controller.state.irrigation_session["weather_pending"]
+    hass.states.async_set(
+        "weather.openweathermap",
+        "sunny",
+        {"temperature": 20, "wind_speed": 10, "wind_speed_unit": "m/s"},
+    )
+    await controller.async_check()
+    freezer.tick(timedelta(seconds=61))
+    await controller.async_check()
+    assert controller.state.irrigation_last_reason == "wind_too_strong"
+    await controller.async_start(manual=True)
+    await controller.async_check()
+    assert controller.active
+
+
+async def test_cumulative_rain_ignores_old_total_and_stops_for_new_rain(hass, freezer):
+    controller = _controller(
+        hass,
+        precipitation_entity="sensor.rain",
+        irrigation_weather_stop_delay_seconds=0,
+    )
+    hass.states.async_set("lawn_mower.garden", "docked")
+    attrs = {"unit_of_measurement": "mm", "state_class": "total_increasing"}
+    hass.states.async_set("sensor.rain", "100", attrs)
+    _auto_ready(controller)
+    await controller.async_start(manual=False)
+    assert controller.active
+    freezer.tick(timedelta(seconds=1))
+    hass.states.async_set("sensor.rain", "100.6", attrs)
+    await controller.async_check()
+    assert not controller.active
+    assert controller.state.irrigation_last_reason == "rain_detected"
+
+
+async def test_weather_rate_blocks_automatic_start_but_can_be_disabled(hass):
+    controller = _controller(hass, precipitation_entity="sensor.rain")
+    hass.states.async_set("lawn_mower.garden", "docked")
+    hass.states.async_set("sensor.rain", "1", {"unit_of_measurement": "mm/h"})
+    _auto_ready(controller)
+    assert controller.automatic_blocker() == "rain_detected"
+    with pytest.raises(ServiceValidationError, match="rain_detected"):
+        await controller.async_start(manual=False)
+    entry = controller.coordinator.config_entry
+    entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        entry, options={**entry.options, "irrigation_weather_stop": False}
+    )
+    await controller.async_start(manual=False)
+    assert controller.active
+
+
+async def test_budget_caps_target_and_stops_at_recorded_total(hass):
+    controller = _controller(
+        hass, irrigation_daily_limit_liters=30, max_flow_l_min=1000
+    )
+    hass.states.async_set("lawn_mower.garden", "docked")
+    controller.coordinator.record_water_usage(dt_util.now(), 20, source="manual_record")
+    _auto_ready(controller)
+    await controller.async_start(manual=False)
+    assert controller.state.irrigation_session["target_liters"] == 10
+    hass.states.async_set(
+        "sensor.garden_water_liters", "10", {"unit_of_measurement": "L"}
+    )
+    await controller.async_check()
+    assert not controller.active
+    assert controller.state.irrigation_last_reason == "water_budget_exhausted"
+    assert controller.budget_details()["remaining_liters"] == 0
+    await controller.async_start(manual=True, target_liters=5)
+    assert controller.active
+
+
+@pytest.mark.parametrize(
+    "record", [{"liters": None}, {"liters": 10, "measurement_gap": True}]
+)
+async def test_incomplete_consumption_blocks_enabled_budgets(hass, record):
+    controller = _controller(hass, irrigation_weekly_limit_liters=100)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    controller.state.water_usage = [
+        {"date": dt_util.as_local(dt_util.now()).date().isoformat(), **record}
+    ]
+    _auto_ready(controller)
+    assert controller.automatic_blocker() == "budget_uncertain"
+    assert not controller.automatic_conditions()["water_budget_available"]
+    assert controller.next_start_details()["at"] is None
+
+
+async def test_next_start_combines_schedule_hold_and_forecast(hass, freezer):
+    await hass.config.async_set_time_zone("UTC")
+    freezer.move_to("2026-10-01T04:00:00+00:00")
+    controller = _controller(
+        hass, irrigation_start_time="06:00:00", irrigation_end_time="08:00:00"
+    )
+    hass.states.async_set("lawn_mower.garden", "docked")
+    _auto_ready(controller)
+    controller.coordinator.data.watering_window_end = "2026-10-01T09:00:00+00:00"
+    controller.state.irrigation_suspended_until = "2026-10-01T06:30:00+00:00"
+    assert dt_util.parse_datetime(
+        controller.next_start_details()["at"]
+    ) == dt_util.parse_datetime("2026-10-01T06:30:00+00:00")
+    controller.state.irrigation_suspended_until = "2026-10-01T08:30:00+00:00"
+    assert controller.next_start_details()["reason"] == "no_schedule_overlap"
+    controller.coordinator.data.watering_confidence = "low"
+    assert controller.next_start_details()["at"] is None
+
+
+async def test_cumulative_meter_allocations_and_undo_diagnostics(hass, freezer):
+    await hass.config.async_set_time_zone("UTC")
+    freezer.move_to("2026-09-30T23:59:00+00:00")
+    controller = _controller(hass, max_flow_l_min=1000)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await controller.async_start(manual=True, target_liters=20)
+    freezer.tick(timedelta(minutes=2))
+    hass.states.async_set(
+        "sensor.garden_water_liters", "20", {"unit_of_measurement": "L"}
+    )
+    await controller.async_check()
+    record = controller.state.water_usage[0]
+    assert [part["liters"] for part in record["allocations"]] == [10, 10]
+    assert record["allocation_estimated"]
+    await controller.coordinator.async_undo_last_action()
+    assert controller.state.irrigation_last_session["undone"]
+    assert controller.state.irrigation_last_session["effective_model_mm"] == 0
+    assert controller.state.irrigation_last_session["liters"] == 20
+    assert not controller.state.water_usage
+
+
+async def test_completion_eta_accounts_for_cycles_and_unknown_pause(hass, freezer):
+    controller = _controller(
+        hass, irrigation_cycle_minutes=2, irrigation_soak_minutes=3
+    )
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await controller.async_start(manual=True, target_liters=100)
+    session = controller.state.irrigation_session
+    session.update(liters=10, measured_flow_l_min=10, flow_seen=True)
+    details = controller.remaining_time_details()
+    assert details["session_remaining_active_minutes"] == 9
+    assert dt_util.parse_datetime(
+        details["session_estimated_end"]
+    ) == dt_util.now() + timedelta(minutes=21)
+    session.update(paused_at=dt_util.now().isoformat(), pause_reason="other_valve_open")
+    assert controller.remaining_time_details()["session_estimated_end"] is None
+
+
+async def test_events_have_stable_session_and_quantities(hass):
+    events = []
+
+    @callback
+    def record_event(event):
+        events.append(event.data)
+
+    hass.bus.async_listen(f"{DOMAIN}_irrigation", record_event)
+    controller = _controller(hass)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await controller.async_start(manual=True, target_liters=25)
+    await controller.async_stop()
+    await hass.async_block_till_done()
+    assert [event["phase"] for event in events] == ["started", "stopped"]
+    assert events[0]["session_id"] == events[1]["session_id"]
+    assert events[0]["target_liters"] == 25
+    assert events[1]["reason_text"]
+
+
+async def test_unmetered_session_crossing_midnight_has_unknown_volume_on_both_days(
+    hass, freezer
+):
+    await hass.config.async_set_time_zone("UTC")
+    freezer.move_to("2026-09-30T23:58:00Z")
+    controller = _controller(hass, irrigation_flow=None, allow_unmetered_manual=True)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await controller.async_start(manual=True)
+    freezer.tick(timedelta(minutes=6))
+    await controller.async_check()
+    record = controller.state.water_usage[0]
+    assert record["allocations"] == [
+        {"date": "2026-09-30", "liters": None},
+        {"date": "2026-10-01", "liters": None},
+    ]
+
+
+async def test_rain_state_event_stops_without_waiting_for_weather_calculation(hass):
+    controller = _controller(
+        hass,
+        precipitation_entity="sensor.rain",
+        irrigation_weather_stop_delay_seconds=0,
+    )
+    hass.states.async_set("sensor.rain", "0", {"unit_of_measurement": "mm/h"})
+    hass.states.async_set("lawn_mower.garden", "docked")
+    _auto_ready(controller)
+    await controller.async_initialize()
+    await controller.async_start(manual=False)
+    hass.states.async_set("sensor.rain", "1", {"unit_of_measurement": "mm/h"})
+    await hass.async_block_till_done()
+    assert (
+        not controller.active
+        and controller.state.irrigation_last_reason == "rain_detected"
+    )
+    assert await controller.async_shutdown()
+
+
+async def test_completion_eta_uses_actual_elapsed_seconds_at_dst_fold(hass, freezer):
+    await hass.config.async_set_time_zone("Europe/Berlin")
+    freezer.move_to("2026-10-25T00:30:00Z")
+    controller = _controller(hass)
+    hass.states.async_set("lawn_mower.garden", "docked")
+    await controller.async_start(manual=True, target_liters=600)
+    controller.state.irrigation_session.update(measured_flow_l_min=10, flow_seen=True)
+    end = dt_util.parse_datetime(
+        controller.remaining_time_details()["session_estimated_end"]
+    )
+    assert (end - dt_util.utcnow()).total_seconds() == 3600

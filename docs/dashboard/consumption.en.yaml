@@ -1,0 +1,20 @@
+type: vertical-stack
+cards:
+- type: custom:mushroom-template-card
+  entity: sensor.lawn_water_consumption_today
+  primary: Watering history
+  secondary: '{% set records = state_attr(entity, ''recent_records'') or [] %}{% for r in records %}{{ r.get(''recorded_at'')
+    or r.get(''date'') }} · {{ r.get(''liters'') if r.get(''liters'') is not none else ''—'' }} L · {{ r.get(''source_text'')
+    or r.get(''source'') }} · {{ r.get(''reason_text'') or '''' }} · {{ ((r.get(''active_seconds'') or 0) / 60)
+    | round(1) }} min{% if r.get(''measurement_gap'') %} · ⚠ {% endif %}
+
+    {% endfor %}'
+  icon: mdi:history
+  multiline_secondary: true
+  tap_action:
+    action: more-info
+- type: entities
+  entities:
+  - sensor.lawn_water_consumption_today
+  - sensor.lawn_recorded_watering_this_week
+  - sensor.lawn_recorded_watering_this_month

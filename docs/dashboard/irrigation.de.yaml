@@ -1,5 +1,4 @@
-# Entitäten unter Entwicklerwerkzeuge → Zustände ersetzen.
-# Für Bedienaktionen REPLACE_WITH_ENTRY_ID ersetzen.
+# Entitäten und REPLACE_WITH_ENTRY_ID ersetzen. / Replace entities and entry ID.
 type: vertical-stack
 cards:
 - type: custom:mushroom-template-card
@@ -7,13 +6,24 @@ cards:
   primary: Bewässerung
   secondary: '{{ state_translated(entity) }}
 
-    Geliefert: {{ state_attr(entity, ''session_liters'') if state_attr(entity, ''session_liters'') is not none else ''—'' }} L / {{ state_attr(entity, ''session_target_liters'') if state_attr(entity, ''session_target_liters'') is not none else ''—'' }} L
+    Geliefert: {{ state_attr(entity, ''session_liters'') if state_attr(entity, ''session_liters'') is not none else
+    ''—'' }} L / {{ state_attr(entity, ''session_target_liters'') if state_attr(entity, ''session_target_liters'')
+    is not none else ''—'' }} L
 
-    Verbleibend: {{ state_attr(entity, ''session_remaining_liters'') if state_attr(entity, ''session_remaining_liters'') is not none else ''—'' }} L · {{ state_attr(entity, ''session_progress_percent'') if state_attr(entity, ''session_progress_percent'') is not none else ''—'' }} %
+    Verbleibend: {{ state_attr(entity, ''session_remaining_liters'') if state_attr(entity, ''session_remaining_liters'')
+    is not none else ''—'' }} L · {{ state_attr(entity, ''session_progress_percent'') if state_attr(entity, ''session_progress_percent'')
+    is not none else ''—'' }} %
 
-    {{ state_attr(entity, ''reason_text'') or '''' }}'
+    {{ state_attr(entity, ''reason_text'') or '''' }}
+
+    {{ state_attr(entity, ''session_remaining_active_minutes'') if state_attr(entity, ''session_remaining_active_minutes'')
+    is not none else ''—'' }} min · {{ state_attr(entity, ''session_estimated_end'') | as_datetime | as_local if
+    state_attr(entity, ''session_estimated_end'') else ''—'' }}
+
+    {{ state_attr(entity, ''action_hint'') or '''' }}'
   icon: mdi:sprinkler-variant
-  icon_color: '{{ ''blue'' if states(entity) == ''running'' else ''orange'' if states(entity) in [''paused'',''stopping''] else ''grey'' }}'
+  icon_color: '{{ ''blue'' if states(entity) == ''running'' else ''orange'' if states(entity) in [''paused'',''stopping'']
+    else ''grey'' }}'
   multiline_secondary: true
   tap_action:
     action: more-info
@@ -36,7 +46,69 @@ cards:
       perform_action: rasenpflege_assistent.stop_irrigation
       data:
         config_entry_id: REPLACE_WITH_ENTRY_ID
+- type: horizontal-stack
+  cards:
+  - type: custom:mushroom-template-card
+    primary: 1 mm
+    icon: mdi:water
+    tap_action:
+      action: perform-action
+      perform_action: rasenpflege_assistent.start_irrigation
+      data:
+        config_entry_id: REPLACE_WITH_ENTRY_ID
+        target_mm: 1
+  - type: custom:mushroom-template-card
+    primary: 5 mm
+    icon: mdi:water-plus
+    tap_action:
+      action: perform-action
+      perform_action: rasenpflege_assistent.start_irrigation
+      data:
+        config_entry_id: REPLACE_WITH_ENTRY_ID
+        target_mm: 5
+  - type: custom:mushroom-template-card
+    primary: 100 L
+    icon: mdi:water-plus
+    tap_action:
+      action: perform-action
+      perform_action: rasenpflege_assistent.start_irrigation
+      data:
+        config_entry_id: REPLACE_WITH_ENTRY_ID
+        target_liters: 100
 - type: custom:mushroom-entity-card
   entity: switch.rasen_automatische_bewasserung
   tap_action:
     action: toggle
+- type: horizontal-stack
+  cards:
+  - type: custom:mushroom-template-card
+    primary: 2 h Pause
+    icon: mdi:pause-circle
+    tap_action:
+      action: perform-action
+      perform_action: rasenpflege_assistent.suspend_irrigation
+      data:
+        config_entry_id: REPLACE_WITH_ENTRY_ID
+        duration_hours: 2
+  - type: custom:mushroom-template-card
+    primary: 24 h Pause
+    icon: mdi:pause-circle
+    tap_action:
+      action: perform-action
+      perform_action: rasenpflege_assistent.suspend_irrigation
+      data:
+        config_entry_id: REPLACE_WITH_ENTRY_ID
+        duration_hours: 24
+  - type: custom:mushroom-template-card
+    primary: Pause aufheben
+    icon: mdi:play-circle
+    tap_action:
+      action: perform-action
+      perform_action: rasenpflege_assistent.suspend_irrigation
+      data:
+        config_entry_id: REPLACE_WITH_ENTRY_ID
+- type: entities
+  title: Bewässerungsprognose
+  entities:
+  - sensor.rasen_nachster_automatischer_bewasserungsstart
+  - sensor.rasen_verbleibende_bewasserungsdauer

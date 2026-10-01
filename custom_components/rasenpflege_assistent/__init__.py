@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from datetime import timedelta
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
@@ -86,9 +87,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
     async def _suspend_irrigation(call: ServiceCall) -> None:
         value = call.data.get("until")
+        duration = call.data.get("duration_hours")
+        if value and duration is not None:
+            raise ServiceValidationError("Choose until or duration_hours")
         until = dt_util.parse_datetime(value) if value else None
         if value and (until is None or until.tzinfo is None):
             raise ServiceValidationError("Use an ISO timestamp with timezone for until")
+        if duration is not None:
+            until = dt_util.utcnow() + timedelta(hours=duration)
         await _coordinator(call).irrigation.async_suspend_automation(until)
 
     async def _record_watering(call: ServiceCall) -> None:
@@ -147,7 +153,15 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         DOMAIN,
         "suspend_irrigation",
         _suspend_irrigation,
-        schema=vol.Schema({**entry_schema, vol.Optional("until"): cv.string}),
+        schema=vol.Schema(
+            {
+                **entry_schema,
+                vol.Optional("until"): cv.string,
+                vol.Optional("duration_hours"): vol.All(
+                    vol.Coerce(float), _finite, vol.Range(min=0.25, max=168)
+                ),
+            }
+        ),
     )
     hass.services.async_register(
         DOMAIN,
@@ -372,6 +386,8 @@ def _remove_unused_irrigation_entities(hass: HomeAssistant, entry_id: str) -> No
         ("sensor", "irrigation_status"),
         ("sensor", "irrigation_readiness"),
         ("sensor", "irrigation_auto_decision"),
+        ("sensor", "next_automatic_start"),
+        ("sensor", "irrigation_remaining_time"),
         ("button", "stop_irrigation"),
         ("switch", "automatic_irrigation"),
     ):
