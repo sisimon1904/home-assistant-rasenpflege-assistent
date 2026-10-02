@@ -271,7 +271,7 @@ async def test_changing_valve_options_closes_the_original_valve(
 
 
 async def test_delayed_valve_open_is_closed_after_failed_start(
-    hass: HomeAssistant, enable_custom_integrations: None
+    hass: HomeAssistant, enable_custom_integrations: None, freezer
 ) -> None:
     """A delayed on state after a timed-out start cannot run uncontrolled."""
     controller = _controller(hass)
@@ -284,9 +284,7 @@ async def test_delayed_valve_open_is_closed_after_failed_start(
     await controller.async_start(manual=True)
     await controller.async_check()
     assert controller.active  # An asynchronous Zigbee report has 30 s to arrive.
-    controller.state.irrigation_session["started_at"] = (
-        dt_util.now() - timedelta(seconds=31)
-    ).isoformat()
+    freezer.tick(timedelta(seconds=31))
     await controller.async_check()
     assert not controller.active
     assert controller.state.irrigation_last_reason == "valve_did_not_open"

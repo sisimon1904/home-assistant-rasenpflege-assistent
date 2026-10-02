@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.8.3
+
+### Fixed
+
+- Recheck live safety inputs immediately before opening or resuming irrigation after a storage await.
+- Close unsafe owned valves even while a controller storage operation holds the lock.
+- Run watchdog safety checks before retrying failed storage writes.
+- Refresh shared-meter baselines at valve opening so unrelated consumption during storage waits is excluded.
+- Prevent delayed starts beyond the maximum runtime and reject rain arriving during an automatic resume.
+
+### Changed
+
+- Remove version-specific update blocks from both READMEs and keep release history in this changelog.
+- Correct consumption and undo documentation and document the weather-source reconfiguration lock.
+- Add 19 safety regression cases; all 293 tests pass with 84.28% combined line/branch coverage.
+
 ## 3.8.2
 
 ### Fixed

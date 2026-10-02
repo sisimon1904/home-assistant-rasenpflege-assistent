@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.8.2 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.8.3 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -13,35 +13,13 @@ Grünlandtemperatursumme, modellierte Bodenfeuchte sowie Empfehlungen zum
 Bewässern, Düngen und Mähen. Optional kann sie ein vorhandenes Bewässerungsventil
 steuern; sie schaltet den Mähroboter nicht.
 
-## Neu in 3.8.2
+Die Wetterquelle lässt sich über **Einstellungen → Geräte & Dienste → Rasenpflege-Assistent → Menü → Neu konfigurieren** wechseln. Weitere Raseneinstellungen bleiben unter **Konfigurieren** verfügbar. Während einer laufenden oder pausierten Bewässerung ist ein Quellenwechsel gesperrt.
 
-- Tatsächlich gemessener Wasserverbrauch bleibt nach Rückgängigmachen im Protokoll und zählt weiterhin gegen Tages-/Wochenlimits.
-- Pflegeaktionen und Sitzungsabschluss werden bei gleichzeitigen Aktionen oder Speicherfehlern konsistent verarbeitet.
-- Das Ventil wird vor dem Speichern geschlossen; langsame Speicherung verzögert keinen Sicherheitsstopp.
-- Automatische Wiederaufnahme bleibt bei bereits gemeldetem Regen oder starkem Wind gesperrt.
-- Die 24-Stunden-Regenprognose berücksichtigt Zeitumstellungen korrekt.
-- Unbrauchbare Wettertemperaturen werden bei der Einrichtung abgelehnt; Quellenwechsel sind während einer laufenden Bewässerung gesperrt.
+Prüfumfang und offene Quality-Scale-Anforderungen stehen im [Qualitätsaudit](docs/quality-audit.md).
 
-## Neu in 3.8.1
+## Wetterstopps und Verbrauchslimits
 
-Diese Wartungsversion behebt die Umrechnung von Wettervorhersagen, das Entladen der Bewässerungsüberwachung, Speicherfehler am Automatikschalter und abgebrochene Ventilbefehle. Ungültige Niederschlagswerte werden als unbekannt behandelt. Aktionsfehler und Icons verwenden Home Assistants Übersetzungssystem.
-
-Die Wetterquelle lässt sich über **Einstellungen → Geräte & Dienste → Rasenpflege-Assistent → Menü → Neu konfigurieren** wechseln. Weitere Raseneinstellungen bleiben unter **Konfigurieren** verfügbar.
-
-Prüfumfang, Ausnahmen und noch offene Quality-Scale-Anforderungen stehen im [Qualitätsaudit](docs/quality-audit.md). Es wird keine Fehlerfreiheit und keine offizielle Quality-Scale-Einstufung zugesagt.
-
-## Neu in 3.8.0
-
-- Direkter Frostschutz durch aktuelle Luft-/Bodensensorwerte und Zustandsereignisse.
-- Automatische Bewässerung stoppt bei anhaltendem Regen oder starkem Wind; manuelle Starts bleiben möglich.
-- Optionales Tages-/Wochenlimit für die Automatik, Tagesverbrauch und Sitzungsverlauf.
-- Pflegeplan, nächste Startprognose und geschätzte Restlaufzeit einschließlich Einweichpausen.
-- Verbrauchsaufteilung über Mitternacht; rückgängig gemachte Sitzungen werden in der Diagnose kenntlich gemacht.
-- Dashboard-Vorlagen für Pflegeplan und Verlauf, auswählbare Mengenvorgaben und Automatikpausen.
-
-### Wetterstopps und Verbrauchslimits
-
-Unter **Konfigurieren → Bewässerung – Sicherheit** stehen die neuen Einstellungen. Der Wetterstopp ist standardmäßig aktiv: Regen ab 0,5 mm/h bei Ratensensoren beziehungsweise 0,5 mm seit Sitzungsbeginn bei Mengen-/Zählersensoren, Wind ab 8 m/s, Bestätigungsdauer 120 Sekunden. Kurzzeitige Rate-/Windausschläge setzen die Bestätigungszeit zurück, sobald sie abklingen. Bereits gemeldeter Regen oder starker Wind sperrt einen automatischen Start sofort. Ohne gültigen Regensensor verwendet die Integration den aktuellen Wetterzustand. Fehlende Wetterinformationen werden nicht als gemessener Regen interpretiert. Alle Eingaben stammen aus vorhandenen HA-Entitäten; es gibt keine zusätzlichen regelmäßigen OWM-API-Abfragen.
+Unter **Konfigurieren → Bewässerung – Sicherheit** stehen diese Einstellungen. Der Wetterstopp ist standardmäßig aktiv: Regen ab 0,5 mm/h bei Ratensensoren beziehungsweise 0,5 mm seit Sitzungsbeginn bei Mengen-/Zählersensoren, Wind ab 8 m/s, Bestätigungsdauer 120 Sekunden. Kurzzeitige Rate-/Windausschläge setzen die Bestätigungszeit zurück, sobald sie abklingen. Bereits gemeldeter Regen oder starker Wind sperrt einen automatischen Start sofort. Ohne gültigen Regensensor verwendet die Integration den aktuellen Wetterzustand. Fehlende Wetterinformationen werden nicht als gemessener Regen interpretiert. Alle Eingaben stammen aus vorhandenen HA-Entitäten; es gibt keine zusätzlichen regelmäßigen OWM-API-Abfragen.
 
 Tages-/Wochenlimits sind mit **0 deaktiviert**. Sie zählen sämtliche erfassten Bewässerungsmengen einschließlich manueller Einträge und Schätzungen; unbekannte oder unvollständige Mengen blockieren automatische Starts im betroffenen Budgetzeitraum. Das automatische Mengenziel wird auf das verbleibende Budget begrenzt. Mess- und Schaltverzögerungen können dennoch Überschreitungen verursachen. Manuelle Starts bleiben durch die bisherigen Sicherheitsgrenzen geschützt. Das zweite Ventil bleibt ausschließlich eine Statusquelle und wird nie geschaltet.
 
@@ -55,9 +33,9 @@ Die **verbleibende Bewässerungsdauer** schätzt aktive Minuten aus dem Durchflu
 
 Rückgängigmachen entfernt die Modellgutschrift. Tatsächlich gemessener Verbrauch einer gesteuerten Bewässerung bleibt im Verbrauchsprotokoll und zählt weiterhin gegen Tages-/Wochenlimits. Fehlerhafte manuelle Verbrauchseinträge werden entfernt. Die physisch gemessene Sitzung bleibt zur Diagnose sichtbar, mit `undone: true`, `undone_at` und `effective_model_mm: 0`. Die einmalige automatische Tagesbewässerung bleibt aus Sicherheitsgründen gesperrt; Rückgängigmachen löst keine neue automatische Bewässerung aus.
 
-Die Aktion `suspend_irrigation` akzeptiert jetzt auch **`duration_hours`** (0,25 bis 168), alternativ zu `until`. Ohne beide Felder wird die Pause aufgehoben. Neue Vorlagen: [Pflegeplan](docs/dashboard/care-plan.de.yaml), [Verbrauch und Verlauf](docs/dashboard/consumption.de.yaml). Die [Bewässerungskarte](docs/dashboard/irrigation.de.yaml) bietet 1/3/5 mm, 100 Liter sowie Pausen für 2/24 Stunden. Weitere individuelle Mengen können im HA-Aktionsdialog gewählt werden.
+Die Aktion `suspend_irrigation` akzeptiert **`duration_hours`** (0,25 bis 168), alternativ zu `until`. Ohne beide Felder wird die Pause aufgehoben. Dashboard-Vorlagen: [Pflegeplan](docs/dashboard/care-plan.de.yaml), [Verbrauch und Verlauf](docs/dashboard/consumption.de.yaml). Die [Bewässerungskarte](docs/dashboard/irrigation.de.yaml) bietet 1/3/5 mm, 100 Liter sowie Pausen für 2/24 Stunden. Weitere individuelle Mengen können im HA-Aktionsdialog gewählt werden.
 
-| Neue Diagnoseattribute | Bedeutung |
+| Diagnoseattribute | Bedeutung |
 | --- | --- |
 | `next_start_plan` | Voraussichtlicher Zeitpunkt, Grund und Schätzungskennzeichen. |
 | `session_remaining_active_minutes`, `session_estimated_end`, `session_eta_reason` | Restlaufzeit, geschätztes Ende und Einschränkung. |
@@ -93,9 +71,9 @@ Unter **Konfigurieren → Eingangssensoren** ist ein optionaler Blattnässe-Bin�
 
 Die Aktionen `record_mowing`, `record_fertilizing` und `record_watering` akzeptieren optional `recorded_at` als vergangenen ISO-Zeitstempel mit Zeitzone. Nachgetragene Bewässerungen benötigen eine ausdrückliche `amount_mm`. Sie erscheinen im Verlauf und Verbrauch, verändern aber den heutigen Bodenspeicher nicht: Eine nachträgliche vollständige Wasserbilanz mit damaligem Regen und Verdunstung wird nicht simuliert. Ein älteres Pflegeereignis verdrängt kein bereits neueres Datum. Ohne Zeitstempel gilt die bisherige Buchung für jetzt.
 
-Die Verbrauchssensoren summieren bekannte erfasste Mengen für die lokale Kalenderwoche (Montag bis heute) beziehungsweise den laufenden Kalendermonat. Attribute trennen Ventilmessungen, manuell gemeldete Mengen, manuelle Schätzungen, ungemessene Sitzungen und Sitzungen mit Messlücken. Unbekannte Mengen werden nicht erfunden; Summen mit Messlücken sind unvollständig. Neue Verbrauchswerte beginnen mit 3.7.0, frühere Sitzungen werden nicht rückwirkend aus der begrenzten Historie geschätzt. Das Verbrauchsjournal wird für etwa ein Jahr gehalten, der Pflegeverlauf weiterhin für die letzten 20 Einträge. Rückgängigmachen entfernt den zugehörigen Verbrauchseintrag; während kontrollierter Bewässerung ist es gesperrt.
+Die Verbrauchssensoren summieren bekannte erfasste Mengen für die lokale Kalenderwoche (Montag bis heute) beziehungsweise den laufenden Kalendermonat. Attribute trennen Ventilmessungen, manuell gemeldete Mengen, manuelle Schätzungen, ungemessene Sitzungen und Sitzungen mit Messlücken. Unbekannte Mengen werden nicht erfunden; Summen mit Messlücken sind unvollständig. Neue Verbrauchswerte beginnen mit 3.7.0, frühere Sitzungen werden nicht rückwirkend aus der begrenzten Historie geschätzt. Das Verbrauchsjournal wird für etwa ein Jahr gehalten, der Pflegeverlauf weiterhin für die letzten 20 Einträge. Rückgängigmachen entfernt fehlerhafte manuelle Verbrauchseinträge. Tatsächlich gemessener Verbrauch einer gesteuerten Bewässerung bleibt erhalten; während kontrollierter Bewässerung ist Rückgängigmachen gesperrt.
 
-## Neue Diagnoseattribute und Dashboard-Vorlagen
+## Diagnoseattribute und Dashboard-Vorlagen
 
 Die Diagnose liest vorhandene Zustände; sie löst keine zusätzlichen regelmäßigen OpenWeatherMap-Abfragen aus. Eine laufende Robotersitzung aktualisiert ihre Minuten lokal alle 30 Sekunden. Sie bleibt eine Schätzung und wird nach Neustart verworfen.
 
@@ -332,8 +310,6 @@ tap_action:
 liefert den englischen Rohzustand für Automationen.
 
 Für Einzelheiten früherer Versionen siehe den [Änderungsverlauf](CHANGELOG.md).
-
-
 
 ## Entfernen und Fehlerdiagnose
 

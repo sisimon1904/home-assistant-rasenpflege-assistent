@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.8.2 · [Changelog](CHANGELOG.md)
+Version 3.8.3 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -13,35 +13,13 @@ sum, modeled soil moisture, and recommendations for watering, fertilizing, and
 mowing. It can optionally control an existing irrigation valve; it does not
 control the robotic mower.
 
-## New in 3.8.2
+Use **Settings → Devices & services → Lawn Care Assistant → Menu → Reconfigure** to replace the weather source. Other lawn settings remain under **Configure**. Source changes are blocked during running or paused irrigation.
 
-- Preserve measured irrigation consumption and daily/weekly budget accounting after undo.
-- Keep maintenance actions and irrigation completion consistent under concurrent actions, storage failures and cancellation.
-- Close the valve before saving; slow storage cannot delay a safety stop.
-- Block automatic resume when rain or strong wind is already reported.
-- Calculate forecast rain over 24 elapsed hours across daylight-saving changes.
-- Reject unusable weather temperatures during configuration and block source changes during active irrigation.
+See the [quality audit](docs/quality-audit.md) for checks and remaining Quality Scale requirements.
 
-## New in 3.8.1
+## Weather stops and consumption budgets
 
-This maintenance release fixes forecast unit conversion, irrigation unload safety, automation-toggle storage failures and cancelled valve commands. Invalid rain readings remain unknown. Action errors and icons use Home Assistant translations.
-
-Use **Settings → Devices & services → Lawn Care Assistant → Menu → Reconfigure** to replace the weather source. Other lawn settings remain under **Configure**.
-
-See the [quality audit](docs/quality-audit.md) for checks, applicability and remaining Quality Scale requirements. This release does not claim to be error-free or officially graded.
-
-## New in 3.8.0
-
-- Immediate frost checks using live air/soil readings and state events.
-- Automatic irrigation stops for sustained rain or strong wind; manual starts remain available.
-- Optional daily/weekly automation budgets, daily consumption and session history.
-- Combined care plan, next-start prediction and remaining-time estimates including soak pauses.
-- Calendar-boundary consumption allocation and explicit undone-session diagnostics.
-- Care-plan/history dashboards, selectable volume presets and duration-based automation holds.
-
-### Weather stops and consumption budgets
-
-Configure the new options under **Configure → Irrigation safety**. Weather stops default to enabled: rain at 0.5 mm/h for rate sensors or 0.5 mm measured since session start for amount/cumulative sensors, wind at 8 m/s, and 120 seconds of confirmation. Short rate/wind spikes reset the timer when they subside. Currently reported rain or strong wind blocks automatic starts immediately. Without a valid rain sensor, current weather conditions provide the fallback. Missing weather is not treated as measured rainfall. Inputs use existing HA entities; there is no additional regular OWM API polling.
+Configure these options under **Configure → Irrigation safety**. Weather stops default to enabled: rain at 0.5 mm/h for rate sensors or 0.5 mm measured since session start for amount/cumulative sensors, wind at 8 m/s, and 120 seconds of confirmation. Short rate/wind spikes reset the timer when they subside. Currently reported rain or strong wind blocks automatic starts immediately. Without a valid rain sensor, current weather conditions provide the fallback. Missing weather is not treated as measured rainfall. Inputs use existing HA entities; there is no additional regular OWM API polling.
 
 Daily/weekly budgets default to **0 (disabled)**. All recorded watering counts, including manual amounts and estimates; unknown or incomplete amounts block automatic starts for the affected budget period. Automatic targets are capped at the remaining budget. Reporting and valve delays can still cause overshoot. Manual starts retain the existing safety limits. The second valve remains strictly read-only.
 
@@ -55,9 +33,9 @@ The **care plan** combines mowing, watering and fertilizing with available times
 
 Undo removes soil-model credit. Physically measured irrigation remains in the consumption ledger and continues counting against daily/weekly limits. Erroneous manual usage entries are removed. Physical measurements remain in last-session diagnostics with `undone: true`, `undone_at` and `effective_model_mm: 0`. The once-per-day automatic watering lock is retained for safety; undo does not trigger another automatic session.
 
-`suspend_irrigation` now accepts **`duration_hours`** (0.25–168), alternatively to `until`. Omit both to clear a hold. New templates: [Care plan](docs/dashboard/care-plan.en.yaml), [Consumption and history](docs/dashboard/consumption.en.yaml). The [irrigation card](docs/dashboard/irrigation.en.yaml) provides 1/3/5 mm, 100 liters and 2/24-hour holds. Other custom quantities are available in the HA action dialog.
+`suspend_irrigation` accepts **`duration_hours`** (0.25–168), alternatively to `until`. Omit both to clear a hold. Dashboard templates: [Care plan](docs/dashboard/care-plan.en.yaml), [Consumption and history](docs/dashboard/consumption.en.yaml). The [irrigation card](docs/dashboard/irrigation.en.yaml) provides 1/3/5 mm, 100 liters and 2/24-hour holds. Other custom quantities are available in the HA action dialog.
 
-| New diagnostic attributes | Meaning |
+| Diagnostic attributes | Meaning |
 | --- | --- |
 | `next_start_plan` | Estimated timestamp, reason and estimate flag. |
 | `session_remaining_active_minutes`, `session_estimated_end`, `session_eta_reason` | Remaining time, estimated end and limitations. |
@@ -93,9 +71,9 @@ Under **Configure → Input sensors**, an optional leaf wetness binary sensor us
 
 The `record_mowing`, `record_fertilizing` and `record_watering` actions accept optional `recorded_at`, a past ISO timestamp with timezone. Backdated watering requires explicit `amount_mm`. Historical water enters history and consumption without changing today's soil reservoir: past rain and evaporation are not replayed. Older events cannot replace a newer last-maintenance date. Without a timestamp, the existing immediate recording behavior applies.
 
-Consumption sensors summarize known recorded quantities in the local calendar week (Monday to today) and current calendar month. Attributes distinguish valve measurements, user-recorded quantities, manual estimates, unmetered sessions and measurement gaps. Unknown volumes are never invented; totals with gaps are incomplete. Consumption starts with 3.7.0 and is not reconstructed from older bounded history. The usage ledger retains about one year; maintenance history retains the last 20 events. Undo removes the linked usage entry and is blocked during controlled irrigation.
+Consumption sensors summarize known recorded quantities in the local calendar week (Monday to today) and current calendar month. Attributes distinguish valve measurements, user-recorded quantities, manual estimates, unmetered sessions and measurement gaps. Unknown volumes are never invented; totals with gaps are incomplete. Consumption starts with 3.7.0 and is not reconstructed from older bounded history. The usage ledger retains about one year; maintenance history retains the last 20 events. Undo removes erroneous manual usage entries. Measured irrigation consumption is retained; undo is blocked during controlled irrigation.
 
-## New diagnostic attributes and dashboard templates
+## Diagnostic attributes and dashboard templates
 
 Diagnostics read existing states without extra regular OpenWeatherMap queries. Live robot minutes update locally every 30 seconds. In-flight observations remain estimates and are discarded on restart.
 
@@ -317,8 +295,6 @@ tap_action:
 returns the stable English machine state for automations.
 
 See the [changelog](CHANGELOG.md) for details of previous versions.
-
-
 
 ## Removal and troubleshooting
 

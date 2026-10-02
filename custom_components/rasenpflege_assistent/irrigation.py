@@ -585,6 +585,64 @@ class IrrigationController:
             return self.state.irrigation_last_status
         return self.start_blocker() or "ready"
 
+    def _prepare_opening(self, session: dict) -> str | None:
+        """Recheck live inputs and meter at the valve edge after storage awaits."""
+        if session.get("closing_reason"):
+            return session["closing_reason"]
+        blocker = self.start_blocker()
+        if blocker:
+            return blocker
+        now = dt_util.now()
+        if (
+            now - dt_util.parse_datetime(session["started_at"])
+        ).total_seconds() >= 60 * float(
+            self.coordinator.settings.get(
+                CONF_MAX_IRRIGATION_MINUTES, DEFAULT_MAX_IRRIGATION_MINUTES
+            )
+        ):
+            return "maximum_runtime"
+        if session["source"] == "auto":
+            if not self.state.irrigation_enabled:
+                return "automation_disabled"
+            blocker = self._weather_start_blocker() or self._budget_blocker(session)
+            if blocker:
+                return blocker
+            suspended = dt_util.parse_datetime(
+                self.state.irrigation_suspended_until or ""
+            )
+            if suspended and now < suspended:
+                return "automation_suspended"
+            if not schedule_allowed(self.coordinator.settings, dt_util.as_local(now)):
+                return "outside_schedule"
+        meter = (
+            self.hass.states.get(session["meter_entity_id"])
+            if session.get("meter_entity_id")
+            else None
+        )
+        reading = _meter_reading(meter)
+        if session["meter_kind"] != "timer":
+            if reading is None or reading[0] != session["meter_kind"]:
+                return "meter_unavailable"
+            if meter.attributes.get("unit_of_measurement") != session.get("meter_unit"):
+                return "meter_unit_changed"
+            session["meter_baseline"] = reading[1]
+        # Ignore shared-meter usage and active time while our valve was closed.
+        if int(session.get("cycle_number", 1)) > 1:
+            session["paused_seconds"] += max(
+                0,
+                (
+                    now - dt_util.parse_datetime(session["segment_started_at"])
+                ).total_seconds(),
+            )
+        for key in (
+            "last_meter_at",
+            "last_volume_change_at",
+            "segment_started_at",
+            "opening_started_at",
+        ):
+            session[key] = now.isoformat()
+        return None
+
     def automatic_blocker(self) -> str | None:
         """Explain why an automatic session cannot start right now."""
         if not self.configured:
@@ -1079,15 +1137,78 @@ class IrrigationController:
     async def _async_homeassistant_stopping(self, _event) -> None:
         """Close owned watering before the regular HA shutdown completes."""
         self._shutting_down = True
+        await self._async_close_unsafe_busy_valve()
         await self.async_stop("homeassistant_stopping")
         if not self.active:
             self.detach()
 
     async def _async_input_changed(self, _event) -> None:
         """Check mower, valve and meter immediately when their state changes."""
+        await self._async_close_unsafe_busy_valve()
         await self._async_close_late_open()
         await self.async_check()
         self._publish_session()
+
+    async def _async_close_unsafe_busy_valve(self) -> None:
+        """Allow physical safety closure while a controller write holds its lock."""
+        session = self.state.irrigation_session
+        if not self._lock.locked() or session is None or self._valve_state() != "on":
+            return
+        now = dt_util.now()
+        unsafe = (
+            self._shutting_down
+            or bool(session.get("closing_reason"))
+            or bool(session.get("paused_at"))
+            or self._frost_detected()
+            or not self._mower_is_docked()
+            or self._other_valve_state() != "off"
+            or (now - dt_util.parse_datetime(session["started_at"])).total_seconds()
+            >= 60
+            * float(
+                self.coordinator.settings.get(
+                    CONF_MAX_IRRIGATION_MINUTES, DEFAULT_MAX_IRRIGATION_MINUTES
+                )
+            )
+        )
+        if session["source"] == "auto":
+            suspended = dt_util.parse_datetime(
+                self.state.irrigation_suspended_until or ""
+            )
+            unsafe = unsafe or (
+                not self.state.irrigation_enabled
+                or bool(suspended and now < suspended)
+                or not schedule_allowed(
+                    self.coordinator.settings, dt_util.as_local(now)
+                )
+                or self._weather_stop_reason(session) is not None
+            )
+        reading = (
+            _meter_reading(self.hass.states.get(session["meter_entity_id"]))
+            if session.get("meter_entity_id")
+            else None
+        )
+        if reading and reading[0] == session["meter_kind"] == "volume":
+            delivered = float(session["liters"]) + max(
+                0, reading[1] - session["meter_baseline"]
+            )
+            unsafe = unsafe or delivered >= float(
+                self.coordinator.settings.get(
+                    CONF_MAX_IRRIGATION_LITERS, DEFAULT_MAX_IRRIGATION_LITERS
+                )
+            )
+        if unsafe:
+            session["confirmed_open"] = True
+            session["ever_confirmed_open"] = True
+            try:
+                # Bookkeeping remains serialized. Only the owned valve's
+                # physical turn-off may bypass a pending storage operation.
+                await self._async_command_valve(
+                    session["valve_entity_id"], open_valve=False
+                )
+            except (HomeAssistantError, TimeoutError):
+                _LOGGER.exception(
+                    "Could not close unsafe irrigation during a pending write"
+                )
 
     async def _async_close_late_open(self) -> None:
         """Close an on report that arrived after a stopped owned session."""
@@ -1120,11 +1241,13 @@ class IrrigationController:
 
     async def _async_watchdog(self, _now) -> None:
         """Enforce a maximum duration even without new state events."""
+        await self._async_close_unsafe_busy_valve()
+        # Check physical safety before any retry of a failed storage write.
+        await self.async_check()
         await self._async_close_late_open()
         if self._storage_error:
             async with self._lock:
                 await self._async_persist_state()
-        await self.async_check()
         session = self.state.irrigation_session
         if session and session.get("paused_at"):
             await self._async_maybe_resume()
@@ -1231,6 +1354,10 @@ class IrrigationController:
                 self.state.irrigation_last_status = "paused"
                 self.state.irrigation_last_reason = "storage_error"
                 self._publish_session()
+                return
+            blocker = self._prepare_opening(session)
+            if blocker:
+                await self._async_stop_locked(blocker)
                 return
             try:
                 await self._async_command_valve(
@@ -1447,6 +1574,14 @@ class IrrigationController:
                     translation_key="action_20",
                 )
             self._publish_session()
+            blocker = self._prepare_opening(session)
+            if blocker:
+                await self._async_stop_locked(blocker)
+                raise ServiceValidationError(
+                    blocker,
+                    translation_domain=DOMAIN,
+                    translation_key=f"irrigation_blocked_{blocker}",
+                )
             try:
                 await self._async_command_valve(
                     self.coordinator.settings[CONF_IRRIGATION_VALVE], open_valve=True
@@ -1502,8 +1637,9 @@ class IrrigationController:
                     session["closing_reason"] = (
                         session.get("pause_reason") or "other_valve_open"
                     )
-                    await self._async_persist_state()
                     await self._async_close_locked()
+                    if self._valve_state() != "off":
+                        await self._async_persist_state()
                     return
                 if (
                     now - dt_util.parse_datetime(session["started_at"])
@@ -1807,6 +1943,9 @@ class IrrigationController:
 
     async def async_stop(self, reason: str = "stopped_manually") -> None:
         """Always close an owned valve, including after automation is disabled."""
+        if self._lock.locked() and self.active:
+            self.state.irrigation_session["closing_reason"] = reason
+            await self._async_close_unsafe_busy_valve()
         async with self._lock:
             if self.active:
                 await self._async_stop_locked(reason)
