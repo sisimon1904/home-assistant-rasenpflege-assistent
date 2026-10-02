@@ -1,4 +1,4 @@
-# Qualitätsaudit – 3.8.6
+# Qualitätsaudit – 3.8.7
 
 Geprüft am 2. Oktober 2026 gegen die [Home Assistant Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/). Dies ist eine Selbstauskunft für eine HACS-Integration, keine offizielle Einstufung. Fehlerfreiheit und vollständige Erfüllung sämtlicher Quality-Scale-Stufen werden nicht behauptet.
 
@@ -46,6 +46,24 @@ Zusätzlich wurde außerhalb der gemockten Pytest-Speicherumgebung eine tatsäch
 
 **Ergebnis für 3.8.6: 389 Tests bestanden, 85,90 % kombinierte Zeilen-/Zweigabdeckung** unter Python 3.14.7 / Home Assistant 2026.9.4. Ruff-Formatierung, Ruff-Prüfung, Python-Kompilierung, JSON-/Dokumentationslink-Prüfung und Git-Whitespace-Prüfung erfolgreich. Manifest, Geräte-/Diagnoseversion und beide READMEs verwenden 3.8.6. Die Speicherbestätigung benötigt einen zusätzlichen lokalen Lesezugriff je Speicherung, ohne weitere Wetter-/OWM-Abfrage. Ventilschließung bleibt vor Speicherwartezeiten priorisiert. Das zweite Ventil bleibt ausschließlich eine Lesequelle. Die unten dokumentierten Hardware-, Versionsmatrix- und Quality-Scale-Grenzen gelten weiterhin.
 
+## Ergänzende Prüfung für 3.8.7
+
+Die Prüfung umfasst erneut Ventilsteuerung und Interlocks, Neustart-/Entladebehandlung, Pflegeaktionen und Speicherung, Zeitplanung, Wetterberechnungen, Konfigurationsänderungen sowie die vorhandenen Plattform-, Übersetzungs- und Dokumentationstests. Die nachfolgende Korrektur ist Bestandteil von Version 3.8.7.
+
+Ein reproduzierbarer Fehler betraf wiederholte Abbrüche einer Pflege-Speichertransaktion: Nach dem ersten Abbruch wurde die laufende Speicherung ungeschützt abgewartet. Ein weiterer Abbruch konnte dadurch den Schreib-/Bestätigungsvorgang abbrechen und die Modellsperre zu früh freigeben. Ein bereits laufender Dateischreibvorgang kann dann trotzdem fortgesetzt werden, während die Transaktion ihre Modelländerungen zurücknimmt.
+
+Die Speicherung wird jetzt bei jedem Abbruch abgeschirmt bis zum Abschluss abgewartet. Die Modellsperre bleibt bis dahin gehalten. Erfolgreich gespeicherte Änderungen bleiben erhalten; fehlgeschlagene Änderungen werden zurückgenommen. Anschließend wird der Abbruch an den Aufrufer weitergegeben. Erwartete Schreibfehler werden als Transaktionsergebnis verarbeitet, um unbehandelte Fehler des abgeschirmten Tasks zu vermeiden.
+
+`tests/test_review_after_386.py` ergänzt 19 Regressionstestfälle: Bewässerung, Düngung, Mähen und Rückgängig mit einem, zwei und drei Abbrüchen; Schreibfehler mit und ohne Abbruch samt Rücknahme und Wiederholung; sowie eine zweite Pflegeaktion, die auf die erste Transaktion warten muss. Acht Fälle mit wiederholten Abbrüchen schlugen vor der Korrektur fehl. Zusätzlich wurde außerhalb der gemockten Pytest-Speicherung eine tatsächliche temporäre HA-Datei geschrieben: Auch nach drei Abbrüchen blieb die Sperre bis zum Speicherabschluss gehalten, und Dateiinhalte, geladene Daten und Modell stimmten überein.
+
+**Ergebnis für 3.8.7: 408 Tests bestanden, 85,91 % kombinierte Zeilen-/Zweigabdeckung** unter Python 3.14.7 / Home Assistant 2026.9.4. Ruff-Formatierung, Ruff-Prüfung, Python-Kompilierung, JSON-Parsing, relative Dokumentationslinks und Git-Whitespace-Prüfung erfolgreich. Manifest, Geräte-/Diagnoseversion und beide READMEs verwenden 3.8.7. Die Grenzen bezüglich Hardware und Versionsmatrix gelten weiterhin.
+
+## Quellcode-Kommentierung für 3.8.7
+
+Nach der erneuten Fehlerprüfung wurden alle 37 Python-Dateien mit erklärenden Dateiheadern versehen und 101 zentrale Funktionen ausführlicher dokumentiert. Die Kommentare erläutern Zuständigkeiten, Datenfluss, Einheiten, Sperren, Abbruch-/Fehlerverhalten, physische Ventilzustände, Messlücken und Berechnungsannahmen. Alle 16 YAML-Dateien für Dienste, Dashboards und Workflows besitzen ebenfalls erklärende Header. Die [Quellcode-Übersicht](source-code.md) dokumentiert auch die JSON-Dateien, deren Format keine Kommentare erlaubt.
+
+Ein Vergleich der Python-Syntaxbäume unter Auslassung der Docstrings bestätigt unveränderte ausführbare Logik gegenüber dem Stand mit der oben dokumentierten lokalen Fehlerkorrektur. Die geladenen YAML-Inhalte sind ebenfalls unverändert. Abschließender Testlauf nach der Kommentierung: **408 Tests bestanden, 85,91 % kombinierte Zeilen-/Zweigabdeckung**; Ruff, Python-Kompilierung und Git-Whitespace-Prüfung erfolgreich. Die Kommentierung ist Bestandteil von Version 3.8.7.
+
 ## Behobene Befunde
 
 | Bereich | Ergebnis und Nachweis |
@@ -65,7 +83,7 @@ Zusätzlich wurde außerhalb der gemockten Pytest-Speicherumgebung eine tatsäch
 
 - Python 3.14.7 / Home Assistant 2026.9.4; zusätzlich wurde die Umgebung 2026.10.0b0 vor den letzten Korrekturen geprüft.
 - Pytest einschließlich echter HA-Plattform-Einrichtung und -Entladung, Dienstaktionen, Diagnose-JSON, fehlgeschlagenem Speichern, ungültigen Daten und Abbruch von Schaltbefehlen.
-- 389 Tests bestanden; 85,90 % kombinierte Zeilen-/Zweigabdeckung im abschließenden Lauf.
+- 408 Tests bestanden; 85,91 % kombinierte Zeilen-/Zweigabdeckung im abschließenden Lauf für 3.8.7 (3.8.6: 389 Tests, 85,90 %).
 - Ruff-Formatierung, Ruff-Prüfung und Python-Kompilierung.
 - GitHub CI verwendet Python 3.14, einen festgelegten HA-Testpaketstand und ein Mindestniveau von 83 % kombinierter Zeilen-/Zweigabdeckung. Der Coverage-Bericht wird als Workflow-Artefakt bereitgestellt.
 - Hassfest und HACS werden durch den Validate-Workflow geprüft. Deren Ergebnis ist am jeweiligen Commit abzulesen; es ersetzt keine Prüfung aller Quality-Scale-Regeln.

@@ -1,4 +1,15 @@
-"""Config flow for Lawn Care Assistant."""
+"""UI configuration, independent options pages and input validation.
+
+File: custom_components/rasenpflege_assistent/config_flow.py
+
+Schemas describe Home Assistant selectors and translation keys. Validation
+checks the existing OpenWeatherMap entity, finite quantities, calibration,
+valve ownership and the compatibility of optional irrigation inputs.
+
+Options override initial setup data. Changes are blocked while irrigation
+is active, so a running session cannot lose its safety inputs during reload.
+This module configures existing HA sources; it does not open an OWM client.
+"""
 
 from __future__ import annotations
 
@@ -187,7 +198,12 @@ def _select(translation_key: str, options: list[str]) -> selector.SelectSelector
 def _schema(
     *, show_watered: bool = True, fields: tuple[str, ...] | None = None
 ) -> vol.Schema:
-    """Return the fields needed by a setup or options page."""
+    """Return the fields needed by a setup or options page.
+
+    Build reusable selectors for the requested settings section. Suggested
+    values are applied by the flow, not by changing the persisted defaults.
+    The external watered input is hidden when valve control owns accounting.
+    """
     schema = vol.Schema(
         {
             vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
@@ -646,7 +662,12 @@ def _validate_irrigation(user_input: dict[str, Any]) -> dict[str, str]:
 def _validate_unique_valve(
     hass: HomeAssistant, user_input: dict[str, Any], exclude_entry_id: str | None = None
 ) -> dict[str, str]:
-    """Prevent independent lawn entries from commanding the same valve."""
+    """Prevent independent lawn entries from commanding the same valve.
+
+    A lawn valve cannot be owned by two config entries. The competing valve
+    is an observation only; validation keeps controller ownership unambiguous
+    before a configuration is accepted.
+    """
     valve = user_input.get(CONF_IRRIGATION_VALVE)
     if valve:
         for entry in hass.config_entries.async_entries(DOMAIN):
@@ -779,6 +800,13 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
         fields: tuple[str, ...],
         user_input: dict[str, Any] | None,
     ) -> ConfigFlowResult:
+        """Merge current data/options with submitted values, clearing omitted
+
+        Merge current data/options with submitted values, clearing omitted
+        optional fields deliberately. Validate the combined configuration
+        before saving. Maintenance revision markers distinguish an intentional
+        baseline edit from simply reopening and saving an unchanged page.
+        """
         current = self._current_settings()
         if step_id == "maintenance":
             state = getattr(

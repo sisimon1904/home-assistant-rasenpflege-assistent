@@ -1,4 +1,12 @@
-"""Confirmed defects found during the second 3.8.1 review."""
+"""Confirmed defects found during the second 3.8.1 review.
+
+File: tests/test_audit_381.py
+
+Tests exercise the behavior described below using pure helper calls or
+Home Assistant fixtures as appropriate. Device/service doubles keep tests
+local and repeatable; they do not prove real hardware response timing.
+Assertions and test names describe the expected result of each scenario.
+"""
 
 import asyncio
 from copy import deepcopy

@@ -1,3 +1,9 @@
+# .github/workflows/validate.yml
+#
+# Validate integration metadata and packaging on pushes and PRs.
+# Hassfest checks HA conventions; HACS checks custom-integration packaging.
+# These checks complement tests and do not certify every Quality Scale rule.
+#
 name: Validate
 
 on:

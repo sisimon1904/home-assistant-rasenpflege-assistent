@@ -1,4 +1,12 @@
-"""Tests for the Lawn Care Assistant config flow and migration."""
+"""Tests for the Lawn Care Assistant config flow and migration.
+
+File: tests/test_config_flow.py
+
+Tests exercise the behavior described below using pure helper calls or
+Home Assistant fixtures as appropriate. Device/service doubles keep tests
+local and repeatable; they do not prove real hardware response timing.
+Assertions and test names describe the expected result of each scenario.
+"""
 
 from unittest.mock import patch
 

@@ -1,3 +1,10 @@
+# custom_components/rasenpflege_assistent/services.yaml
+#
+# Describe HA action fields and selectors for this integration.
+# Runtime schemas and validation live in __init__.py; localized labels live in
+# strings.json/translations. Keep field names synchronized with those files.
+# Entry IDs select the lawn; optional quantities use the units shown by selectors.
+#
 record_watering:
   fields:
     config_entry_id:

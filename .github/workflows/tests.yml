@@ -1,3 +1,9 @@
+# .github/workflows/tests.yml
+#
+# Run formatting, lint and regression/coverage checks on pushes and PRs.
+# Python and the HA test package are pinned for repeatability. The combined
+# coverage threshold is 83 percent; publish its XML report for review.
+#
 name: Tests
 
 on:

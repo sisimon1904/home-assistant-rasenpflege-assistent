@@ -1,4 +1,12 @@
-"""Cross-check safety limits against delayed pause closure."""
+"""Cross-check safety limits against delayed pause closure.
+
+File: tests/test_audit_386_interactions.py
+
+Tests exercise the behavior described below using pure helper calls or
+Home Assistant fixtures as appropriate. Device/service doubles keep tests
+local and repeatable; they do not prove real hardware response timing.
+Assertions and test names describe the expected result of each scenario.
+"""
 
 from datetime import timedelta
 from unittest.mock import AsyncMock

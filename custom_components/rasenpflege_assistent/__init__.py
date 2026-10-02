@@ -1,4 +1,15 @@
-"""The Lawn Care Assistant integration."""
+"""Integration lifecycle, service registration and configuration migration.
+
+File: custom_components/rasenpflege_assistent/__init__.py
+
+Home Assistant calls this module to set up or unload each lawn entry.
+It connects the coordinator, irrigation controller, mowing observer and entity
+platforms, and exposes validated maintenance and irrigation service actions.
+
+Service calls resolve their own config entry; lawn instances do not share
+mutable runtime state. Unloading must close owned irrigation before removing
+safety listeners. Migration preserves existing user configuration.
+"""
 
 from __future__ import annotations
 
@@ -52,9 +63,19 @@ type LawnConfigEntry = ConfigEntry[LawnCoordinator]
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Register maintenance actions once for all lawn entries."""
+    """Register maintenance actions once for all lawn entries.
+
+    Register domain services once. Each handler resolves the requested entry
+    at call time and delegates changes to that entry's coordinator/controller.
+    Schemas reject non-finite amounts and enforce explicit entry selection.
+    """
 
     def _coordinator(call: ServiceCall) -> LawnCoordinator:
+        """Resolve the loaded lawn entry for this service.
+
+        Reject missing, unrelated or unloaded entries before touching runtime data.
+        This prevents a domain-wide service from acting on the wrong lawn.
+        """
         entry_id = call.data["config_entry_id"]
         entry = hass.config_entries.async_get_entry(entry_id)
         if (
@@ -71,6 +92,11 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         return entry.runtime_data
 
     def _recorded_at(call: ServiceCall):
+        """Validate an optional historical event timestamp.
+
+        Historical actions require an aware timestamp in the past. Keep the
+        original instant; the coordinator converts it to the local calendar date.
+        """
         value = call.data.get("recorded_at")
         if not value:
             return None
@@ -95,6 +121,11 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         await _coordinator(call).irrigation.async_stop()
 
     async def _suspend_irrigation(call: ServiceCall) -> None:
+        """Apply a validated temporary automatic irrigation hold.
+
+        Accept either an absolute end or an elapsed duration, never both.
+        Duration arithmetic starts in UTC to avoid DST changing elapsed hours.
+        """
         value = call.data.get("until")
         duration = call.data.get("duration_hours")
         if value and duration is not None:
@@ -115,6 +146,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         await _coordinator(call).irrigation.async_suspend_automation(until)
 
     async def _record_watering(call: ServiceCall) -> None:
+        """Record user-supplied watering for the selected entry.
+
+        Manual ledger entries cannot overlap an owned irrigation session.
+        Historical entries need an explicit amount and do not add water to the
+        current soil model, because that earlier water may already be gone.
+        """
         coordinator = _coordinator(call)
         if coordinator.irrigation and coordinator.irrigation.active:
             raise ServiceValidationError(
@@ -221,7 +258,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool:
-    """Set up Lawn Care Assistant from a config entry."""
+    """Set up Lawn Care Assistant from a config entry.
+
+    Initialize stored model state before creating the controller. Subscribe
+    to completion inputs and optional mower/wetness observations, then set up
+    platforms. If setup fails, retain valve supervision until safe shutdown.
+    """
     coordinator = LawnCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
@@ -313,7 +355,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool:
-    """Unload a config entry."""
+    """Unload a config entry.
+
+    Request physical closure before unloading platforms. A failed closure
+    refuses unload; a failed platform unload restores normal supervision.
+    Listener detachment happens only after successful platform unload.
+    """
     if (
         entry.runtime_data.irrigation
         and not await entry.runtime_data.irrigation.async_shutdown(detach=False)
@@ -328,7 +375,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> boo
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool:
-    """Migrate older configuration entries without losing user settings."""
+    """Migrate older configuration entries without losing user settings.
+
+    Apply ordered config-entry migrations using HA's update API. Existing
+    values and options survive added defaults. Future entry versions are
+    rejected rather than silently downgraded.
+    """
     if entry.version > 9:
         return False
     if entry.version == 1:
@@ -414,7 +466,11 @@ async def async_migrate_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bo
 
 
 def _remove_unused_irrigation_entities(hass: HomeAssistant, entry_id: str) -> None:
-    """Remove only this entry's optional outputs and obsolete valve repair."""
+    """Remove only this entry's optional outputs and obsolete valve repair.
+
+    Remove only optional outputs owned by this config entry. User-selected
+    source entities and the second valve belong to other integrations.
+    """
     registry = er.async_get(hass)
     for platform, key in (
         ("sensor", "irrigation_status"),

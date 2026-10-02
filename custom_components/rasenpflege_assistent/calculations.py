@@ -1,4 +1,15 @@
-"""Pure calculation helpers for lawn-care recommendations."""
+"""Pure lawn growth, weather, water balance and recommendation calculations.
+
+File: custom_components/rasenpflege_assistent/calculations.py
+
+The coordinator supplies normalized observations and forecasts. Helpers
+return values and stable reason codes without Home Assistant services, file
+writes or device commands. Water depths use millimeters; 1 mm over 1 m² is 1 L.
+
+Reference evapotranspiration is an estimate, not a measured water loss.
+The soil model separates interception, runoff, drainage and plant stress.
+Unknown forecast rain remains unknown instead of becoming a dry forecast.
+"""
 
 from __future__ import annotations
 
@@ -16,7 +27,12 @@ def _forecast_datetime(value: str) -> datetime:
 
 
 def grassland_temperature_increment(day: date, mean_temperature: float) -> float:
-    """Return the weighted GTS contribution for one day."""
+    """Return the weighted GTS contribution for one day.
+
+    Positive daily mean temperatures count with January/February weights
+    of 0.5/0.75 and weight 1 from March onwards. The coordinator accumulates
+    these contributions and separately records missing daily observations.
+    """
     if mean_temperature <= 0:
         return 0.0
     if day.month == 1:
@@ -34,7 +50,12 @@ def sum_forecast_rain(
     *,
     probability_adjusted: bool = False,
 ) -> float | None:
-    """Sum forecast precipitation for the next number of daily entries."""
+    """Sum forecast precipitation for the next number of daily entries.
+
+    Use only the requested provider entries. An invalid/missing amount
+    makes the total unknown, preserving the distinction from observed zero.
+    Optional probability weighting changes expected rain, not raw rainfall.
+    """
     values: list[float] = []
     for item in forecast[:days]:
         value = item.get("precipitation")
@@ -64,7 +85,12 @@ def sum_hourly_forecast_rain(
     *,
     probability_adjusted: bool = False,
 ) -> float | None:
-    """Sum precipitation inside a real timestamp window."""
+    """Sum precipitation inside a real timestamp window.
+
+    Select entries by an actual elapsed UTC window rather than assuming
+    one row per hour. This also supports three-hour provider intervals and
+    avoids stretching/shrinking the window across a local DST transition.
+    """
     dated: list[tuple[datetime, dict[str, Any]]] = []
     for item in forecast:
         raw = item.get("datetime")
@@ -102,7 +128,12 @@ def forecast_coverage_hours(
     maximum_hours: int = 72,
     now: datetime | None = None,
 ) -> int:
-    """Return the approximate future period covered by available forecasts."""
+    """Return the approximate future period covered by available forecasts.
+
+    Count contiguous future timestamps, not disconnected distant rows.
+    Daily rows provide an approximate fallback span. Coverage describes
+    available forecast duration, not guaranteed accuracy or complete fields.
+    """
     timestamps: list[datetime] = []
     for item in hourly_forecast:
         try:
@@ -235,7 +266,12 @@ SOIL_PROFILES = {
 
 
 def soil_capacity(soil_type: str, root_depth_cm: float = 10.0) -> float:
-    """Return the approximate plant-available root-zone water in mm."""
+    """Return the approximate plant-available root-zone water in mm.
+
+    Scale the soil profile's plant-available millimeters by root depth
+    relative to 10 cm, bounded to the supported model range. The result is
+    a bucket capacity estimate, not total geological water storage.
+    """
     base = float(SOIL_PROFILES.get(soil_type, SOIL_PROFILES["loamy"])["capacity_mm"])
     return round(base * max(0.5, min(3.0, root_depth_cm / 10.0)), 2)
 
@@ -246,7 +282,12 @@ def soil_profile(soil_type: str) -> dict[str, float]:
 
 
 def extraterrestrial_radiation(day: date, latitude: float) -> float:
-    """Return daily extraterrestrial radiation in MJ m-2 day-1."""
+    """Return daily extraterrestrial radiation in MJ m-2 day-1.
+
+    Use day-of-year solar geometry and latitude in degrees to estimate
+    energy above the atmosphere. Latitude and inverse-cosine arguments are
+    bounded to keep the lawn model usable near its supported range.
+    """
     day_of_year = day.timetuple().tm_yday
     phi = math.radians(max(-65.0, min(65.0, latitude)))
     dr = 1 + 0.033 * math.cos(2 * math.pi * day_of_year / 365)
@@ -268,7 +309,12 @@ def extraterrestrial_radiation(day: date, latitude: float) -> float:
 def hargreaves_evapotranspiration(
     *, day: date, latitude: float, temperature_min: float, temperature_max: float
 ) -> float:
-    """Estimate reference evapotranspiration using Hargreaves-Samani."""
+    """Estimate reference evapotranspiration using Hargreaves-Samani.
+
+    Temperature extrema and extraterrestrial radiation yield daily ET0
+    in millimeters. Radiation is converted to water equivalent before
+    applying the empirical coefficient; negative estimates are clipped.
+    """
     t_min = min(temperature_min, temperature_max)
     t_max = max(temperature_min, temperature_max)
     t_mean = (t_min + t_max) / 2
@@ -302,7 +348,13 @@ def penman_monteith_evapotranspiration(
     dew_point: float | None = None,
     wind_measurement_height_m: float = 10.0,
 ) -> float:
-    """Estimate daily reference ET with FAO-56 Penman-Monteith inputs."""
+    """Estimate daily reference ET with FAO-56 Penman-Monteith inputs.
+
+    Temperatures use Celsius, humidity percent, wind m/s and optional
+    pressure hPa. Adjust wind to 2 m height, estimate radiation from clouds,
+    then combine energy and aerodynamic terms. Cloud-derived radiation
+    makes this an estimate even when other inputs are measured.
+    """
     t_min = min(temperature_min, temperature_max)
     t_max = max(temperature_min, temperature_max)
     t_mean = (t_min + t_max) / 2
@@ -355,7 +407,12 @@ def penman_monteith_evapotranspiration(
 def interval_evapotranspiration(
     *, daily_et_mm: float, end: datetime, interval_hours: float, latitude: float
 ) -> float:
-    """Distribute daily ET with most loss occurring during daylight."""
+    """Distribute daily ET with most loss occurring during daylight.
+
+    Assign 85 percent of estimated daily loss to daylight and 15 percent
+    to night, using the interval midpoint and estimated day length. This
+    local model approximation is not a measured hourly ET series.
+    """
     if interval_hours <= 0 or daily_et_mm <= 0:
         return 0.0
     day_of_year = end.date().timetuple().tm_yday
@@ -379,7 +436,13 @@ def recommended_watering_window(
     *,
     wind_speed_unit: str = "m/s",
 ) -> dict[str, Any]:
-    """Choose a cool, calm and dry forecast hour for watering."""
+    """Choose a cool, calm and dry forecast hour for watering.
+
+    Reject wet, freezing, invalid or windy candidates, and rank usable
+    future hours by local time, temperature and wind. Return a one-hour
+    elapsed window plus its reason; the controller must still validate
+    current observations and local schedule before starting.
+    """
     candidates: list[tuple[float, datetime, dict[str, Any], float | None]] = []
     for item in forecast:
         raw_timestamp = item.get("datetime")
@@ -489,7 +552,13 @@ def update_soil_water_balance(
     compaction: str = "normal",
     interception_available_mm: float | None = None,
 ) -> dict[str, float]:
-    """Update a bounded lawn root-zone balance with infiltration and ET stress."""
+    """Update a bounded lawn root-zone balance with infiltration and ET stress.
+
+    Separate canopy interception from throughfall, limit infiltration
+    by soil/slope/compaction, and expose excess as runoff. Water above
+    capacity drains; dry soil reduces actual ET via a stress factor.
+    Return each term in millimeters so diagnostics explain the balance.
+    """
     profile = soil_profile(soil_type)
     capacity = soil_capacity(soil_type, root_depth_cm)
     rain = max(0.0, precipitation_mm)
@@ -554,7 +623,12 @@ def precipitation_rate_amounts(
     maximum_hours: float = 2.0,
     day_start: datetime | None = None,
 ) -> tuple[float, float]:
-    """Return total and current-day rain represented by a rate sample."""
+    """Return total and current-day rain represented by a rate sample.
+
+    Integrate a rate only over a bounded elapsed sample interval. Split
+    the part belonging to the current local day from the full interval;
+    the first reading has no known preceding interval to integrate.
+    """
     if last_sample is None:
         return 0.0, 0.0
     elapsed_hours = min(
@@ -579,7 +653,12 @@ def growth_state(
     mower_started_year: int | None,
     previous_state: str | None = None,
 ) -> str:
-    """Classify the vegetation phase of the lawn."""
+    """Classify the vegetation phase of the lawn.
+
+    Season, temperature, GTS and soil water determine a stable phase code.
+    Different entry/exit thresholds provide hysteresis so minor sensor
+    fluctuations do not repeatedly switch growth recommendations.
+    """
     if growth_temperature is None:
         return "collecting_data"
     winter_limit = 6 if previous_state == "winter_dormancy" else 5
@@ -645,7 +724,12 @@ def mower_recommendation(
     last_mowing_at: datetime | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
-    """Return mower state, interval and next recommended mowing date."""
+    """Return mower state, interval and next recommended mowing date.
+
+    Robots use shorter growth-dependent intervals than manual mowing.
+    Prefer an exact last-mowing timestamp when present; otherwise use a
+    calendar date. Return a recommendation only, never a device command.
+    """
     base_state = mower_state(
         growth=growth, mower_started_year=mower_started_year, year=year
     )
@@ -704,7 +788,13 @@ def watering_recommendation(
     expected_et_24h_mm: float = 0.0,
     rain_efficiency: float = 0.8,
 ) -> dict[str, Any]:
-    """Calculate a conservative weather-based watering recommendation."""
+    """Calculate a conservative weather-based watering recommendation.
+
+    Prefer sufficiently covered hourly rain, otherwise use daily totals.
+    Combine soil deficit, expected ET and effective rain with seasonal
+    constraints. All branches include reasons and confidence so unknown
+    inputs are visible rather than silently treated as dry/calm weather.
+    """
     hourly_forecast = hourly_forecast or []
     coverage_hours = forecast_coverage_hours(hourly_forecast, forecast, now=now)
     hourly_coverage_hours = forecast_coverage_hours(hourly_forecast, [], now=now)
@@ -933,7 +1023,12 @@ def next_lawn_action(
     fertilizing_recommended: bool,
     mower_status: str,
 ) -> str:
-    """Return the single most useful next lawn-care action."""
+    """Return the single most useful next lawn-care action.
+
+    Choose one primary action from the calculated watering, fertilizing
+    and mowing states. Inputs already contain the detailed safety/quality
+    decisions, so this helper does not independently start any equipment.
+    """
     if watering_status == "water_now":
         return "water_lawn"
     if watering_status == "water_soon":
@@ -980,7 +1075,12 @@ def fertilizing_recommendation(
     lawn_type: str,
     last_fertilizing: date | None,
 ) -> dict[str, Any]:
-    """Return seasonal NPK type and product quantity recommendation."""
+    """Return seasonal NPK type and product quantity recommendation.
+
+    Use vegetation phase, season, temperature and time since the last
+    application to choose a fertilizer recommendation. NPK and dose are
+    guidance values; area scales grams/m² into the total kilograms.
+    """
     elapsed = days_since(last_fertilizing, today)
     month = today.month
     reasons: list[str] = []

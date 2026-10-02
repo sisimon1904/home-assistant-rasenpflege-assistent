@@ -1,4 +1,15 @@
-"""Button platform for Lawn Care Assistant."""
+"""Home Assistant buttons for maintenance and optional irrigation.
+
+File: custom_components/rasenpflege_assistent/button.py
+
+Button descriptions map stable entity keys to asynchronous coordinator or
+controller actions. The watering button records maintenance without a valve,
+but starts a supervised manual session when valve control is configured.
+
+Entities delegate all writes and safety decisions to the shared model.
+The stop button exists only for configured irrigation; undo is disabled in
+the entity registry by default because it changes recorded history.
+"""
 
 from __future__ import annotations
 
@@ -23,6 +34,8 @@ class LawnButtonDescription(ButtonEntityDescription):
     press_fn: Callable[[LawnCoordinator], Awaitable[None]]
 
 
+# All writes go through model/controller transactions. In particular, starting
+# watering must not prematurely record its target as physically delivered water.
 BUTTONS: tuple[LawnButtonDescription, ...] = (
     LawnButtonDescription(
         key="mark_mowing_started",
@@ -91,5 +104,10 @@ class LawnButton(LawnEntity, ButtonEntity):
         )
 
     async def async_press(self) -> None:
-        """Record a completed maintenance action."""
+        """Record a completed maintenance action.
+
+        Dispatch the configured action and await its persistence/safety result.
+        The watering action may start a supervised session rather than record
+        a completed watering event; the button itself does not credit water.
+        """
         await self.entity_description.press_fn(self.coordinator)

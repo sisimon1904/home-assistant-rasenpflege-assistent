@@ -1,3 +1,11 @@
+# docs/dashboard/irrigation.en.yaml
+#
+# Show supervised session progress and provide entry-scoped start/stop actions.
+# Copy into a Lovelace manual card and replace the example entity IDs and
+# REPLACE_WITH_ENTRY_ID where present. Mushroom cards require that custom frontend
+# component. Templates render HA state translations while raw codes stay stable.
+# This dashboard reads HA state; service buttons delegate validation to HA.
+#
 # Entitäten und REPLACE_WITH_ENTRY_ID ersetzen. / Replace entities and entry ID.
 type: vertical-stack
 cards:

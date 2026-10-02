@@ -1,4 +1,15 @@
-"""Data models for the Lawn Care Assistant integration."""
+"""Calculated output and JSON-compatible persistent state for each lawn entry.
+
+File: custom_components/rasenpflege_assistent/models.py
+
+LawnData is the coordinator output consumed by entities and recommendations.
+RuntimeState retains sampling baselines, maintenance history, water usage and
+irrigation ownership across restarts. These structures contain no device logic.
+
+Optional values distinguish unknown information from measured zero. Mutable
+collections use default factories so entries cannot share history accidentally.
+The explicit serialization mapping is paired with coordinator setup loading.
+"""
 
 from __future__ import annotations
 
@@ -11,6 +22,8 @@ from typing import Any
 class LawnData:
     """Calculated lawn data exposed by the coordinator."""
 
+    # Recommendation output: stable status/reason codes are translated by HA.
+    # They must remain machine-readable for user automations and dashboards.
     gts: float = 0.0
     lawn_status: str = "collecting_data"
     watering_recommended: bool = False
@@ -58,6 +71,8 @@ class LawnData:
     last_robot_session_active_seconds: float | None = None
     mowing_record_source: str | None = None
     growth_temperature_7d: float | None = None
+    # Separate modeled root-zone storage from direct sensor observations. A
+    # percentage is relative to model capacity, while water depths use mm.
     soil_moisture_percent: float = 70.0
     measured_soil_moisture_percent: float | None = None
     soil_moisture_source: str = "model"
@@ -102,6 +117,8 @@ class LawnData:
     last_maintenance_event: dict[str, Any] | None = None
     gts_complete: bool = True
     missing_temperature_days: int = 0
+    # Live controller overlays avoid waiting for a weather refresh to expose
+    # valve progress and mowing restrictions caused by current irrigation.
     irrigation_status: str = "not_configured"
     irrigation_enabled: bool = False
     irrigation_liters: float | None = None
@@ -114,6 +131,7 @@ class LawnData:
 class RuntimeState:
     """Persistent sampling and maintenance state."""
 
+    # Local-day sampling baselines and annual GTS survive reloads/restarts.
     year: int
     gts: float
     sample_date: str
@@ -155,6 +173,8 @@ class RuntimeState:
     last_soil_model_gap_at: str | None = None
     last_soil_model_gap_hours: float = 0.0
     last_growth_state: str | None = None
+    # Each entry owns independent collections. History stores reversible model
+    # credits; the usage ledger below also retains physical water evidence.
     maintenance_history: list[dict[str, Any]] = field(default_factory=list)
     weather_samples: list[dict[str, Any]] = field(default_factory=list)
     daily_effective_rain_mm: float = 0.0
@@ -169,6 +189,8 @@ class RuntimeState:
     configured_soil_type: str | None = None
     configured_root_depth_cm: float = 10.0
     missing_temperature_days: int = 0
+    # Ownership is represented by a retained session, including paused/closing
+    # sessions. On restart the controller closes it instead of blindly resuming.
     irrigation_enabled: bool = False
     irrigation_session: dict[str, Any] | None = None
     irrigation_last_auto_date: str | None = None
@@ -188,7 +210,12 @@ class RuntimeState:
     water_usage: list[dict[str, Any]] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
-        """Return a JSON-serializable representation."""
+        """Return a JSON-serializable representation.
+
+        This explicit mapping is the persistence contract used by coordinator
+        loading. It returns nested collections by reference; storage/transaction
+        callers take deep snapshots before awaits to isolate a durable write.
+        """
         return {
             "irrigation_suspended_until": self.irrigation_suspended_until,
             "irrigation_last_session": self.irrigation_last_session,

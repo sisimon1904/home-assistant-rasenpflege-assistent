@@ -1,3 +1,9 @@
+# .github/workflows/release.yml
+#
+# Package the custom integration directory as an installation ZIP.
+# Runs only when a v-prefixed tag is pushed; the existing release action then
+# attaches the ZIP. A normal main-branch push does not trigger this workflow.
+#
 name: Release
 
 on:

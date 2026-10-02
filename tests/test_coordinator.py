@@ -1,4 +1,12 @@
-"""Regression checks for local-day accounting and the water balance."""
+"""Regression checks for local-day accounting and the water balance.
+
+File: tests/test_coordinator.py
+
+Tests exercise the behavior described below using pure helper calls or
+Home Assistant fixtures as appropriate. Device/service doubles keep tests
+local and repeatable; they do not prove real hardware response timing.
+Assertions and test names describe the expected result of each scenario.
+"""
 
 from datetime import date, datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch

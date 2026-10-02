@@ -1,5 +1,18 @@
-"""Readable decision explanations with stable machine codes kept separately."""
+"""German and English descriptions for stable decision and safety reason codes.
 
+File: custom_components/rasenpflege_assistent/explanations.py
+
+Sensors, diagnostics and irrigation events expose machine-readable codes.
+This lookup adds readable explanations without changing the codes used by
+automations. Extra tables are merged into the language maps at import time.
+
+Unknown languages fall back to English; unknown codes remain visible for
+diagnosis. HA entity names, states and service translations are maintained
+separately in strings.json and translations/*.json.
+"""
+
+# Codes are part of diagnostics/events and must not be translated in-place.
+# Keep readable labels separate so automations remain independent of UI language.
 EXPLANATIONS = {
     "de": {
         "ready": "Start möglich",

@@ -1,4 +1,15 @@
-"""User toggle for optional automatic irrigation."""
+"""Persisted master switch for optional automatic lawn irrigation.
+
+File: custom_components/rasenpflege_assistent/switch.py
+
+The entity reflects RuntimeState.irrigation_enabled and delegates changes
+to the controller, which persists them and enforces immediate closure of an
+automatically owned session when automation is disabled.
+
+Manual session controls remain separate. This switch does not command a
+valve directly; controller safety checks and storage handling apply to every
+state change.
+"""
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry

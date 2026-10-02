@@ -1,4 +1,12 @@
-"""Public service validation and actual history/suspension behavior."""
+"""Public service validation and actual history/suspension behavior.
+
+File: tests/test_services.py
+
+Tests exercise the behavior described below using pure helper calls or
+Home Assistant fixtures as appropriate. Device/service doubles keep tests
+local and repeatable; they do not prove real hardware response timing.
+Assertions and test names describe the expected result of each scenario.
+"""
 
 from datetime import timedelta
 from unittest.mock import AsyncMock

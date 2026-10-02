@@ -1,4 +1,12 @@
-"""Lifecycle, platform, units and persistence regressions for the quality audit."""
+"""Lifecycle, platform, units and persistence regressions for the quality audit.
+
+File: tests/test_quality.py
+
+Tests exercise the behavior described below using pure helper calls or
+Home Assistant fixtures as appropriate. Device/service doubles keep tests
+local and repeatable; they do not prove real hardware response timing.
+Assertions and test names describe the expected result of each scenario.
+"""
 
 import json
 from unittest.mock import AsyncMock, Mock, patch

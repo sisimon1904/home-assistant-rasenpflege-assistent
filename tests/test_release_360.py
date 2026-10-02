@@ -1,4 +1,12 @@
-"""Release regressions for optional output cleanup and readable explanations."""
+"""Release regressions for optional output cleanup and readable explanations.
+
+File: tests/test_release_360.py
+
+Tests exercise the behavior described below using pure helper calls or
+Home Assistant fixtures as appropriate. Device/service doubles keep tests
+local and repeatable; they do not prove real hardware response timing.
+Assertions and test names describe the expected result of each scenario.
+"""
 
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir

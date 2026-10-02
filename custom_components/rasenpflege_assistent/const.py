@@ -1,13 +1,26 @@
-"""Constants for the Lawn Care Assistant integration."""
+"""Shared configuration keys, defaults, update intervals and version identifiers.
+
+File: custom_components/rasenpflege_assistent/const.py
+
+Other modules import these names to keep setup forms, runtime calculations,
+entity platforms and persistence consistent. Configuration keys and the domain
+are external identifiers used by saved HA entries and user automations.
+
+Defaults are fallback values, not live measurements. Integration version,
+config-entry migration version and stored/model schema versions serve different
+purposes and must not be treated as interchangeable release numbers.
+"""
 
 from __future__ import annotations
 
 from datetime import timedelta
 
 DOMAIN = "rasenpflege_assistent"
-INTEGRATION_VERSION = "3.8.6"
+INTEGRATION_VERSION = "3.8.7"
 PLATFORMS = ["sensor", "button", "switch"]
 
+# Persisted configuration field names. Changing a string here requires checking
+# saved entries, migrations, translations and user-authored service/dashboard YAML.
 CONF_NAME = "name"
 CONF_TEMPERATURE_ENTITY = "temperature_entity"
 CONF_WEATHER_ENTITY = "weather_entity"

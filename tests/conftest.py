@@ -1,4 +1,10 @@
-"""Shared Home Assistant test fixtures."""
+"""Shared Home Assistant test fixtures.
+
+File: tests/conftest.py
+
+Configure the repository import path and load the HA pytest plugin.
+Individual tests choose the fixtures needed for their behavior checks.
+"""
 
 import sys
 from pathlib import Path

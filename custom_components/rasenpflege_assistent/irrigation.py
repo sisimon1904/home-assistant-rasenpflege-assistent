@@ -1,4 +1,17 @@
-"""Hardware-independent, fail-closed valve and water-meter controller."""
+"""Owned-valve irrigation state machine, interlocks and measured water accounting.
+
+File: custom_components/rasenpflege_assistent/irrigation.py
+
+The controller serializes start, pause, resume, close and completion using
+its own lock. State-change listeners and a local watchdog supervise hardware
+independently of the slower weather/model update interval.
+
+Only an owned lawn valve may be commanded. The optional second valve
+is a read-only shared-meter interlock. Sessions are persisted before opening,
+then live safety conditions are rechecked after awaits. Restarted sessions
+close rather than resume; missing measurements are flagged instead of invented.
+Completion holds controller then model locks and credits delivered water once.
+"""
 
 from __future__ import annotations
 
@@ -71,7 +84,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _meter_reading(state: Any) -> tuple[str, float] | None:
-    """Normalize supported flow and volume sensors to L/min or L."""
+    """Normalize supported flow and volume sensors to L/min or L.
+
+    Return a normalized (kind, value) pair: cumulative volume in liters
+    or instantaneous rate in liters/minute. Invalid state, unsupported units,
+    non-finite values and negative quantities are unusable observations.
+    """
     if state is None or state.state in ("unknown", "unavailable"):
         return None
     try:
@@ -101,6 +119,12 @@ class IrrigationController:
     """Supervise owned watering sessions independently of weather polling."""
 
     def __init__(self, hass: HomeAssistant, coordinator: LawnCoordinator) -> None:
+        """Initialize per-entry controller state.
+
+        Keep controller serialization separate from the coordinator model lock.
+        Restore recent valve ownership so late device replies remain supervised
+        after completion/restart; never infer ownership from a valve being on.
+        """
         self.hass = hass
         self.coordinator = coordinator
         self._lock = asyncio.Lock()
@@ -126,11 +150,21 @@ class IrrigationController:
 
     @property
     def active(self) -> bool:
-        """Whether the controller currently owns an open or closing valve."""
+        """Whether the controller currently owns an open or closing valve.
+
+        A paused, closing or finishing session still belongs to the controller.
+        Callers must not treat physical valve closure alone as completed
+        accounting or permission for a second start.
+        """
         return self.state.irrigation_session is not None or self._finishing
 
     def _mower_is_docked(self) -> bool:
-        """Trust only the configured explicit dock state."""
+        """Trust only the configured explicit dock state.
+
+        Standard mower/vacuum entities must explicitly report docked; binary
+        dock inputs must report on. Custom text sources use the configured
+        safe state. Missing and unknown states never grant permission.
+        """
         entity_id = self.coordinator.settings.get(CONF_MOWER_LOCATION)
         state = self.hass.states.get(entity_id) if entity_id else None
         if state is None or state.state in ("unknown", "unavailable"):
@@ -175,7 +209,12 @@ class IrrigationController:
         return any(value is not None and value <= 0 for value in (air, soil))
 
     def budget_details(self, session: dict | None = None) -> dict:
-        """Budgets count all recorded watering; incomplete totals block automation."""
+        """Budgets count all recorded watering; incomplete totals block automation.
+
+        Include delivered water from the current session as well as committed
+        ledger records. Missing volume or measurement gaps make the relevant
+        budget uncertain, blocking automatic starts instead of assuming zero.
+        """
         records = list(self.state.water_usage)
         if session:
             records.append(
@@ -230,7 +269,12 @@ class IrrigationController:
         return None
 
     def _closed_session_stop_reason(self, session: dict, now) -> str | None:
-        """Check final limits before retaining or resuming a closed session."""
+        """Check final limits before retaining or resuming a closed session.
+
+        Evaluate completed volume/runtime and automatic budgets at a pause
+        boundary, using accumulated physical active time. A satisfied limit
+        ends the session rather than reopening it after a soak/interlock pause.
+        """
         if (
             now - dt_util.parse_datetime(session["started_at"])
         ).total_seconds() >= 60 * float(
@@ -301,7 +345,12 @@ class IrrigationController:
         return entity_id, mode, value, reported.isoformat()
 
     def _weather_stop_reason(self, session: dict) -> str | None:
-        """Debounce live rain and wind; cumulative rainfall starts at the session edge."""
+        """Debounce live rain and wind; cumulative rainfall starts at the session edge.
+
+        Use current HA weather/rain inputs during a running automatic session.
+        Compare with the session rain baseline where needed so a historical
+        daily total is not mistaken for rain that began after opening.
+        """
         if not self.coordinator.settings.get(CONF_WEATHER_STOP, True):
             return None
         now = dt_util.now()
@@ -368,7 +417,12 @@ class IrrigationController:
         )
 
     def next_start_details(self) -> dict:
-        """Intersect the cached forecast window with schedule, hold and cooldown."""
+        """Intersect the cached forecast window with schedule, hold and cooldown.
+
+        Intersect forecast suitability with local schedule permission, daily
+        locks, retries and suspension. The result is a diagnostic estimate;
+        async_start still rechecks all actual start conditions.
+        """
         data = self.coordinator.data
         if data is None or data.forecast_stale:
             return {"at": None, "reason": "weather_unavailable", "estimated": True}
@@ -419,7 +473,12 @@ class IrrigationController:
         }
 
     def remaining_time_details(self) -> dict:
-        """Estimate completion from current measured flow, including soak pauses."""
+        """Estimate completion from current measured flow, including soak pauses.
+
+        Estimate active time from remaining volume and usable flow, then add
+        soak delays and report schedule/runtime limits. Missing flow leaves
+        the estimate unknown; an ETA is not permission to bypass safety limits.
+        """
         session = self.state.irrigation_session
         result = {
             "session_remaining_active_minutes": None,
@@ -559,7 +618,12 @@ class IrrigationController:
     def _credit_volume(
         self, session: dict, start, end, liters: float, *, estimated=False
     ) -> None:
-        """Keep per-day allocations in the same persisted transaction as session liters."""
+        """Keep per-day allocations in the same persisted transaction as session liters.
+
+        Split delivered liters across local calendar dates while retaining
+        the measured total. A cumulative reading spanning an interval only
+        supports an estimated temporal distribution, not exact delivery times.
+        """
         allocations = allocate_volume(
             dt_util.as_local(start), dt_util.as_local(end), liters
         )
@@ -576,7 +640,12 @@ class IrrigationController:
         ]
 
     def start_blocker(self) -> str | None:
-        """Return the first actionable reason the controller cannot start."""
+        """Return the first actionable reason the controller cannot start.
+
+        Shared manual/automatic interlocks check mower docking, valve state,
+        the read-only competing valve, frost and meter validity. Automatic
+        starts add recommendation, confidence, schedule and budget checks.
+        """
         if self._shutting_down:
             return "homeassistant_stopping"
         if self._storage_error:
@@ -623,7 +692,13 @@ class IrrigationController:
         return self.start_blocker() or "ready"
 
     def _prepare_opening(self, session: dict) -> str | None:
-        """Recheck live inputs and meter at the valve edge after storage awaits."""
+        """Recheck live inputs and meter at the valve edge after storage awaits.
+
+        Storage and locks can delay opening. Repeat live safety checks at the
+        device edge and reset the segment meter baseline there. Initial
+        automatic eligibility may expire while waiting; resumed sessions keep
+        their existing target but must satisfy current safety conditions.
+        """
         if session.get("closing_reason"):
             return session["closing_reason"]
         blocker = self.start_blocker()
@@ -714,7 +789,12 @@ class IrrigationController:
         return None
 
     def automatic_blocker(self) -> str | None:
-        """Explain why an automatic session cannot start right now."""
+        """Explain why an automatic session cannot start right now.
+
+        Return the first failing automatic prerequisite as a stable reason
+        code. Readiness diagnostics and start decisions must both account for
+        data quality, current weather, budgets and local scheduling.
+        """
         if not self.configured:
             return "not_configured"
         if not self.state.irrigation_enabled:
@@ -783,7 +863,12 @@ class IrrigationController:
         return None
 
     def automatic_conditions(self) -> dict[str, bool]:
-        """Expose every independently checked start condition together."""
+        """Expose every independently checked start condition together.
+
+        Expose individual prerequisite booleans for diagnostics. These help
+        explain a failed decision but do not replace the final live checks
+        performed immediately before commanding a valve.
+        """
         data = self.coordinator.data
         now = dt_util.now()
         meter_id = self.coordinator.settings.get(CONF_IRRIGATION_FLOW)
@@ -881,7 +966,12 @@ class IrrigationController:
         )
 
     async def async_suspend_automation(self, until) -> None:
-        """Persist a temporary automation hold; manual starts remain available."""
+        """Persist a temporary automation hold; manual starts remain available.
+
+        A new safety hold takes effect in memory before lock/storage waits.
+        Close an automatic session before saving; manual sessions remain
+        available. A failed hold release restores the prior safety hold.
+        """
         if until is not None and until <= dt_util.now():
             raise ServiceValidationError(
                 "Suspension must end in the future",
@@ -1149,6 +1239,12 @@ class IrrigationController:
         )
 
     async def _async_persist_state(self, *, already_locked: bool = False) -> bool:
+        """Persist controller state under the model lock and report write failures.
+
+        Acquire the model lock unless the caller already holds it. Failed
+        verified writes create a repair/blocker and return False, allowing
+        callers to roll back or retain safe closed state without reopening.
+        """
         try:
             if already_locked:
                 await self.coordinator._store.async_save(self.state.as_dict())
@@ -1162,7 +1258,12 @@ class IrrigationController:
         return True
 
     async def _async_command_valve(self, entity_id: str, *, open_valve: bool) -> None:
-        """Bound slow device service calls so the watchdog can retry closure."""
+        """Bound slow device service calls so the watchdog can retry closure.
+
+        Reject commands targeting the second valve even if configuration is
+        inconsistent. Bound HA service waits so a slow device cannot prevent
+        the watchdog from attempting further safety closure indefinitely.
+        """
         if entity_id == self.coordinator.settings.get(CONF_OTHER_VALVE):
             raise ServiceValidationError(
                 "The second valve is a read-only input",
@@ -1180,7 +1281,12 @@ class IrrigationController:
         )
 
     async def async_initialize(self) -> None:
-        """Install immediate state checks and a separate safety watchdog."""
+        """Install immediate state checks and a separate safety watchdog.
+
+        Subscribe to relevant HA state changes, shutdown and the local watchdog.
+        Any persisted active session is interrupted and closed: a restart
+        cannot prove elapsed valve time or water delivered while HA was down.
+        """
         self._unsubscribers.append(
             self.hass.bus.async_listen(
                 EVENT_HOMEASSISTANT_STOP, self._async_homeassistant_stopping
@@ -1245,7 +1351,12 @@ class IrrigationController:
         self._publish_session()
 
     async def _async_close_unsafe_busy_valve(self) -> None:
-        """Allow physical safety closure while a controller write holds its lock."""
+        """Allow physical safety closure while a controller write holds its lock.
+
+        This path may command immediate physical closure while the ordinary
+        controller lock is busy. It handles unsafe live inputs before waiting
+        for bookkeeping/storage; serialized checks later finish accounting.
+        """
         session = self.state.irrigation_session
         if not self._lock.locked() or session is None or self._valve_state() != "on":
             return
@@ -1347,7 +1458,12 @@ class IrrigationController:
                 )
 
     async def _async_close_late_open(self) -> None:
-        """Close an on report that arrived after a stopped owned session."""
+        """Close an on report that arrived after a stopped owned session.
+
+        A timed-out/cancelled service can still complete at the device later.
+        Recent ownership lets the controller close that late opening without
+        taking control of arbitrary valves opened by other automations.
+        """
         if (
             self._recent_owned_until is not None
             and dt_util.now() >= self._recent_owned_until
@@ -1376,7 +1492,12 @@ class IrrigationController:
                 _LOGGER.exception("Could not close a late-opening irrigation valve")
 
     async def _async_watchdog(self, _now) -> None:
-        """Enforce a maximum duration even without new state events."""
+        """Enforce a maximum duration even without new state events.
+
+        Run local safety, late-open, resume and start checks on a short timer.
+        This path uses cached/current HA state and does not add regular
+        weather-provider requests.
+        """
         await self._async_close_unsafe_busy_valve()
         # Check physical safety before any retry of a failed storage write.
         await self.async_check()
@@ -1401,7 +1522,12 @@ class IrrigationController:
         )
 
     async def _async_maybe_resume(self) -> None:
-        """Resume an owned session only when every interlock is safe again."""
+        """Resume an owned session only when every interlock is safe again.
+
+        Keep the existing session/target and finish already satisfied limits
+        before attempting another segment. Recheck all interlocks, persist
+        the resumed state, then repeat live conditions at the opening edge.
+        """
         async with self._lock:
             session = self.state.irrigation_session
             if self._shutting_down or session is None or not session.get("paused_at"):
@@ -1515,7 +1641,12 @@ class IrrigationController:
         await self.coordinator.async_request_refresh()
 
     async def async_set_auto_enabled(self, enabled: bool) -> None:
-        """Expose a user-facing, persisted automation master switch."""
+        """Expose a user-facing, persisted automation master switch.
+
+        Disable automatic watering in memory before any await so ongoing
+        safety checks see the request immediately. Failed enabling rolls back;
+        failed disabling remains safely off and reports the storage failure.
+        """
         if not enabled:
             # A disable request must reach physical safety before any storage
             # await, including another operation already holding our lock.
@@ -1559,7 +1690,13 @@ class IrrigationController:
         target_liters: float | None = None,
         target_mm: float | None = None,
     ) -> None:
-        """Open a valve only after the mower and meter pass validation."""
+        """Open a valve only after the mower and meter pass validation.
+
+        The controller lock prevents duplicate sessions. Build and persist
+        ownership/targets before the opening command, then recheck eligibility
+        after storage waits. Cancellation or opening failure must enter the
+        close path because the device may still execute a delayed command.
+        """
         if target_liters is not None and target_mm is not None:
             raise ServiceValidationError(
                 "Choose either liters or millimeters",
@@ -1748,7 +1885,13 @@ class IrrigationController:
         await self.coordinator.async_request_refresh()
 
     async def async_check(self) -> None:
-        """Observe flow, enforce interlocks and attempt closure as necessary."""
+        """Observe flow, enforce interlocks and attempt closure as necessary.
+
+        Order immediate safety reasons before routine target/cycle handling.
+        Track confirmation of physical opening, sample owned meter intervals
+        and close on faults/limits. Paused sessions remain supervised, but
+        meter readings while another consumer runs are not lawn consumption.
+        """
         async with self._lock:
             session = self.state.irrigation_session
             if session is None:
@@ -1935,7 +2078,12 @@ class IrrigationController:
             self._publish_session()
 
     async def _async_pause_locked(self, reason: str = "other_valve_open") -> None:
-        """Close only our valve, retaining a supervised resumable session."""
+        """Close only our valve, retaining a supervised resumable session.
+
+        Request physical closure for a soak or competing-valve pause. Do not
+        finalize segment duration at the request timestamp: the device may
+        deliver more water before its off state is confirmed.
+        """
         session = self.state.irrigation_session
         now = dt_util.now()
         if self._valve_state() == "on":
@@ -1970,7 +2118,13 @@ class IrrigationController:
             await self._async_persist_state()
 
     def _sample_meter(self, session: dict[str, Any], now) -> str | None:
-        """Measure incremental water without inventing data across gaps."""
+        """Measure incremental water without inventing data across gaps.
+
+        Cumulative meters use positive baseline differences. A reset at the
+        start of an otherwise uncredited segment is accepted; later resets
+        are faults. Rate meters hold the previous rate to the report edge,
+        then apply the new rate, limiting extrapolation and marking gaps.
+        """
         if session["meter_kind"] == "timer":
             return None
         meter_id = session.get("meter_entity_id") or self.coordinator.settings.get(
@@ -2107,7 +2261,12 @@ class IrrigationController:
                 await self._async_stop_locked(reason)
 
     async def _async_stop_locked(self, reason: str) -> None:
-        """Close hardware before awaiting maintenance or storage writes."""
+        """Close hardware before awaiting maintenance or storage writes.
+
+        Record a terminal reason and attempt closure while the controller
+        lock is held. Failure retains session ownership for watchdog retries;
+        it must not be converted into a successful completion.
+        """
         session = self.state.irrigation_session
         if self._valve_state() == "on":
             session["confirmed_open"] = True
@@ -2130,7 +2289,12 @@ class IrrigationController:
             await self.coordinator.async_request_refresh()
 
     async def _async_close_locked(self) -> None:
-        """Retry closure until the valve actually reports off."""
+        """Retry closure until the valve actually reports off.
+
+        A close service response alone does not prove the valve is off.
+        Inspect the reported state and keep the session/repair active when
+        physical closure remains unconfirmed.
+        """
         if self._valve_state() == "off":
             await self._async_closed_locked()
             return
@@ -2155,7 +2319,12 @@ class IrrigationController:
             )
 
     async def _async_closed_locked(self) -> None:
-        """Pause after a competing valve opens; finish other closures."""
+        """Pause after a competing valve opens; finish other closures.
+
+        Use the physical off timestamp to finish the active segment exactly
+        once. Safely sample the final meter edge, then either finish terminal
+        conditions or establish pause/resume timing from actual closure.
+        """
         session = self.state.irrigation_session
         ir.async_delete_issue(
             self.hass,
@@ -2227,7 +2396,12 @@ class IrrigationController:
             await self._async_finish_locked(session["closing_reason"])
 
     async def _async_finish_locked(self, reason: str) -> None:
-        """Serialize physical water credits against maintenance and model writes."""
+        """Serialize physical water credits against maintenance and model writes.
+
+        Finalize only after closing. Avoid crediting shared-meter reports
+        received after the physical off edge because another consumer may
+        have contributed. Acquire model state only inside controller ownership.
+        """
         session = self.state.irrigation_session
         if session is None:
             return
@@ -2265,7 +2439,13 @@ class IrrigationController:
             await self.coordinator.async_request_refresh()
 
     async def _async_finish_state_locked(self, reason: str) -> bool:
-        """Retry failed water credits without double-booking or reopening."""
+        """Retry failed water credits without double-booking or reopening.
+
+        Both controller and model locks are held by the caller. Run completion
+        as a cancellation-shielded transaction; failed saves restore credits
+        and retain a closed session for retry. Publish completion only once
+        the durable result is known, then propagate caller cancellation.
+        """
         keys = (
             "irrigation_session",
             "irrigation_last_status",
@@ -2362,7 +2542,12 @@ class IrrigationController:
         return True
 
     async def _async_finish_attempt_locked(self, reason: str) -> None:
-        """Apply measured water once the valve is confirmed closed."""
+        """Apply measured water once the valve is confirmed closed.
+
+        Create the session summary and usage ledger, apply delivered water to
+        the soil model when measurable, and persist the resulting state.
+        This is the inner attempt; the surrounding transaction owns rollback.
+        """
         session = self.state.irrigation_session
         if session is None:
             return
@@ -2536,7 +2721,12 @@ class IrrigationController:
         self._unsubscribers.clear()
 
     async def async_shutdown(self, *, detach: bool = True) -> bool:
-        """Close owned water before unloading, retaining safety on failure."""
+        """Close owned water before unloading, retaining safety on failure.
+
+        Refuse unload while an owned session remains unresolved. Only detach
+        listeners after safe completion, otherwise restore supervision so
+        closure/accounting can be retried.
+        """
         self._shutting_down = True
         if self.active:
             await self.async_stop("integration_unloaded")

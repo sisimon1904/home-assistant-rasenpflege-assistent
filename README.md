@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.8.6 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.8.7 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -16,6 +16,7 @@ steuern; sie schaltet den Mähroboter nicht.
 Die Wetterquelle lässt sich über **Einstellungen → Geräte & Dienste → Rasenpflege-Assistent → Menü → Neu konfigurieren** wechseln. Weitere Raseneinstellungen bleiben unter **Konfigurieren** verfügbar. Während einer laufenden oder pausierten Bewässerung ist ein Quellenwechsel gesperrt.
 
 Prüfumfang und offene Quality-Scale-Anforderungen stehen im [Qualitätsaudit](docs/quality-audit.md).
+Die [Quellcode-Übersicht](docs/source-code.md) erläutert Dateizuständigkeiten und Regeln für die Weiterentwicklung.
 
 ## Wetterstopps und Verbrauchslimits
 

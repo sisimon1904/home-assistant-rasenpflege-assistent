@@ -1,4 +1,15 @@
-"""Base entity for Lawn Care Assistant."""
+"""Shared identity and coordinator subscription for lawn entities.
+
+File: custom_components/rasenpflege_assistent/entity.py
+
+All sensor, button and switch entities inherit one base that associates them
+with the config entry and a virtual lawn device. Stable entry-ID/key pairs
+preserve registry identity when the user renames the lawn.
+
+CoordinatorEntity supplies update subscriptions and availability handling.
+Entity naming uses HA translations; the device software version comes from
+the same integration constant used by diagnostics.
+"""
 
 from __future__ import annotations
 
@@ -15,7 +26,12 @@ class LawnEntity(CoordinatorEntity[LawnCoordinator]):
     _attr_has_entity_name = True
 
     def __init__(self, coordinator: LawnCoordinator, key: str) -> None:
-        """Initialize a lawn entity."""
+        """Initialize a lawn entity.
+
+        Use config-entry identity rather than the editable lawn name for registry
+        IDs. All platforms attach to the same service device; coordinator
+        subscriptions and availability are inherited from CoordinatorEntity.
+        """
         super().__init__(coordinator)
         entry = coordinator.config_entry
         name = coordinator.settings.get(CONF_NAME, DEFAULT_NAME)

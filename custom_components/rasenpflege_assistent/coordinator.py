@@ -1,4 +1,16 @@
-"""Coordinator for Lawn Care Assistant."""
+"""Observation normalization, persistent lawn model and maintenance transactions.
+
+File: custom_components/rasenpflege_assistent/coordinator.py
+
+LawnCoordinator reads existing HA entities and cached HA weather forecasts,
+updates local-day temperature/rain totals and the soil model, and publishes
+LawnData. RuntimeState holds the durable history and controller session state.
+
+The state lock serializes model updates and maintenance writes. Operations
+that also need controller serialization acquire the controller lock first.
+Safety closure may act while a write waits; rollback must preserve that safety
+state. No separate regular HTTP polling loop is introduced for OpenWeatherMap.
+"""
 
 from __future__ import annotations
 
@@ -136,7 +148,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
     def __init__(
         self, hass: HomeAssistant, entry: ConfigEntry[LawnCoordinator]
     ) -> None:
-        """Initialize the coordinator."""
+        """Initialize the coordinator.
+
+        Create per-entry caches, verified storage and independent state/mowing
+        locks. The update coordinator owns recommendation refreshes; physical
+        valve supervision belongs to the separately attached controller.
+        """
         super().__init__(
             hass,
             _LOGGER,
@@ -170,7 +187,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         return self._state.water_model_version if self._state is not None else 3
 
     async def _async_setup(self) -> None:
-        """Load persisted running totals once."""
+        """Load persisted running totals once.
+
+        Restore durable state before the first calculation. Reconcile configured
+        baselines and model revisions without discarding unrelated history.
+        Older UTC partial-day samples cannot be assigned confidently to a local
+        date, so migration marks missing information rather than inventing it.
+        """
         today = dt_util.as_local(dt_util.now()).date()
         stored = await self._store.async_load()
         settings = self.settings
@@ -469,7 +492,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
     def _pause_mower_when_wet(
         self, now: datetime, mower: dict[str, Any]
     ) -> tuple[datetime | None, str | None]:
-        """Defer mowing until the next local day and twelve hours after wetting."""
+        """Defer mowing until the next local day and twelve hours after wetting.
+
+        Combine current leaf wetness, recent rain/watering and live irrigation
+        into a conservative mowing pause. This changes recommendations only;
+        it does not send mower commands.
+        """
         assert self._state is not None
         wet_until: datetime | None = None
         wet_reason: str | None = None
@@ -530,7 +558,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         )
 
     def apply_live_irrigation_status(self, data: LawnData) -> None:
-        """Publish the wet interlock immediately without fetching weather."""
+        """Publish the wet interlock immediately without fetching weather.
+
+        Overlay the controller state on existing output without a weather
+        refresh. Fast safety events can therefore reach entities while the
+        slower model update is waiting for a service or storage operation.
+        """
         if self._state.irrigation_session is None:
             return
         mower = {
@@ -550,7 +583,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         data.next_action = "wait_for_irrigation"
 
     def _read_temperature(self, now) -> tuple[float | None, str, int | None]:
-        """Read the selected outdoor sensor, falling back to OpenWeatherMap."""
+        """Read the selected outdoor sensor, falling back to OpenWeatherMap.
+
+        Prefer the configured outdoor sensor and use the HA weather source as
+        fallback. Normalize supported units and reject implausible/non-finite
+        observations; return source and age so confidence is not hidden.
+        """
         temperature_entity = self.settings.get(CONF_TEMPERATURE_ENTITY)
         state = self.hass.states.get(temperature_entity) if temperature_entity else None
         if state is not None and state.state not in ("unknown", "unavailable"):
@@ -607,7 +645,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         return value if math.isfinite(value) else None
 
     def _read_weather_conditions(self, now) -> dict[str, Any]:
-        """Read cached meteorological inputs from the selected weather entity."""
+        """Read cached meteorological inputs from the selected weather entity.
+
+        Read weather attributes already present in HA and normalize the values
+        required by ET and irrigation safety. Missing or stale fields remain
+        explicit so callers can choose a fallback or block automation.
+        """
         state = self.hass.states.get(self.settings[CONF_WEATHER_ENTITY])
         if state is None or state.state in ("unknown", "unavailable"):
             return {"age_minutes": None, "stale": True, "unavailable": True}
@@ -673,7 +716,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         }
 
     async def _async_forecast(self, forecast_type: str) -> list[dict[str, Any]]:
-        """Return a cached daily or hourly forecast from Home Assistant."""
+        """Return a cached daily or hourly forecast from Home Assistant.
+
+        Daily and hourly caches have separate timestamps. On a failed HA weather
+        service call, retain the previous data and its age instead of marking
+        it fresh. This accesses the existing HA weather integration, not a
+        separate HTTP client or additional custom OWM polling loop.
+        """
         now = dt_util.now()
         if forecast_type == "hourly":
             cached = self._hourly_forecast_cache
@@ -718,7 +767,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
     def _normalize_forecast(
         self, forecast: list, entity_id: str
     ) -> list[dict[str, Any]]:
-        """Normalize HA display units before using forecasts in the model."""
+        """Normalize HA display units before using forecasts in the model.
+
+        Convert temperatures to Celsius, rain to millimeters and wind to m/s
+        exactly once before calculation. Copy provider rows so normalization
+        does not mutate HA response data. Reject invalid timestamps,
+        probabilities, units and implausible values on a per-row basis.
+        """
         state = self.hass.states.get(entity_id)
         attrs = state.attributes if state else {}
         conversions = {
@@ -809,7 +864,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         )
 
     def input_diagnostics(self) -> dict[str, Any]:
-        """Explain why physical measurements are accepted or discarded."""
+        """Explain why physical measurements are accepted or discarded.
+
+        Report source selection, availability and freshness from current HA
+        states. These attributes help explain blockers without requesting
+        replacement readings from devices or weather providers.
+        """
         result = {}
         for key in (
             CONF_SOIL_MOISTURE_ENTITY,
@@ -862,7 +922,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         return result
 
     def _read_soil_moisture(self) -> tuple[float | None, str]:
-        """Read and validate an optional physical soil-moisture sensor."""
+        """Read and validate an optional physical soil-moisture sensor.
+
+        Use configured dry/wet calibration to map a valid fresh sensor reading
+        to a bounded percentage. An unavailable observation leaves the model
+        as the fallback instead of forcing a false dry/wet measurement.
+        """
         entity_id = self.settings.get(CONF_SOIL_MOISTURE_ENTITY)
         if not entity_id:
             return None, "model"
@@ -885,7 +950,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
     def _calibrate_soil_model(
         self, now, capacity: float, measured_percent: float | None
     ) -> None:
-        """Gently move the modeled reservoir toward a physical sensor value."""
+        """Gently move the modeled reservoir toward a physical sensor value.
+
+        Apply only an eligible new observation to the root-zone water estimate.
+        The remembered calibration timestamp prevents repeated application of
+        the same sensor report across coordinator updates.
+        """
         assert self._state is not None
         if measured_percent is None:
             return
@@ -963,7 +1033,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 )
 
     def _find_openweathermap_precipitation_entity(self) -> str | None:
-        """Find an enabled rain entity belonging to the selected weather entry."""
+        """Find an enabled rain entity belonging to the selected weather entry.
+
+        Use the entity registry to find a rain sensor associated with the chosen
+        weather source. Do not take an unrelated entry's rain sensor simply
+        because its name resembles an OpenWeatherMap entity.
+        """
         registry = er.async_get(self.hass)
         weather_id = self.settings.get(CONF_WEATHER_ENTITY)
         weather_entry = registry.async_get(weather_id) if weather_id else None
@@ -1013,7 +1088,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             return None
 
     def _sample_precipitation(self, now) -> tuple[str, float, str, float]:
-        """Accumulate measured precipitation and return its latest increment."""
+        """Accumulate measured precipitation and return its latest increment.
+
+        Resolve rate/daily/cumulative semantics and return normalized amounts.
+        Baselines prevent counting the same cumulative reading repeatedly.
+        Missing data resets the relevant sample and marks the day uncertain;
+        it is not interpreted as observed zero rainfall.
+        """
         assert self._state is not None
         configured_mode = self.settings.get(
             CONF_PRECIPITATION_MODE, DEFAULT_PRECIPITATION_MODE
@@ -1143,7 +1224,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
     def _reset_precipitation_sample(
         self, *, source: str | None = None, mode: str | None = None
     ) -> None:
-        """Reset a precipitation baseline after a gap or source change."""
+        """Reset a precipitation baseline after a gap or source change.
+
+        Forget the comparison baseline when source, mode or availability
+        changes. A later reading cannot safely be subtracted from a baseline
+        belonging to another measurement stream.
+        """
         assert self._state is not None
         self._state.precipitation_last_value = None
         self._state.precipitation_last_sample_at = None
@@ -1151,7 +1237,11 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         self._state.precipitation_last_mode = mode
 
     def _finalize_previous_day(self, previous_day: date) -> None:
-        """Finalize temperature history and GTS for one completed day."""
+        """Finalize temperature history and GTS for one completed day.
+
+        Finish a local calendar day's temperature contribution before resetting
+        the active sample. Missing temperature days lower GTS completeness.
+        """
         assert self._state is not None
         if not self._state.temperature_samples:
             self._state.daily_temperature_history.clear()
@@ -1173,7 +1263,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         precipitation_increment_mm: float,
         precipitation_intensity_mm_h: float,
     ) -> dict[str, Any]:
-        """Apply measured rain and incremental evapotranspiration."""
+        """Apply measured rain and incremental evapotranspiration.
+
+        Integrate only bounded elapsed time and expose longer gaps explicitly.
+        Choose the available ET method, apply rain/interception/runoff and
+        drainage, then reconcile eligible sensor calibration. Model water
+        remains bounded by the configured root-zone capacity.
+        """
         assert self._state is not None
         previous_update = dt_util.parse_datetime(self._state.last_soil_update_at or "")
         self._state.last_soil_update_at = now.isoformat()
@@ -1380,7 +1476,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         }
 
     def _roll_day_and_sample(self, today: date, temperature: float | None) -> None:
-        """Finalize a completed day, reset a new year and add one sample."""
+        """Finalize a completed day, reset a new year and add one sample.
+
+        Day boundaries follow the HA local timezone. Finish past samples and
+        track missed days before adding today's temperature. Annual GTS resets
+        and configured baselines are distinct from individual day samples.
+        """
         assert self._state is not None
         if self._state.sample_date != today.isoformat():
             previous_day = _parse_date(self._state.sample_date)
@@ -1435,12 +1536,23 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             )
 
     async def _async_update_data(self) -> LawnData:
-        """Serialize model updates against transactional maintenance writes."""
+        """Serialize model updates against transactional maintenance writes.
+
+        Every scheduled refresh acquires the model lock before mutating state.
+        This prevents maintenance rollback from erasing a simultaneous soil
+        update and prevents snapshots from mixing transaction stages.
+        """
         async with self._state_lock:
             return await self._async_calculate_locked()
 
     async def _async_calculate_locked(self) -> LawnData:
-        """Calculate all current recommendations."""
+        """Calculate all current recommendations.
+
+        The caller owns the model lock throughout sampling and persistence.
+        Update observations/model first, obtain normalized cached forecasts,
+        derive recommendations and confidence, overlay live irrigation, and
+        save the runtime state before returning the calculated LawnData.
+        """
         assert self._state is not None
         now = dt_util.now()
         today = dt_util.as_local(now).date()
@@ -1892,7 +2004,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         session_id: str | None = None,
         uncertainty_dates: list[str] | None = None,
     ) -> str:
-        """Keep a separate one-year ledger; maintenance history remains bounded."""
+        """Keep a separate one-year ledger; maintenance history remains bounded.
+
+        Keep physical irrigation and manually recorded/estimated water in one
+        ledger, with source and measurement quality preserved. Per-date
+        allocations must add up to the rounded session amount without negative
+        daily shares; uncertainty dates keep budgets conservative.
+        """
         identifier = uuid4().hex
         cutoff = (
             dt_util.as_local(dt_util.now()).date() - timedelta(days=366)
@@ -1941,23 +2059,50 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         return identifier
 
     async def _async_save_maintenance_locked(self) -> None:
-        """Resolve a write before cancelling, keeping disk and model consistent."""
-        saving = self.hass.async_create_task(
-            self._store.async_save(deepcopy(self._state.as_dict())),
-            "lawn_save_maintenance",
-        )
-        try:
-            await asyncio.shield(saving)
-        except asyncio.CancelledError:
-            await saving
-            self._maintenance_committed = True
-            raise
-        self._maintenance_committed = True
+        """Resolve a write before cancelling, keeping disk and model consistent.
+
+        The caller already owns the model lock. Save a deep snapshot in a
+        shielded task and wait through every caller cancellation before
+        releasing that lock. Commit status is true only after a successful
+        verified write; propagate cancellation after its outcome is known.
+        """
+        snapshot = deepcopy(self._state.as_dict())
+
+        async def save() -> OSError | HomeAssistantError | None:
+            # Return expected failures to avoid unhandled task exceptions when
+            # the caller is cancelled while the shield resolves the write.
+            try:
+                await self._store.async_save(snapshot)
+            except (OSError, HomeAssistantError) as err:
+                return err
+            return None
+
+        saving = asyncio.create_task(save(), name="lawn_save_maintenance")
+        cancelled = False
+        while True:
+            try:
+                error = await asyncio.shield(saving)
+                break
+            except asyncio.CancelledError:
+                if saving.cancelled():
+                    raise
+                cancelled = True
+        self._maintenance_committed = error is None
+        if cancelled:
+            raise asyncio.CancelledError
+        if error is not None:
+            raise error
 
     async def _async_maintenance_transaction(
         self, operation: Callable[[], Awaitable[None]]
     ) -> None:
-        """Rollback failed writes without reverting concurrent valve supervision."""
+        """Rollback failed writes without reverting concurrent valve supervision.
+
+        Snapshot only fields affected by maintenance. A failed uncommitted
+        operation restores those fields, preserving unrelated valve-safety
+        changes that may occur while storage awaits. Refresh happens outside
+        this transaction so it cannot deadlock on the same model lock.
+        """
         keys = (
             "last_watering",
             "last_watering_at",
@@ -2068,7 +2213,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         usage: bool = True,
         completed_at: datetime | None = None,
     ) -> None:
-        """Record watering and add the calculated or configured amount."""
+        """Record watering and add the calculated or configured amount.
+
+        Current watering adds efficiency-adjusted water up to soil capacity.
+        Historical entries update history/usage without refilling today's
+        model. Record the amount actually applied so undo can subtract that
+        credit without restoring an obsolete full soil snapshot.
+        """
         assert self._state is not None
         if usage and self.irrigation and self.irrigation.active:
             raise ServiceValidationError(
@@ -2152,7 +2303,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         *,
         recorded_at: datetime | None = None,
     ) -> None:
-        """Record fertilizing as completed today."""
+        """Record fertilizing as completed today.
+
+        Store product/amount details in maintenance history. An older recorded
+        event remains in history without moving the latest fertilizing date
+        backwards. Persistence is handled by the shared maintenance writer.
+        """
         assert self._state is not None
         previous = {"last_fertilizing": self._state.last_fertilizing}
         event_at = recorded_at or dt_util.now()
@@ -2181,7 +2337,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         active_seconds: float | None = None,
         session_started_at: datetime | None = None,
     ) -> None:
-        """Record mowing and acknowledge the mowing season for this year."""
+        """Record mowing and acknowledge the mowing season for this year.
+
+        Serialize mowing deduplication and date updates inside the model
+        transaction. Robot/completion-input event IDs prevent repeated
+        processing; historical entries do not replace newer mowing timestamps.
+        """
         async with self._mowing_lock:
             assert self._state is not None
             if event_id and event_id == self._state.last_mowing_event_id:
@@ -2228,7 +2389,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             await self._async_save_maintenance_locked()
 
     async def _async_undo_last_action_locked(self) -> None:
-        """Undo the latest maintenance event recorded by the integration."""
+        """Undo the latest maintenance event recorded by the integration.
+
+        Reverse the latest maintenance/model credit, preserving physical
+        irrigation evidence and the daily automatic safety lock. Undo removes
+        manual usage but marks measured irrigation usage as undone because
+        physically delivered water cannot be taken back.
+        """
         assert self._state is not None
         if self.irrigation and self.irrigation.active:
             raise ServiceValidationError(

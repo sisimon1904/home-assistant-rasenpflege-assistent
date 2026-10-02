@@ -1,4 +1,15 @@
-"""Diagnostics support for Lawn Care Assistant."""
+"""Serializable diagnostic snapshot for one configured lawn entry.
+
+File: custom_components/rasenpflege_assistent/diagnostics.py
+
+Diagnostics combine calculated data, version information and optional
+irrigation readiness/session details. Date objects are converted explicitly
+so the returned dictionary can be exported by Home Assistant as JSON.
+
+Reading diagnostics does not refresh weather, save state or command valves.
+Only the selected config entry is inspected; credentials are not copied from
+the external weather integration.
+"""
 
 from __future__ import annotations
 

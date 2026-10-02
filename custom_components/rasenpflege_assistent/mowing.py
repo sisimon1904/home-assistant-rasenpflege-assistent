@@ -1,4 +1,15 @@
-"""Read-only observation of plausible robot mowing sessions."""
+"""Read-only robot mowing observation and conservative completion estimates.
+
+File: custom_components/rasenpflege_assistent/mowing.py
+
+The observer accumulates time in the configured active state and excludes
+pauses/returns. A later dock transition can record an estimated mowing action
+when the minimum active duration has been reached.
+
+Docking does not prove full coverage. Unknown/error states invalidate the
+observation, and in-flight observations are discarded on restart. A configured
+completion input takes precedence. This module never commands a mower.
+"""
 
 from __future__ import annotations
 
@@ -37,6 +48,12 @@ class MowingObserver:
         self._reset()
 
     def _reset(self) -> None:
+        """Reset uncommitted mowing observation.
+
+        Discard in-flight evidence, leaving previously committed maintenance
+        history unchanged. Unknown states or implausibly long observations
+        must not later produce a convincing completion estimate.
+        """
         self.started_at = None
         self.active_since = None
         self.active_seconds = 0.0
@@ -68,6 +85,12 @@ class MowingObserver:
             self.coordinator.async_update_listeners()
 
     def subscribe(self, entry) -> None:
+        """Observe a robot source only when robot mode is selected and no explicit
+
+        Observe a robot source only when robot mode is selected and no explicit
+        completion input is configured. Register both event and timer cleanup
+        with the config entry so reload cannot leave duplicate observers.
+        """
         settings = self.coordinator.settings
         entity_id = settings.get(CONF_MOWING_ENTITY)
         if (
@@ -90,7 +113,13 @@ class MowingObserver:
             )
 
     async def async_handle_event(self, event: Event) -> None:
-        """Accumulate mowing time, excluding returns and pauses."""
+        """Accumulate mowing time, excluding returns and pauses.
+
+        Serialize transitions; attribute-only reports do not add active time.
+        Accumulate time before leaving the active state, reset uncertain
+        sequences, and commit a sufficiently long session only at docking.
+        The event timestamp preserves physical ordering in maintenance history.
+        """
         async with self._lock:
             old = event.data.get("old_state")
             new = event.data.get("new_state")

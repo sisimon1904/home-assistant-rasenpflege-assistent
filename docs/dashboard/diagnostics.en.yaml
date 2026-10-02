@@ -1,3 +1,11 @@
+# docs/dashboard/diagnostics.en.yaml
+#
+# Show model/input quality and explain missing or stale observations.
+# Copy into a Lovelace manual card and replace the example entity IDs and
+# REPLACE_WITH_ENTRY_ID where present. Mushroom cards require that custom frontend
+# component. Templates render HA state translations while raw codes stay stable.
+# This dashboard reads HA state; service buttons delegate validation to HA.
+#
 type: vertical-stack
 cards:
 - type: custom:mushroom-template-card

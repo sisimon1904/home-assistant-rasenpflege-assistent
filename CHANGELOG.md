@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.8.7
+
+### Fixed
+
+- Keep maintenance writes shielded through repeated cancellation so watering, fertilizing, mowing and undo transactions retain the model lock until persistence has resolved.
+- Preserve committed maintenance changes after cancellation; roll back failed writes before releasing the lock or allowing a following action.
+- Process expected storage errors without unhandled exceptions from a cancelled shielded task.
+
+### Changed
+
+- Add 19 regression cases covering repeated cancellation, failed writes, rollback/retry and concurrent maintenance actions; all 408 tests pass with 85.91% combined line/branch coverage.
+- Add explanatory file headers to all 37 Python files and 16 YAML files, and expand documentation for 101 central functions.
+- Document safety rules, units, calculation assumptions, persistence and file responsibilities in the source and a new source code overview; describe JSON files separately to preserve valid schemas.
+- Confirm unchanged executable Python structure and parsed YAML configuration during commenting, and verify cancellation consistency with actual Home Assistant file storage.
+- Update integration version identifiers, both READMEs and the quality audit.
+
 ## 3.8.6
 
 ### Fixed

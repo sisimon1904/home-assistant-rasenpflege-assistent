@@ -1,4 +1,15 @@
-"""Sensor platform for Lawn Care Assistant."""
+"""Calculated lawn, recommendation, consumption and irrigation sensor platform.
+
+File: custom_components/rasenpflege_assistent/sensor.py
+
+Descriptions define stable keys, units, state classes and value extraction.
+The entity class adds localized explanations and detailed attributes; optional
+irrigation sensors are created only when valve control is configured.
+
+Native states keep stable machine codes for automations. Readable labels
+come from HA translations or explicit reason_text attributes. Reading sensor
+properties uses current model/controller state without new weather requests.
+"""
 
 from __future__ import annotations
 
@@ -170,6 +181,10 @@ class LawnSensorDescription(SensorEntityDescription):
     attributes_fn: AttributesFn = lambda data: {}
 
 
+# Entity descriptions keep units, enum options and extraction functions together.
+# A value function reads calculated data; it must not cause I/O or mutate state.
+# The key also forms the registry identity through LawnEntity, so renaming keys
+# needs an explicit migration rather than merely changing the displayed label.
 SENSORS: tuple[LawnSensorDescription, ...] = (
     LawnSensorDescription(
         key="status",
@@ -732,7 +747,12 @@ class LawnSensor(LawnEntity, SensorEntity):
 
     @property
     def native_value(self) -> Any:
-        """Return the sensor value."""
+        """Return the sensor value.
+
+        Most descriptions read LawnData. Consumption and live irrigation
+        diagnostics derive their current value locally so periods and
+        session state do not wait for the next weather/model refresh.
+        """
         if self.entity_description.key in {
             "water_consumption_day",
             "water_consumption_week",
@@ -759,7 +779,12 @@ class LawnSensor(LawnEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return useful recommendation details."""
+        """Return useful recommendation details.
+
+        Keep status codes intact and expose readable explanations separately.
+        Attributes carry inputs, confidence and diagnostic estimates so a
+        recommendation can be understood without adding duplicate entities.
+        """
         key = self.entity_description.key
         language = self.coordinator.hass.config.language
         if key == "next_automatic_start":

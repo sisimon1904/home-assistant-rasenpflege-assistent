@@ -1,4 +1,12 @@
-"""Safety and schedule regressions for version 3.8.6."""
+"""Safety and schedule regressions for version 3.8.6.
+
+File: tests/test_audit_386.py
+
+Tests exercise the behavior described below using pure helper calls or
+Home Assistant fixtures as appropriate. Device/service doubles keep tests
+local and repeatable; they do not prove real hardware response timing.
+Assertions and test names describe the expected result of each scenario.
+"""
 
 import asyncio
 from datetime import timedelta

@@ -1,4 +1,15 @@
-"""Local irrigation schedules and recorded consumption, without network access."""
+"""Local irrigation windows, water-consumption periods and time allocation.
+
+File: custom_components/rasenpflege_assistent/planning.py
+
+Pure helpers evaluate weekday/time windows, summarize the durable usage
+ledger and allocate measured water across local dates. Budget periods are
+local calendar days, Monday-based weeks and calendar months.
+
+Overnight windows belong to their starting weekday. DST searches compare
+actual UTC instants while applying local schedule rules. Time allocation
+preserves measured volume but estimates its distribution between dates.
+"""
 
 import math
 from datetime import date, datetime, time, timedelta, timezone
@@ -37,7 +48,13 @@ def schedule_allowed(settings: dict, now: datetime) -> bool:
 
 
 def consumption_summary(records: list[dict[str, Any]], today: date) -> dict:
-    """Sum local calendar periods; keep unknown and partial sessions explicit."""
+    """Sum local calendar periods; keep unknown and partial sessions explicit.
+
+    Prefer explicit date allocations; older records fall back to their
+    recorded date. Preserve unknown-volume and measurement-gap counts
+    alongside liters, because automatic budgets must not treat incomplete
+    totals as proof of remaining water allowance.
+    """
     periods = {
         "day": today,
         "week": today - timedelta(days=today.weekday()),
@@ -101,8 +118,9 @@ def consumption_summary(records: list[dict[str, Any]], today: date) -> dict:
 def allocate_volume(start: datetime, end: datetime, liters: float) -> list[dict]:
     """Split a measured interval at local midnight using actual elapsed seconds.
 
-    Callers supply the local timezone. Cumulative readings spanning a boundary
-    require an estimated temporal allocation, while their total stays measured.
+    Advance boundaries in the supplied local timezone, but divide volume
+    by real elapsed UTC seconds. A DST day therefore receives its actual
+    duration share rather than an assumed fixed 24-hour share.
     """
     first = start.astimezone(timezone.utc)
     last = end.astimezone(timezone.utc)
@@ -132,7 +150,13 @@ def allocate_volume(start: datetime, end: datetime, liters: float) -> list[dict]
 def next_schedule_time(
     settings: dict, earliest: datetime, latest: datetime
 ) -> datetime | None:
-    """Find an allowed instant in a forecast interval, including DST transitions."""
+    """Find an allowed instant in a forecast interval, including DST transitions.
+
+    Enumerate local start times with both DST folds and include offset
+    transitions that can re-enter a permitted window. Compare candidates
+    in UTC and keep the latest boundary exclusive. A missing overlap
+    returns None instead of proposing a start outside the allowed interval.
+    """
     if latest.astimezone(timezone.utc) <= earliest.astimezone(timezone.utc):
         return None
     if schedule_allowed(settings, earliest):

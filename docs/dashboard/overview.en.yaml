@@ -1,3 +1,11 @@
+# docs/dashboard/overview.en.yaml
+#
+# Show the main lawn, watering, fertilizing and mowing recommendations.
+# Copy into a Lovelace manual card and replace the example entity IDs and
+# REPLACE_WITH_ENTRY_ID where present. Mushroom cards require that custom frontend
+# component. Templates render HA state translations while raw codes stay stable.
+# This dashboard reads HA state; service buttons delegate validation to HA.
+#
 # Replace entities using Developer tools → States.
 # Replace REPLACE_WITH_ENTRY_ID before using control actions.
 type: custom:mushroom-template-card
