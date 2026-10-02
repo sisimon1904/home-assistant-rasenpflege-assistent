@@ -149,11 +149,24 @@ def next_schedule_time(
         for fold in (0, 1):
             candidate = datetime.combine(day, start, earliest.tzinfo).replace(fold=fold)
             utc = candidate.astimezone(timezone.utc)
-            # Reject nonexistent local wall times in the spring DST gap.
+            # A start inside the spring gap becomes eligible at the first
+            # existing wall time, rather than one full gap later.
             actual = utc.astimezone(earliest.tzinfo)
             if actual.replace(tzinfo=None) != candidate.replace(tzinfo=None):
-                candidate = actual
-                utc = candidate.astimezone(timezone.utc)
+                wall = candidate.replace(tzinfo=None)
+                alternatives = [
+                    candidate.replace(fold=value).astimezone(timezone.utc)
+                    for value in (0, 1)
+                ]
+                lower, upper = min(alternatives), max(alternatives)
+                while upper - lower > timedelta(microseconds=1):
+                    middle = lower + (upper - lower) / 2
+                    if middle.astimezone(earliest.tzinfo).replace(tzinfo=None) < wall:
+                        lower = middle
+                    else:
+                        upper = middle
+                utc = upper
+                candidate = utc.astimezone(earliest.tzinfo)
             if earliest.astimezone(timezone.utc) <= utc < latest.astimezone(
                 timezone.utc
             ) and schedule_allowed(settings, candidate):

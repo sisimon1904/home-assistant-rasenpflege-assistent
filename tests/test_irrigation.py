@@ -212,6 +212,7 @@ async def test_automatic_start_requires_reliable_inputs_and_runs_once(
     """An enabled auto switch only opens for a high-confidence watering window."""
     controller = _controller(hass)
     hass.states.async_set("lawn_mower.garden", "docked")
+    hass.states.async_set("weather.openweathermap", "sunny", {"temperature": 20})
     now = dt_util.now()
     controller.state.irrigation_enabled = True
     controller.coordinator.async_set_updated_data(
@@ -402,6 +403,7 @@ async def test_failed_auto_start_can_retry_after_cooldown(
     """No-flow failures do not consume the only automatic chance of the day."""
     controller = _controller(hass)
     hass.states.async_set("lawn_mower.garden", "docked")
+    hass.states.async_set("weather.openweathermap", "sunny", {"temperature": 20})
     now = dt_util.now()
     controller.state.irrigation_enabled = True
     controller.coordinator.async_set_updated_data(
@@ -1094,6 +1096,10 @@ async def test_soak_pause_does_not_extend_maximum_duration(
 
 
 def _automatic_ready(controller):
+    if controller.hass.states.get("weather.openweathermap") is None:
+        controller.hass.states.async_set(
+            "weather.openweathermap", "sunny", {"temperature": 20}
+        )
     now = dt_util.now()
     controller.state.irrigation_enabled = True
     controller.coordinator.async_set_updated_data(
@@ -1243,6 +1249,10 @@ async def test_frost_sensor_event_stops_immediately(hass, option, entity):
 
 
 def _auto_ready(controller):
+    if controller.hass.states.get("weather.openweathermap") is None:
+        controller.hass.states.async_set(
+            "weather.openweathermap", "sunny", {"temperature": 20}
+        )
     now = dt_util.now()
     controller.state.irrigation_enabled = True
     controller.coordinator.async_set_updated_data(

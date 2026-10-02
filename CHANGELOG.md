@@ -1,5 +1,25 @@
 # Changelog
 
+## 3.8.4
+
+### Fixed
+
+- Make repeated stop requests safe during asynchronous irrigation completion.
+- Enforce meter faults, flow limits, volume targets and water budgets while controller storage is blocked.
+- Preserve known consumption at safety closure, during closing commands and before excessive-flow reports.
+- Mark meter outages, stale readings, unit changes and counter resets as incomplete measurements; retain the wet-lawn interlock after confirmed watering with gaps.
+- Freeze physical completion timestamps so storage waits do not inflate runtime or shift usage records.
+- Recheck live weather before automatic valve opening/resume and expose lost weather immediately in diagnostics.
+- Normalize current wind and pressure with Home Assistant converters and reject invalid meteorological inputs.
+- Resolve schedule starts in the spring daylight-saving gap to the first existing allowed instant.
+- Remove the Home Assistant stop listener cleanly without duplicate-unsubscribe errors.
+- Synchronize manifest, device and diagnostic version identifiers.
+
+### Changed
+
+- Add 31 regression cases; all 324 tests pass with 84.98% combined line/branch coverage.
+- Update German/English documentation and the quality audit.
+
 ## 3.8.3
 
 ### Fixed

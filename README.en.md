@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.8.3 · [Changelog](CHANGELOG.md)
+Version 3.8.4 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -22,6 +22,8 @@ See the [quality audit](docs/quality-audit.md) for checks and remaining Quality 
 Configure these options under **Configure → Irrigation safety**. Weather stops default to enabled: rain at 0.5 mm/h for rate sensors or 0.5 mm measured since session start for amount/cumulative sensors, wind at 8 m/s, and 120 seconds of confirmation. Short rate/wind spikes reset the timer when they subside. Currently reported rain or strong wind blocks automatic starts immediately. Without a valid rain sensor, current weather conditions provide the fallback. Missing weather is not treated as measured rainfall. Inputs use existing HA entities; there is no additional regular OWM API polling.
 
 Daily/weekly budgets default to **0 (disabled)**. All recorded watering counts, including manual amounts and estimates; unknown or incomplete amounts block automatic starts for the affected budget period. Automatic targets are capped at the remaining budget. Reporting and valve delays can still cause overshoot. Manual starts retain the existing safety limits. The second valve remains strictly read-only.
+
+Meter outages, stale readings, unit changes and counter resets mark a session as incompletely measured. Known quantities remain in the usage ledger; enabled daily/weekly limits block further automatic starts in the affected period. After at least one minute of confirmed watering with a measurement gap, the lawn is treated as wet even if no delivered quantity can be established. Runtime and completion time refer to confirmed valve closure rather than subsequent storage waits.
 
 ### Predictions, history and undo
 

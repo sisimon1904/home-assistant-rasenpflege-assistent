@@ -1,4 +1,4 @@
-# Qualitätsaudit – 3.8.3
+# Qualitätsaudit – 3.8.4
 
 Geprüft am 2. Oktober 2026 gegen die [Home Assistant Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/). Dies ist eine Selbstauskunft für eine HACS-Integration, keine offizielle Einstufung. Fehlerfreiheit und vollständige Erfüllung sämtlicher Quality-Scale-Stufen werden nicht behauptet.
 
@@ -9,6 +9,10 @@ Geprüft am 2. Oktober 2026 gegen die [Home Assistant Integration Quality Scale]
 ## Ergänzende Prüfung für 3.8.3
 
 `tests/test_audit_382.py` ergänzt 19 Regressionen für geänderte Sicherheitsbedingungen während der Speicherung, Zähleränderungen vor dem Öffnen, verzögertes Öffnen, Regen vor Wiederaufnahme sowie unmittelbare Sicherheitsstopps bei blockiertem Controllerspeicher. Der Watchdog prüft die physische Sicherheit vor einem erneuten Speicherzugriff. Beide READMEs enthalten Funktionsdokumentation; versionsbezogene Änderungen stehen im CHANGELOG.
+
+## Ergänzende Prüfung für 3.8.4
+
+`tests/test_audit_384.py` ergänzt 31 Regressionen. Sie prüfen parallele Stopps während des Abschlusses, Messlücken und Budgetfreigaben, Verbrauch vor Sicherheitsstopps und während verzögerter Schließbefehle, Endzeiten bei blockiertem Modellzugriff, Wetterausfall vor Start/Wiederaufnahme, Wettereinheiten und ungültige Messwerte, Sommerzeitfenster, Listener-Abmeldung beim HA-Stopp sowie übereinstimmende Versionsangaben in Manifest, Gerät und Diagnose. Bereits bestehende Wiederanlaufprüfungen bestätigen weiterhin, dass gemeinsame Zählerstände über einen HA-Neustart nicht dem Rasen zugerechnet werden.
 
 ## Behobene Befunde
 
@@ -29,7 +33,7 @@ Geprüft am 2. Oktober 2026 gegen die [Home Assistant Integration Quality Scale]
 
 - Python 3.14.7 / Home Assistant 2026.9.4; zusätzlich wurde die Umgebung 2026.10.0b0 vor den letzten Korrekturen geprüft.
 - Pytest einschließlich echter HA-Plattform-Einrichtung und -Entladung, Dienstaktionen, Diagnose-JSON, fehlgeschlagenem Speichern, ungültigen Daten und Abbruch von Schaltbefehlen.
-- 293 Tests bestanden; 84,28 % kombinierte Zeilen-/Zweigabdeckung im abschließenden Lauf.
+- 324 Tests bestanden; 84,98 % kombinierte Zeilen-/Zweigabdeckung im abschließenden Lauf.
 - Ruff-Formatierung, Ruff-Prüfung und Python-Kompilierung.
 - GitHub CI verwendet Python 3.14, einen festgelegten HA-Testpaketstand und ein Mindestniveau von 83 % kombinierter Zeilen-/Zweigabdeckung. Der Coverage-Bericht wird als Workflow-Artefakt bereitgestellt.
 - Hassfest und HACS werden durch den Validate-Workflow geprüft. Deren Ergebnis ist am jeweiligen Commit abzulesen; es ersetzt keine Prüfung aller Quality-Scale-Regeln.

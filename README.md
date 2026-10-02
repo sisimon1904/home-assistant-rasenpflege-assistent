@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.8.3 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.8.4 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -22,6 +22,8 @@ Prüfumfang und offene Quality-Scale-Anforderungen stehen im [Qualitätsaudit](d
 Unter **Konfigurieren → Bewässerung – Sicherheit** stehen diese Einstellungen. Der Wetterstopp ist standardmäßig aktiv: Regen ab 0,5 mm/h bei Ratensensoren beziehungsweise 0,5 mm seit Sitzungsbeginn bei Mengen-/Zählersensoren, Wind ab 8 m/s, Bestätigungsdauer 120 Sekunden. Kurzzeitige Rate-/Windausschläge setzen die Bestätigungszeit zurück, sobald sie abklingen. Bereits gemeldeter Regen oder starker Wind sperrt einen automatischen Start sofort. Ohne gültigen Regensensor verwendet die Integration den aktuellen Wetterzustand. Fehlende Wetterinformationen werden nicht als gemessener Regen interpretiert. Alle Eingaben stammen aus vorhandenen HA-Entitäten; es gibt keine zusätzlichen regelmäßigen OWM-API-Abfragen.
 
 Tages-/Wochenlimits sind mit **0 deaktiviert**. Sie zählen sämtliche erfassten Bewässerungsmengen einschließlich manueller Einträge und Schätzungen; unbekannte oder unvollständige Mengen blockieren automatische Starts im betroffenen Budgetzeitraum. Das automatische Mengenziel wird auf das verbleibende Budget begrenzt. Mess- und Schaltverzögerungen können dennoch Überschreitungen verursachen. Manuelle Starts bleiben durch die bisherigen Sicherheitsgrenzen geschützt. Das zweite Ventil bleibt ausschließlich eine Statusquelle und wird nie geschaltet.
+
+Zählerausfälle, veraltete Messwerte, Einheitenwechsel und Zählerrücksetzungen kennzeichnen die Sitzung als unvollständig gemessen. Bereits bekannte Mengen bleiben im Verbrauch erhalten; aktive Tages-/Wochenlimits sperren weitere automatische Starts im betroffenen Zeitraum. Nach mindestens einer Minute bestätigter Bewässerung mit Messlücke gilt der Rasen vorsorglich als nass, auch wenn keine Menge nachweisbar ist. Laufzeit und Abschlusszeit beziehen sich auf die bestätigte Ventilschließung, nicht auf anschließende Speicherwartezeiten.
 
 ### Prognosen, Verlauf und Rückgängigmachen
 

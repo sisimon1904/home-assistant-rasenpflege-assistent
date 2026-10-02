@@ -13,7 +13,12 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfLength, UnitOfSpeed, UnitOfTemperature
+from homeassistant.const import (
+    UnitOfLength,
+    UnitOfPressure,
+    UnitOfSpeed,
+    UnitOfTemperature,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_registry as er
@@ -23,6 +28,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_conversion import (
     DistanceConverter,
+    PressureConverter,
     SpeedConverter,
     TemperatureConverter,
 )
@@ -608,25 +614,31 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         reported_at = self._reported_at(state)
         age_minutes = self._age_minutes(now, reported_at)
         wind = self._number_attribute(state, "wind_speed")
-        wind_unit = str(state.attributes.get("wind_speed_unit", "m/s")).lower()
         if wind is not None:
-            if "km/h" in wind_unit or "kmh" in wind_unit:
-                wind /= 3.6
-            elif "mph" in wind_unit:
-                wind *= 0.44704
-            elif "kn" in wind_unit:
-                wind *= 0.514444
-            elif "ft/s" in wind_unit:
-                wind *= 0.3048
+            try:
+                wind = SpeedConverter.convert(
+                    wind,
+                    state.attributes.get(
+                        "wind_speed_unit", UnitOfSpeed.METERS_PER_SECOND
+                    ),
+                    UnitOfSpeed.METERS_PER_SECOND,
+                )
+                if wind < 0:
+                    wind = None
+            except (HomeAssistantError, TypeError, ValueError):
+                wind = None
         pressure = self._number_attribute(state, "pressure")
-        pressure_unit = str(state.attributes.get("pressure_unit", "hPa")).lower()
         if pressure is not None:
-            if pressure_unit == "pa":
-                pressure /= 100
-            elif pressure_unit == "kpa":
-                pressure *= 10
-            elif "inhg" in pressure_unit:
-                pressure *= 33.8639
+            try:
+                pressure = PressureConverter.convert(
+                    pressure,
+                    state.attributes.get("pressure_unit", UnitOfPressure.HPA),
+                    UnitOfPressure.HPA,
+                )
+            except (HomeAssistantError, TypeError, ValueError):
+                pressure = None
+        if pressure is not None and not 300 <= pressure <= 1200:
+            pressure = None
         dew_point = self._number_attribute(state, "dew_point")
         temperature_unit = state.attributes.get("temperature_unit")
         if (
@@ -640,14 +652,22 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 )
             except (HomeAssistantError, TypeError, ValueError):
                 dew_point = None
+        if dew_point is not None and not -90 <= dew_point <= 70:
+            dew_point = None
+        humidity = self._number_attribute(state, "humidity")
+        if humidity is not None and not 0 <= humidity <= 100:
+            humidity = None
+        cloud_coverage = self._number_attribute(state, "cloud_coverage")
+        if cloud_coverage is not None and not 0 <= cloud_coverage <= 100:
+            cloud_coverage = None
         return {
             "reported_at": reported_at.isoformat(),
             "age_minutes": age_minutes,
             "stale": now - reported_at > CURRENT_WEATHER_STALE_AFTER,
             "unavailable": False,
-            "humidity": self._number_attribute(state, "humidity"),
+            "humidity": humidity,
             "wind_speed_m_s": wind,
-            "cloud_coverage": self._number_attribute(state, "cloud_coverage"),
+            "cloud_coverage": cloud_coverage,
             "pressure_hpa": pressure,
             "dew_point": dew_point,
         }
