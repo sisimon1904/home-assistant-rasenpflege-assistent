@@ -23,7 +23,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_conversion import (
@@ -109,6 +108,7 @@ from .const import (
     UPDATE_INTERVAL,
 )
 from .models import LawnData, RuntimeState
+from .storage import VerifiedStore as Store
 
 if TYPE_CHECKING:
     from .irrigation import IrrigationController
@@ -1904,7 +1904,18 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             allocations = [dict(item) for item in allocations]
             remainder = liters - sum(item["liters"] for item in allocations)
             if abs(remainder) < 0.02:
-                allocations[-1]["liters"] += remainder
+                if remainder >= 0:
+                    allocations[-1]["liters"] += remainder
+                else:
+                    # A tiny final-day share must not become negative when
+                    # the session total is rounded down to two decimals.
+                    correction = -remainder
+                    for item in reversed(allocations):
+                        deducted = min(item["liters"], correction)
+                        item["liters"] -= deducted
+                        correction -= deducted
+                        if correction <= 0:
+                            break
             elif remainder > 0:
                 allocations.append(
                     {

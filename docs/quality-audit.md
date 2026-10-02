@@ -1,4 +1,4 @@
-# Qualitätsaudit – 3.8.5
+# Qualitätsaudit – 3.8.6
 
 Geprüft am 2. Oktober 2026 gegen die [Home Assistant Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/). Dies ist eine Selbstauskunft für eine HACS-Integration, keine offizielle Einstufung. Fehlerfreiheit und vollständige Erfüllung sämtlicher Quality-Scale-Stufen werden nicht behauptet.
 
@@ -27,6 +27,25 @@ Der veröffentlichte Commit `a0a0e5d1cd1c10e199781ddc753e635a9af78a0d` besteht d
 
 Prüfergebnis für 3.8.5: **342 Tests bestanden, 85,25 % kombinierte Zeilen-/Zweigabdeckung**. Ruff-Formatierung, Ruff-Prüfung, Python-Kompilierung und Git-Whitespace-Prüfung erfolgreich. Manifest, Geräte-/Diagnoseversion sowie beide README-Versionsangaben sind auf 3.8.5 aktualisiert. Dies erweitert den Testnachweis; die unten aufgeführten offenen Quality-Scale-Anforderungen und Hardware-/Versionsmatrix-Grenzen gelten weiter.
 
+## Ergänzende Prüfung für 3.8.6
+
+Ausgehend von Version 3.8.5 wurden acht weitere Fehlerbereiche reproduziert und korrigiert. `tests/test_audit_386.py`, `tests/test_audit_386_accounting.py` und `tests/test_audit_386_interactions.py` ergänzen zusammen 47 Prüffälle:
+
+| Bereich | Korrektur und Prüfumfang |
+| --- | --- |
+| Zeitweise Automatiksperre | Physische Schließung vor Controller-/Modellspeicherwartezeiten; fehlgeschlagene Speicherung verhindert die Schließung nicht. Eine fehlgeschlagene Freigabe behält die Sperre. Manuelle Sitzungen laufen weiter. |
+| Pausenschließung | Sicher zuordenbarer Verbrauch und aktive Laufzeit werden bis zur bestätigten Ventilschließung erfasst. Verzögerte und wiederholte Befehle verlieren keine Werte und buchen sie nicht doppelt. |
+| Abschluss statt Wiederaufnahme | Am Schließrand erreichte Ziele, Laufzeit-/Mengenlimits, Wasserbudgets und Messfehler beenden die Sitzung. Bereits früher gespeicherte pausierte Sitzungen werden vor Wiederaufnahme erneut auf erfüllte Ziele und Limits geprüft. |
+| Winterzeitfenster | Erneuter Eintritt in erlaubte Zeitfenster beim Rückstellen der Uhr, einschließlich Fenstern über Mitternacht. Eine unabhängige Suche über tatsächlich verstrichene Minuten prüft zwölf Kombinationen in Europe/Berlin und Australia/Lord_Howe, einschließlich 30-Minuten-Umstellungen. |
+| Zählerzyklen | Anfangsreset je Ventilöffnungsabschnitt erhält vorherigen Verbrauch. Rücksetzungen nach bereits erfasstem Wasser im Abschnitt oder nach zwei Minuten bleiben Sicherheitsfehler. |
+| Verbrauchsrundung | Sehr kleine letzte Tagesanteile werden durch Rundungsabzüge nicht negativ. Tagesanteile ergeben zusammen die gerundete Sitzungsmenge. |
+| Abbruch beim Abschluss | Einfacher oder wiederholter Abbruch wartet auf den Speicherausgang. Erfolgreiche Abschlüsse werden einmal veröffentlicht; bei Speicherfehler bleiben geschlossene Sitzungen und unverbrauchte Modellgutschriften für einen erneuten Versuch erhalten. |
+| Tatsächlicher HA-Speicherfehler | HA 2026.9.4 protokolliert bestimmte Schreib-/Serialisierungsfehler ohne Weitergabe an den Aufrufer. `VerifiedStore` vergleicht einen unabhängigen gespeicherten Datenstand über die öffentliche `async_load`-Schnittstelle. Abweichungen blockieren Starts/Aktivierung und lösen die vorhandene Rücknahme bzw. Wiederholungsbehandlung aus. |
+
+Zusätzlich wurde außerhalb der gemockten Pytest-Speicherumgebung eine tatsächliche temporäre Datei geschrieben und gelesen. Ein am Schreibaufruf injizierter `WriteError` wurde erkannt; die zuvor gespeicherten Daten blieben erhalten. Dies prüft den Datei-/Fehlerpfad, keine realen Ventile oder Hardware-Dauertests.
+
+**Ergebnis für 3.8.6: 389 Tests bestanden, 85,90 % kombinierte Zeilen-/Zweigabdeckung** unter Python 3.14.7 / Home Assistant 2026.9.4. Ruff-Formatierung, Ruff-Prüfung, Python-Kompilierung, JSON-/Dokumentationslink-Prüfung und Git-Whitespace-Prüfung erfolgreich. Manifest, Geräte-/Diagnoseversion und beide READMEs verwenden 3.8.6. Die Speicherbestätigung benötigt einen zusätzlichen lokalen Lesezugriff je Speicherung, ohne weitere Wetter-/OWM-Abfrage. Ventilschließung bleibt vor Speicherwartezeiten priorisiert. Das zweite Ventil bleibt ausschließlich eine Lesequelle. Die unten dokumentierten Hardware-, Versionsmatrix- und Quality-Scale-Grenzen gelten weiterhin.
+
 ## Behobene Befunde
 
 | Bereich | Ergebnis und Nachweis |
@@ -46,7 +65,7 @@ Prüfergebnis für 3.8.5: **342 Tests bestanden, 85,25 % kombinierte Zeilen-/Zwe
 
 - Python 3.14.7 / Home Assistant 2026.9.4; zusätzlich wurde die Umgebung 2026.10.0b0 vor den letzten Korrekturen geprüft.
 - Pytest einschließlich echter HA-Plattform-Einrichtung und -Entladung, Dienstaktionen, Diagnose-JSON, fehlgeschlagenem Speichern, ungültigen Daten und Abbruch von Schaltbefehlen.
-- 342 Tests bestanden; 85,25 % kombinierte Zeilen-/Zweigabdeckung im abschließenden Lauf.
+- 389 Tests bestanden; 85,90 % kombinierte Zeilen-/Zweigabdeckung im abschließenden Lauf.
 - Ruff-Formatierung, Ruff-Prüfung und Python-Kompilierung.
 - GitHub CI verwendet Python 3.14, einen festgelegten HA-Testpaketstand und ein Mindestniveau von 83 % kombinierter Zeilen-/Zweigabdeckung. Der Coverage-Bericht wird als Workflow-Artefakt bereitgestellt.
 - Hassfest und HACS werden durch den Validate-Workflow geprüft. Deren Ergebnis ist am jeweiligen Commit abzulesen; es ersetzt keine Prüfung aller Quality-Scale-Regeln.

@@ -144,6 +144,27 @@ def next_schedule_time(
             start = time()
     except (TypeError, ValueError):
         return None
+    candidates = []
+    first = earliest.astimezone(timezone.utc)
+    last = latest.astimezone(timezone.utc)
+    cursor = first
+    while cursor < last:
+        probe = min(cursor + timedelta(hours=1), last)
+        previous_offset = cursor.astimezone(earliest.tzinfo).utcoffset()
+        if probe.astimezone(earliest.tzinfo).utcoffset() != previous_offset:
+            # A rollback can re-enter an allowed window at the transition,
+            # even when its nominal daily start is already in the past.
+            lower, upper = cursor, probe
+            while upper - lower > timedelta(microseconds=1):
+                middle = lower + (upper - lower) / 2
+                if middle.astimezone(earliest.tzinfo).utcoffset() == previous_offset:
+                    lower = middle
+                else:
+                    upper = middle
+            candidate = upper.astimezone(earliest.tzinfo)
+            if upper < last and schedule_allowed(settings, candidate):
+                candidates.append(candidate)
+        cursor = probe
     day = earliest.date()
     while day <= latest.date():
         for fold in (0, 1):
@@ -170,6 +191,10 @@ def next_schedule_time(
             if earliest.astimezone(timezone.utc) <= utc < latest.astimezone(
                 timezone.utc
             ) and schedule_allowed(settings, candidate):
-                return candidate
+                candidates.append(candidate)
         day += timedelta(days=1)
-    return None
+    return (
+        min(candidates, key=lambda value: value.astimezone(timezone.utc))
+        if candidates
+        else None
+    )

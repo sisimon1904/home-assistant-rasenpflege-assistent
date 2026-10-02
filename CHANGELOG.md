@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.8.6
+
+### Fixed
+
+- Apply temporary automation holds and close automatic watering before storage waits; retain safety holds after failed writes and preserve manual sessions.
+- Preserve measured volume and active runtime until confirmed valve closure when entering soaking pauses.
+- Finalize closed sessions when targets, runtime/volume limits, water budgets or meter faults are reached during pause closure; prevent reopening completed paused sessions.
+- Find allowed schedule windows re-entered during the autumn clock rollback, including overnight windows.
+- Accept opening-time counter resets for each watering cycle while retaining previous-cycle consumption; keep genuine later resets as safety faults.
+- Prevent negative daily allocations when rounding small consumption amounts across midnight.
+- Resolve cancelled and repeatedly cancelled irrigation completion transactions, publishing successful results once and retaining failed credits for retry.
+- Verify saved state through Home Assistant's public storage API so write failures that HA only logs cannot permit an unsecured valve start or automation activation.
+
+### Changed
+
+- Add 47 regression cases; all 389 tests pass with 85.90% combined line/branch coverage.
+- Update German and English documentation, the quality audit and all integration version identifiers.
+- Verify the actual file-write failure path in addition to HA lifecycle and storage regression tests.
+
 ## 3.8.5
 
 ### Fixed

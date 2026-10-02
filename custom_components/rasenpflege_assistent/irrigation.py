@@ -229,6 +229,43 @@ class IrrigationController:
             return "water_budget_exhausted"
         return None
 
+    def _closed_session_stop_reason(self, session: dict, now) -> str | None:
+        """Check final limits before retaining or resuming a closed session."""
+        if (
+            now - dt_util.parse_datetime(session["started_at"])
+        ).total_seconds() >= 60 * float(
+            self.coordinator.settings.get(
+                CONF_MAX_IRRIGATION_MINUTES, DEFAULT_MAX_IRRIGATION_MINUTES
+            )
+        ):
+            return "maximum_runtime"
+        if session["meter_kind"] != "timer" and session["liters"] >= float(
+            self.coordinator.settings.get(
+                CONF_MAX_IRRIGATION_LITERS, DEFAULT_MAX_IRRIGATION_LITERS
+            )
+        ):
+            return "maximum_volume"
+        if session["source"] == "auto":
+            blocker = self._budget_blocker(session)
+            if blocker:
+                return blocker
+        minimum = (
+            60
+            * float(
+                self.coordinator.settings.get(
+                    CONF_MIN_IRRIGATION_MINUTES, DEFAULT_MIN_IRRIGATION_MINUTES
+                )
+            )
+            if session["source"] == "manual" and not session.get("explicit_target")
+            else 0
+        )
+        if float(session.get("active_seconds", 0)) >= minimum and (
+            session["meter_kind"] == "timer"
+            or session["liters"] >= session["target_liters"]
+        ):
+            return "target_reached"
+        return None
+
     def _rain_reading(self) -> tuple[str, str, float, str] | None:
         """Read the existing precipitation entity without modifying model sampling."""
         entity_id = (
@@ -659,6 +696,7 @@ class IrrigationController:
                 return "meter_unit_changed"
             session["meter_baseline"] = reading[1]
         # Ignore shared-meter usage and active time while our valve was closed.
+        session["segment_initial_liters"] = session["liters"]
         if int(session.get("cycle_number", 1)) > 1:
             session["paused_seconds"] += max(
                 0,
@@ -850,19 +888,31 @@ class IrrigationController:
                 translation_domain=DOMAIN,
                 translation_key="action_8",
             )
-        previous = self.state.irrigation_suspended_until
-        self.state.irrigation_suspended_until = until.isoformat() if until else None
-        if not await self._async_persist_state():
-            self.state.irrigation_suspended_until = previous
+        requested = until.isoformat() if until else None
+        if until:
+            # Apply the safety hold before waiting for either storage lock.
+            self.state.irrigation_suspended_until = requested
+            session = self.state.irrigation_session
+            if session and session["source"] == "auto":
+                session["closing_reason"] = "automation_suspended"
+                await self._async_close_unsafe_busy_valve()
+        async with self._lock:
+            previous = self.state.irrigation_suspended_until
+            self.state.irrigation_suspended_until = requested
+            session = self.state.irrigation_session
+            if until and session and session["source"] == "auto":
+                await self._async_stop_locked("automation_suspended")
+            saved = await self._async_persist_state()
+            if not saved and until is None:
+                # A failed release keeps the existing safety hold in memory.
+                self.state.irrigation_suspended_until = previous
+            self._publish_session()
+        if not saved:
             raise ServiceValidationError(
                 "Suspension could not be saved",
                 translation_domain=DOMAIN,
                 translation_key="action_9",
             )
-        session = self.state.irrigation_session
-        if until and session and session["source"] == "auto":
-            await self.async_stop("automation_suspended")
-        self._publish_session()
 
     def action_hint(self, language: str) -> str | None:
         """Pair the current blocker with a concrete user action."""
@@ -1357,6 +1407,10 @@ class IrrigationController:
             if self._shutting_down or session is None or not session.get("paused_at"):
                 return
             now = dt_util.now()
+            terminal_reason = self._closed_session_stop_reason(session, now)
+            if terminal_reason:
+                await self._async_stop_locked(terminal_reason)
+                return
             resume_after = dt_util.parse_datetime(session.get("resume_after") or "")
             if resume_after and now < resume_after:
                 return
@@ -1907,16 +1961,6 @@ class IrrigationController:
                     session["measurement_gap"] = True
             else:
                 session["measurement_gap"] = True
-        session["active_seconds"] = float(session.get("active_seconds", 0)) + max(
-            0,
-            (
-                now
-                - dt_util.parse_datetime(
-                    session.get("segment_started_at") or session["started_at"]
-                )
-            ).total_seconds(),
-        )
-        session["segment_accounted"] = True
         session["pause_reason"] = reason
         session["closing_reason"] = reason
         self.state.irrigation_last_status = "stopping"
@@ -1960,9 +2004,12 @@ class IrrigationController:
             if delta < -0.01:
                 # Per-session meters can reset to zero as the valve opens.
                 if (
-                    session["liters"] == 0
+                    session["liters"] == session.get("segment_initial_liters", 0)
                     and (
-                        now - dt_util.parse_datetime(session["started_at"])
+                        now
+                        - dt_util.parse_datetime(
+                            session.get("segment_started_at") or session["started_at"]
+                        )
                     ).total_seconds()
                     < 120
                 ):
@@ -2116,10 +2163,50 @@ class IrrigationController:
             f"{self.coordinator.config_entry.entry_id}_irrigation_valve_stuck",
         )
         if session["closing_reason"] in {"other_valve_open", "soak_pause"}:
+            fault = None
+            valve = self.hass.states.get(session["valve_entity_id"])
+            closed_at = (
+                min(dt_util.now(), valve.last_changed)
+                if valve and valve.state == "off"
+                else dt_util.now()
+            )
+            if not session.get("segment_accounted"):
+                meter_id = session.get("meter_entity_id")
+                meter = self.hass.states.get(meter_id) if meter_id else None
+                if session["meter_kind"] != "timer":
+                    if (
+                        meter
+                        and self._other_valve_state() == "off"
+                        and self.coordinator._reported_at(meter) <= closed_at
+                    ):
+                        fault = self._sample_meter(session, closed_at)
+                        if fault:
+                            session["measurement_gap"] = True
+                    else:
+                        session["measurement_gap"] = True
+                session["active_seconds"] = float(
+                    session.get("active_seconds", 0)
+                ) + max(
+                    0,
+                    (
+                        closed_at
+                        - dt_util.parse_datetime(
+                            session.get("segment_started_at") or session["started_at"]
+                        )
+                    ).total_seconds(),
+                )
+                session["segment_accounted"] = True
+            terminal_reason = fault or self._closed_session_stop_reason(
+                session, closed_at
+            )
+            if terminal_reason:
+                session["closing_reason"] = terminal_reason
+                await self._async_finish_locked(terminal_reason)
+                return
             session["pause_reason"] = session["closing_reason"]
             session["resume_after"] = (
                 (
-                    dt_util.utcnow()
+                    dt_util.as_utc(closed_at)
                     + timedelta(
                         minutes=float(
                             self.coordinator.settings.get("irrigation_soak_minutes", 15)
@@ -2129,7 +2216,7 @@ class IrrigationController:
                 if session["pause_reason"] == "soak_pause"
                 else None
             )
-            session["paused_at"] = dt_util.now().isoformat()
+            session["paused_at"] = closed_at.isoformat()
             session["closing_reason"] = None
             self.state.irrigation_last_status = "paused"
             await self._async_persist_state()
@@ -2199,8 +2286,33 @@ class IrrigationController:
         previous_history = list(self.state.maintenance_history)
         history_ids = {id(event) for event in previous_history}
         self._finishing = True
+        cancelled = False
+
+        async def finish_transaction() -> OSError | HomeAssistantError | None:
+            # Return expected storage failures so a cancelled shield does not
+            # report them as unhandled errors before our rollback consumes them.
+            try:
+                await self._async_finish_attempt_locked(reason)
+            except (OSError, HomeAssistantError) as err:
+                return err
+            return None
+
+        finishing = asyncio.create_task(
+            finish_transaction(), name="lawn_finish_irrigation"
+        )
         try:
-            await self._async_finish_attempt_locked(reason)
+            while True:
+                try:
+                    result = await asyncio.shield(finishing)
+                    break
+                except asyncio.CancelledError:
+                    # Resolve the transaction while retaining both locks.
+                    # Repeated cancellation must not cancel the inner write.
+                    cancelled = True
+                    if finishing.cancelled():
+                        raise
+            if result is not None:
+                raise result
         except (OSError, HomeAssistantError):
             # Undo only this attempt's credit. Keep unrelated mowing/fertilizer
             # events and weather sampling that may have arrived while saving.
@@ -2233,6 +2345,8 @@ class IrrigationController:
             self.state.irrigation_last_reason = "storage_error"
             self._report_storage_error()
             self._publish_session()
+            if cancelled:
+                raise asyncio.CancelledError
             return False
         finally:
             self._finishing = False
@@ -2243,6 +2357,8 @@ class IrrigationController:
             reason=reason,
             session=previous["irrigation_session"],
         )
+        if cancelled:
+            raise asyncio.CancelledError
         return True
 
     async def _async_finish_attempt_locked(self, reason: str) -> None:
