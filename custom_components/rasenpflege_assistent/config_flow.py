@@ -10,11 +10,13 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.config_entries import ConfigFlowResult, OptionsFlowWithReload
-from homeassistant.const import UnitOfArea
+from homeassistant.const import UnitOfArea, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 from homeassistant.util import dt as dt_util
+from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .const import (
     CONF_ALLOW_UNMETERED_MANUAL,
@@ -566,7 +568,11 @@ def _validate_openweathermap_entities(
     errors: dict[str, str] = {}
     registry = er.async_get(hass)
     weather_entry = registry.async_get(user_input[CONF_WEATHER_ENTITY])
-    if weather_entry is None or weather_entry.platform != "openweathermap":
+    if (
+        weather_entry is None
+        or weather_entry.domain != "weather"
+        or weather_entry.platform != "openweathermap"
+    ):
         errors[CONF_WEATHER_ENTITY] = "not_openweathermap"
     else:
         weather_state = hass.states.get(user_input[CONF_WEATHER_ENTITY])
@@ -576,6 +582,19 @@ def _validate_openweathermap_entities(
             or "temperature" not in weather_state.attributes
         ):
             errors[CONF_WEATHER_ENTITY] = "weather_data_unavailable"
+        else:
+            try:
+                value = TemperatureConverter.convert(
+                    float(weather_state.attributes["temperature"]),
+                    weather_state.attributes.get(
+                        "temperature_unit", UnitOfTemperature.CELSIUS
+                    ),
+                    UnitOfTemperature.CELSIUS,
+                )
+                if not math.isfinite(value) or not -90 <= value <= 70:
+                    raise ValueError("Invalid weather temperature")
+            except (TypeError, ValueError, HomeAssistantError):
+                errors[CONF_WEATHER_ENTITY] = "weather_data_unavailable"
     return errors
 
 
@@ -708,6 +727,11 @@ class LawnCareConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             errors = _validate_openweathermap_entities(self.hass, user_input)
+            irrigation = getattr(
+                getattr(entry, "runtime_data", None), "irrigation", None
+            )
+            if irrigation and irrigation.active:
+                errors["base"] = "irrigation_active"
             if not errors:
                 options = dict(entry.options)
                 options.pop(CONF_WEATHER_ENTITY, None)

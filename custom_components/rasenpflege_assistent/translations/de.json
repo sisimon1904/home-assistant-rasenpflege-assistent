@@ -103,7 +103,8 @@
       "other_valve_same": "Das zweite Ventil darf nicht das Rasenventil sein.",
       "maximum_below_minimum": "Der Maximalwert muss über dem Minimalwert liegen.",
       "safe_state_required": "Gib den Zustand für einen an der Station befindlichen Roboter ein.",
-      "invalid_number": "Eine endliche Zahl angeben."
+      "invalid_number": "Eine endliche Zahl angeben.",
+      "irrigation_active": "Bewässerung vor dem Ändern der Einstellungen stoppen."
     },
     "abort": {
       "already_configured": "Ein Rasen mit diesem Namen ist bereits eingerichtet.",
@@ -1394,6 +1395,9 @@
     },
     "irrigation_blocked_maximum_runtime_before_target": {
       "message": "Zielmenge voraussichtlich nicht vor Sicherheitsende erreichbar"
+    },
+    "maintenance_storage_failed": {
+      "message": "Pflegeeintrag konnte nicht gespeichert werden. Es wurden keine Änderungen übernommen."
     }
   }
 }

@@ -103,7 +103,8 @@
       "other_valve_same": "The other valve must differ from the lawn valve.",
       "maximum_below_minimum": "Maximum must be greater than minimum.",
       "safe_state_required": "Enter a state confirming the mower is at the dock.",
-      "invalid_number": "Enter a finite number."
+      "invalid_number": "Enter a finite number.",
+      "irrigation_active": "Stop irrigation before changing settings."
     },
     "abort": {
       "already_configured": "A lawn with this name is already configured.",
@@ -1394,6 +1395,9 @@
     },
     "irrigation_blocked_maximum_runtime_before_target": {
       "message": "Target likely exceeds the safety runtime"
+    },
+    "maintenance_storage_failed": {
+      "message": "Maintenance could not be saved. No changes were applied."
     }
   }
 }

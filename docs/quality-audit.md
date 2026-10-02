@@ -1,6 +1,10 @@
-# Qualitätsaudit – 3.8.1
+# Qualitätsaudit – 3.8.2
 
-Geprüft am 1. Oktober 2026 gegen die [Home Assistant Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/). Dies ist eine Selbstauskunft für eine HACS-Integration, keine offizielle Einstufung. Fehlerfreiheit und vollständige Erfüllung sämtlicher Quality-Scale-Stufen werden nicht behauptet.
+Geprüft am 2. Oktober 2026 gegen die [Home Assistant Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/). Dies ist eine Selbstauskunft für eine HACS-Integration, keine offizielle Einstufung. Fehlerfreiheit und vollständige Erfüllung sämtlicher Quality-Scale-Stufen werden nicht behauptet.
+
+## Ergänzende Prüfung für 3.8.2
+
+`tests/test_audit_381.py` ergänzt 16 Regressionen für physische Verbrauchserhaltung nach Undo, fehlgeschlagene und gleichzeitige Pflegeaktionen, Abbruch nach erfolgreichem Speichern, Ventilschließung bei blockiertem Speicher, Wiederaufnahme bei Regen, Zeitumstellungen und Wetterquellenvalidierung/-wechsel. Pflege- und Modelländerungen sowie Sitzungsabschlüsse werden gemeinsam serialisiert; physische Ventilschließung wartet nicht auf diesen Speicherzugriff. Die bestehenden Einschränkungen zu Typisierung, Modulabdeckung, Brands und Hardwareprüfungen gelten weiterhin.
 
 ## Behobene Befunde
 
@@ -21,7 +25,7 @@ Geprüft am 1. Oktober 2026 gegen die [Home Assistant Integration Quality Scale]
 
 - Python 3.14.7 / Home Assistant 2026.9.4; zusätzlich wurde die Umgebung 2026.10.0b0 vor den letzten Korrekturen geprüft.
 - Pytest einschließlich echter HA-Plattform-Einrichtung und -Entladung, Dienstaktionen, Diagnose-JSON, fehlgeschlagenem Speichern, ungültigen Daten und Abbruch von Schaltbefehlen.
-- 258 Tests bestanden; 83,57 % kombinierte Zeilen-/Zweigabdeckung im abschließenden Lauf mit bereinigtem Python-Cache. Frühere Zwischenstände mit älterem Cache wurden verworfen.
+- 274 Tests bestanden; rund 84 % kombinierte Zeilen-/Zweigabdeckung im abschließenden Lauf.
 - Ruff-Formatierung, Ruff-Prüfung und Python-Kompilierung.
 - GitHub CI verwendet Python 3.14, einen festgelegten HA-Testpaketstand und ein Mindestniveau von 83 % kombinierter Zeilen-/Zweigabdeckung. Der Coverage-Bericht wird als Workflow-Artefakt bereitgestellt.
 - Hassfest und HACS werden durch den Validate-Workflow geprüft. Deren Ergebnis ist am jeweiligen Commit abzulesen; es ersetzt keine Prüfung aller Quality-Scale-Regeln.
@@ -31,7 +35,7 @@ Geprüft am 1. Oktober 2026 gegen die [Home Assistant Integration Quality Scale]
 | Regeln / Gruppe | Stand |
 | --- | --- |
 | Einrichtung, Laufzeitdaten, IDs, Setup von Aktionen und Entitätsereignissen | Implementiert; typisierte Config-Entry-Laufzeitdaten, UI-Einrichtung, lokale Modellinitialisierung und getrennte Sicherheitsereignisse. |
-| Test-before-configure | Die Wetterquelle muss von OpenWeatherMap stammen, vorhanden sein und Temperaturattribute liefern. Unbekannte/unverfügbare Zustände werden abgelehnt. |
+| Test-before-configure | Die Wetterquelle muss von OpenWeatherMap stammen, vorhanden sein und eine endliche, plausible Temperatur in einer unterstützten Einheit liefern. Unbekannte/unverfügbare Zustände werden abgelehnt. |
 | Test-before-setup | Das Modell benötigt keinen eigenen Cloud-Login. Fehlende Wetterdaten sind zulässig für einen vorhandenen Eintrag, werden sichtbar gemacht und sperren automatische Bewässerung. Speicher-/Coordinator-Fehler werden durch HA gemeldet. |
 | Polling und Netzwerkabhängigkeit | Die zentrale Berechnung nutzt den Coordinator; schnelle Geräteinterlocks nutzen Zustandsereignisse und den lokalen Watchdog. Kein eigener Netzwerkclient. |
 | Geräte, Kategorien, Device Classes, optionale Diagnoseentitäten | Implementiert; geeignete Kategorien/Klassen und abgeschaltete Diagnoseentitäten. |

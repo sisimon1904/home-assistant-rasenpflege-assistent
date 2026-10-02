@@ -995,9 +995,13 @@ class IrrigationController:
             f"{self.coordinator.config_entry.entry_id}_irrigation_storage_error",
         )
 
-    async def _async_persist_state(self) -> bool:
+    async def _async_persist_state(self, *, already_locked: bool = False) -> bool:
         try:
-            await self.coordinator._store.async_save(self.state.as_dict())
+            if already_locked:
+                await self.coordinator._store.async_save(self.state.as_dict())
+            else:
+                async with self.coordinator._state_lock:
+                    await self.coordinator._store.async_save(self.state.as_dict())
         except (OSError, HomeAssistantError):
             self._report_storage_error()
             return False
@@ -1148,7 +1152,9 @@ class IrrigationController:
             if resume_after and now < resume_after:
                 return
             if session["source"] == "auto":
-                weather_reason = self._weather_stop_reason(session)
+                weather_reason = (
+                    self._weather_start_blocker() or self._weather_stop_reason(session)
+                )
                 if weather_reason:
                     await self._async_stop_locked(weather_reason)
                     return
@@ -1233,8 +1239,9 @@ class IrrigationController:
             except (Exception, asyncio.CancelledError):
                 session["closing_reason"] = "valve_open_failed"
                 self.state.irrigation_last_status = "stopping"
-                await self._async_persist_state()
                 await self._async_close_locked()
+                if self.active:
+                    await self._async_persist_state()
                 raise
         self._emit_event("resumed")
         await self.async_check()
@@ -1448,8 +1455,9 @@ class IrrigationController:
                 # Even a failed service call may have reached the hardware.
                 session["closing_reason"] = "valve_open_failed"
                 self.state.irrigation_last_status = "stopping"
-                await self._async_persist_state()
                 await self._async_close_locked()
+                if self.active:
+                    await self._async_persist_state()
                 raise
         # Inputs can change while the opening service call is awaiting hardware.
         self._emit_event("started")
@@ -1682,8 +1690,9 @@ class IrrigationController:
         session["closing_reason"] = reason
         self.state.irrigation_last_status = "stopping"
         self.state.irrigation_last_reason = reason
-        await self._async_persist_state()
         await self._async_close_locked()
+        if self.active:
+            await self._async_persist_state()
 
     def _sample_meter(self, session: dict[str, Any], now) -> str | None:
         """Measure incremental water without inventing data across gaps."""
@@ -1803,7 +1812,7 @@ class IrrigationController:
                 await self._async_stop_locked(reason)
 
     async def _async_stop_locked(self, reason: str) -> None:
-        """Persist the closing intent before calling the external switch."""
+        """Close hardware before awaiting maintenance or storage writes."""
         session = self.state.irrigation_session
         if self._valve_state() == "on":
             session["confirmed_open"] = True
@@ -1818,8 +1827,9 @@ class IrrigationController:
         self.state.irrigation_session["closing_reason"] = reason
         self.state.irrigation_last_status = "stopping"
         self.state.irrigation_last_reason = reason
-        await self._async_persist_state()
         await self._async_close_locked()
+        if self.active:
+            await self._async_persist_state()
         if self.active:
             await self.coordinator.async_request_refresh()
 
@@ -1881,6 +1891,13 @@ class IrrigationController:
             await self._async_finish_locked(session["closing_reason"])
 
     async def _async_finish_locked(self, reason: str) -> None:
+        """Serialize physical water credits against maintenance and model writes."""
+        async with self.coordinator._state_lock:
+            finished = await self._async_finish_state_locked(reason)
+        if finished:
+            await self.coordinator.async_request_refresh()
+
+    async def _async_finish_state_locked(self, reason: str) -> bool:
         """Retry failed water credits without double-booking or reopening."""
         keys = (
             "irrigation_session",
@@ -1936,7 +1953,7 @@ class IrrigationController:
             self.state.irrigation_last_reason = "storage_error"
             self._report_storage_error()
             self._publish_session()
-            return
+            return False
         finally:
             self._finishing = False
         self._clear_storage_error()
@@ -1946,7 +1963,7 @@ class IrrigationController:
             reason=reason,
             session=previous["irrigation_session"],
         )
-        await self.coordinator.async_request_refresh()
+        return True
 
     async def _async_finish_attempt_locked(self, reason: str) -> None:
         """Apply measured water once the valve is confirmed closed."""
@@ -2085,8 +2102,8 @@ class IrrigationController:
         # by async_mark_watered, with no intermediate save losing the credit.
         if liters is not None and liters > 0:
             area = float(self.coordinator.settings.get(CONF_AREA, DEFAULT_AREA))
-            await self.coordinator.async_mark_watered(
-                liters / area, refresh=False, usage=False
+            await self.coordinator._async_mark_watered_locked(
+                liters / area, usage=False
             )
         elif (
             (
@@ -2110,11 +2127,11 @@ class IrrigationController:
             or reason == "interrupted_by_restart"
             and (session.get("ever_confirmed_open") or session.get("confirmed_open"))
         ):
-            await self.coordinator.async_mark_watered(
-                0, was_wet=True, refresh=False, usage=False
+            await self.coordinator._async_mark_watered_locked(
+                0, was_wet=True, usage=False
             )
         else:
-            if not await self._async_persist_state():
+            if not await self._async_persist_state(already_locked=True):
                 raise OSError("Irrigation completion could not be saved")
 
     def detach(self) -> None:

@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.8.2
+
+### Fixed
+
+- Preserve measured irrigation usage and daily/weekly safety budgets when undoing model water credits.
+- Serialize maintenance, model updates and irrigation completion to prevent concurrent persistence races.
+- Roll back failed maintenance saves, translate storage errors and retain successful commits during cancellation.
+- Close the owned valve before persistence so slow storage cannot delay safety stops.
+- Block automatic weather-pause resume while rain or strong wind is already reported.
+- Sum hourly forecast rain over 24 elapsed hours across daylight-saving changes.
+- Reject missing, malformed, non-finite and implausible weather temperatures during configuration.
+- Block weather-source reconfiguration during active irrigation.
+
+### Changed
+
+- Document physical-consumption retention after undo in German and English.
+- Add 16 regression cases; all 274 tests pass with 84% combined line/branch coverage.
+- Update the quality audit without claiming complete Home Assistant Quality Scale compliance.
+
 ## 3.8.1
 
 ### Fixed

@@ -87,6 +87,7 @@ def sum_hourly_forecast_rain(
         dated = [
             (timestamp.replace(tzinfo=start.tzinfo), item) for timestamp, item in dated
         ]
+    start = start.astimezone(timezone.utc)
     end = start + timedelta(hours=hours)
     return sum_forecast_rain(
         [item for timestamp, item in dated if start <= timestamp < end],

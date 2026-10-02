@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.8.1 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.8.2 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -12,6 +12,15 @@ vorhandenen OpenWeatherMap-Daten in Home Assistant. Sie berechnet die
 Grünlandtemperatursumme, modellierte Bodenfeuchte sowie Empfehlungen zum
 Bewässern, Düngen und Mähen. Optional kann sie ein vorhandenes Bewässerungsventil
 steuern; sie schaltet den Mähroboter nicht.
+
+## Neu in 3.8.2
+
+- Tatsächlich gemessener Wasserverbrauch bleibt nach Rückgängigmachen im Protokoll und zählt weiterhin gegen Tages-/Wochenlimits.
+- Pflegeaktionen und Sitzungsabschluss werden bei gleichzeitigen Aktionen oder Speicherfehlern konsistent verarbeitet.
+- Das Ventil wird vor dem Speichern geschlossen; langsame Speicherung verzögert keinen Sicherheitsstopp.
+- Automatische Wiederaufnahme bleibt bei bereits gemeldetem Regen oder starkem Wind gesperrt.
+- Die 24-Stunden-Regenprognose berücksichtigt Zeitumstellungen korrekt.
+- Unbrauchbare Wettertemperaturen werden bei der Einrichtung abgelehnt; Quellenwechsel sind während einer laufenden Bewässerung gesperrt.
 
 ## Neu in 3.8.1
 
@@ -44,7 +53,7 @@ Die **verbleibende Bewässerungsdauer** schätzt aktive Minuten aus dem Durchflu
 
 **Wasserverbrauch heute** sowie Wochen-/Monatssummen enthalten abgeschlossene oder manuell erfasste Sitzungen. Eine laufende Sitzung wird separat im Bewässerungsstatus und bei den Budgetprüfungen berücksichtigt. `recent_records` zeigt die letzten zehn erfassten Bewässerungen; `recent_sessions` zeigt die letzten zehn Ventilsitzungen. Zählerzuwächse über Mitternacht werden zeitanteilig aufgeteilt und mit `allocation_estimated` gekennzeichnet. Bekannte Gesamtmengen bleiben erhalten. Alte Einträge ohne Messabschnitte behalten ihre bisherige Tageszuordnung.
 
-Rückgängigmachen entfernt den Verbrauch und die Modellgutschrift. Die physisch gemessene Sitzung bleibt zur Diagnose sichtbar, mit `undone: true`, `undone_at` und `effective_model_mm: 0`. Die einmalige automatische Tagesbewässerung bleibt aus Sicherheitsgründen gesperrt; Rückgängigmachen löst keine neue automatische Bewässerung aus.
+Rückgängigmachen entfernt die Modellgutschrift. Tatsächlich gemessener Verbrauch einer gesteuerten Bewässerung bleibt im Verbrauchsprotokoll und zählt weiterhin gegen Tages-/Wochenlimits. Fehlerhafte manuelle Verbrauchseinträge werden entfernt. Die physisch gemessene Sitzung bleibt zur Diagnose sichtbar, mit `undone: true`, `undone_at` und `effective_model_mm: 0`. Die einmalige automatische Tagesbewässerung bleibt aus Sicherheitsgründen gesperrt; Rückgängigmachen löst keine neue automatische Bewässerung aus.
 
 Die Aktion `suspend_irrigation` akzeptiert jetzt auch **`duration_hours`** (0,25 bis 168), alternativ zu `until`. Ohne beide Felder wird die Pause aufgehoben. Neue Vorlagen: [Pflegeplan](docs/dashboard/care-plan.de.yaml), [Verbrauch und Verlauf](docs/dashboard/consumption.de.yaml). Die [Bewässerungskarte](docs/dashboard/irrigation.de.yaml) bietet 1/3/5 mm, 100 Liter sowie Pausen für 2/24 Stunden. Weitere individuelle Mengen können im HA-Aktionsdialog gewählt werden.
 

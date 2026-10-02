@@ -994,7 +994,7 @@ async def test_requested_liters_stop_before_manual_minimum(
     ] == pytest.approx(0.085)
     assert len(controller.state.water_usage) == 1
     await controller.coordinator.async_undo_last_action()
-    assert not controller.state.water_usage
+    assert controller.state.water_usage[0]["undone"]
 
 
 async def test_requested_mm_convert_to_liters(hass, enable_custom_integrations):
@@ -1403,7 +1403,8 @@ async def test_cumulative_meter_allocations_and_undo_diagnostics(hass, freezer):
     assert controller.state.irrigation_last_session["undone"]
     assert controller.state.irrigation_last_session["effective_model_mm"] == 0
     assert controller.state.irrigation_last_session["liters"] == 20
-    assert not controller.state.water_usage
+    assert controller.state.water_usage[0]["undone"]
+    assert controller.state.water_usage[0]["liters"] == 20
 
 
 async def test_completion_eta_accounts_for_cycles_and_unknown_pause(hass, freezer):

@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
+from collections.abc import Awaitable, Callable
+from copy import deepcopy
 from datetime import date, datetime, timedelta
 from statistics import fmean
 from typing import TYPE_CHECKING, Any
@@ -147,6 +149,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         self._hourly_forecast_updated_at: datetime | None = None
         self.irrigation: IrrigationController | None = None
         self._mowing_lock = asyncio.Lock()
+        self._state_lock = asyncio.Lock()
+        self._maintenance_committed = False
         self._weather_unavailable = False
 
     @property
@@ -1409,6 +1413,11 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             )
 
     async def _async_update_data(self) -> LawnData:
+        """Serialize model updates against transactional maintenance writes."""
+        async with self._state_lock:
+            return await self._async_calculate_locked()
+
+    async def _async_calculate_locked(self) -> LawnData:
         """Calculate all current recommendations."""
         assert self._state is not None
         now = dt_util.now()
@@ -1898,6 +1907,58 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         )
         return identifier
 
+    async def _async_save_maintenance_locked(self) -> None:
+        """Resolve a write before cancelling, keeping disk and model consistent."""
+        saving = self.hass.async_create_task(
+            self._store.async_save(deepcopy(self._state.as_dict())),
+            "lawn_save_maintenance",
+        )
+        try:
+            await asyncio.shield(saving)
+        except asyncio.CancelledError:
+            await saving
+            self._maintenance_committed = True
+            raise
+        self._maintenance_committed = True
+
+    async def _async_maintenance_transaction(
+        self, operation: Callable[[], Awaitable[None]]
+    ) -> None:
+        """Rollback failed writes without reverting concurrent valve supervision."""
+        keys = (
+            "last_watering",
+            "last_watering_at",
+            "soil_water_mm",
+            "water_usage",
+            "maintenance_history",
+            "irrigation_last_session",
+            "last_fertilizing",
+            "last_mowing",
+            "last_mowing_at",
+            "last_mowing_source",
+            "last_mowing_event_id",
+            "mower_started_year",
+            "last_robot_session_started_at",
+            "last_robot_session_finished_at",
+            "last_robot_session_active_seconds",
+        )
+        async with self._state_lock:
+            previous = {key: deepcopy(getattr(self._state, key)) for key in keys}
+            self._maintenance_committed = False
+            try:
+                await operation()
+            except (OSError, HomeAssistantError, asyncio.CancelledError) as err:
+                if not self._maintenance_committed:
+                    for key, value in previous.items():
+                        setattr(self._state, key, value)
+                if isinstance(err, (asyncio.CancelledError, ServiceValidationError)):
+                    raise
+                raise HomeAssistantError(
+                    "Maintenance could not be saved; no changes were applied",
+                    translation_domain=DOMAIN,
+                    translation_key="maintenance_storage_failed",
+                ) from err
+
     async def async_mark_watered(
         self,
         amount_mm: float | None = None,
@@ -1905,6 +1966,71 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         deduplicate: bool = False,
         was_wet: bool = False,
         refresh: bool = True,
+        recorded_at: datetime | None = None,
+        usage: bool = True,
+    ) -> None:
+        """Record water atomically and refresh only after committing."""
+        await self._async_maintenance_transaction(
+            lambda: self._async_mark_watered_locked(
+                amount_mm,
+                deduplicate=deduplicate,
+                was_wet=was_wet,
+                recorded_at=recorded_at,
+                usage=usage,
+            )
+        )
+        if refresh:
+            await self.async_request_refresh()
+
+    async def async_mark_fertilized(
+        self,
+        product_npk: str | None = None,
+        amount_kg: float | None = None,
+        *,
+        recorded_at: datetime | None = None,
+    ) -> None:
+        """Commit fertilizing before publishing it as completed."""
+        await self._async_maintenance_transaction(
+            lambda: self._async_mark_fertilized_locked(
+                product_npk, amount_kg, recorded_at=recorded_at
+            )
+        )
+        await self.async_request_refresh()
+
+    async def async_mark_mowed(
+        self,
+        *,
+        deduplicate: bool = False,
+        event_id: str | None = None,
+        recorded_at: datetime | None = None,
+        source: str = "manual",
+        active_seconds: float | None = None,
+        session_started_at: datetime | None = None,
+    ) -> None:
+        """Commit mowing atomically with other maintenance actions."""
+        await self._async_maintenance_transaction(
+            lambda: self._async_mark_mowed_locked(
+                deduplicate=deduplicate,
+                event_id=event_id,
+                recorded_at=recorded_at,
+                source=source,
+                active_seconds=active_seconds,
+                session_started_at=session_started_at,
+            )
+        )
+        await self.async_request_refresh()
+
+    async def async_undo_last_action(self) -> None:
+        """Commit an undo atomically before refreshing entities."""
+        await self._async_maintenance_transaction(self._async_undo_last_action_locked)
+        await self.async_request_refresh()
+
+    async def _async_mark_watered_locked(
+        self,
+        amount_mm: float | None = None,
+        *,
+        deduplicate: bool = False,
+        was_wet: bool = False,
         recorded_at: datetime | None = None,
         usage: bool = True,
     ) -> None:
@@ -1983,11 +2109,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             historical=historical,
             usage_id=usage_id,
         )
-        await self._store.async_save(self._state.as_dict())
-        if refresh:
-            await self.async_request_refresh()
+        await self._async_save_maintenance_locked()
 
-    async def async_mark_fertilized(
+    async def _async_mark_fertilized_locked(
         self,
         product_npk: str | None = None,
         amount_kg: float | None = None,
@@ -2011,10 +2135,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             amount_kg=amount_kg,
             recorded_at=event_at.isoformat(),
         )
-        await self._store.async_save(self._state.as_dict())
-        await self.async_request_refresh()
+        await self._async_save_maintenance_locked()
 
-    async def async_mark_mowed(
+    async def _async_mark_mowed_locked(
         self,
         *,
         deduplicate: bool = False,
@@ -2068,10 +2191,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 active_seconds=active_seconds,
                 recorded_at=now.isoformat(),
             )
-            await self._store.async_save(self._state.as_dict())
-        await self.async_request_refresh()
+            await self._async_save_maintenance_locked()
 
-    async def async_undo_last_action(self) -> None:
+    async def _async_undo_last_action_locked(self) -> None:
         """Undo the latest maintenance event recorded by the integration."""
         assert self._state is not None
         if self.irrigation and self.irrigation.active:
@@ -2085,9 +2207,15 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         event = self._state.maintenance_history.pop()
         usage_id = event.get("details", {}).get("usage_id")
         if usage_id:
-            self._state.water_usage = [
-                item for item in self._state.water_usage if item.get("id") != usage_id
-            ]
+            retained = []
+            for item in self._state.water_usage:
+                if item.get("id") == usage_id:
+                    if item.get("source") != "irrigation":
+                        continue
+                    item["undone"] = True
+                    item["undone_at"] = dt_util.now().isoformat()
+                retained.append(item)
+            self._state.water_usage = retained
         last_session = self._state.irrigation_last_session
         if usage_id and last_session and last_session.get("usage_id") == usage_id:
             # Retain the physical session for diagnosis, but make its undone
@@ -2110,8 +2238,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             for key, value in event.get("previous", {}).items():
                 if hasattr(self._state, key):
                     setattr(self._state, key, value)
-        await self._store.async_save(self._state.as_dict())
-        await self.async_request_refresh()
+        await self._async_save_maintenance_locked()
 
     async def async_mark_mowing_started(self) -> None:
         """Record mowing through the legacy method name."""

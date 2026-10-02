@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.8.1 · [Changelog](CHANGELOG.md)
+Version 3.8.2 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -12,6 +12,15 @@ OpenWeatherMap data in Home Assistant. It calculates the grassland temperature
 sum, modeled soil moisture, and recommendations for watering, fertilizing, and
 mowing. It can optionally control an existing irrigation valve; it does not
 control the robotic mower.
+
+## New in 3.8.2
+
+- Preserve measured irrigation consumption and daily/weekly budget accounting after undo.
+- Keep maintenance actions and irrigation completion consistent under concurrent actions, storage failures and cancellation.
+- Close the valve before saving; slow storage cannot delay a safety stop.
+- Block automatic resume when rain or strong wind is already reported.
+- Calculate forecast rain over 24 elapsed hours across daylight-saving changes.
+- Reject unusable weather temperatures during configuration and block source changes during active irrigation.
 
 ## New in 3.8.1
 
@@ -44,7 +53,7 @@ The **care plan** combines mowing, watering and fertilizing with available times
 
 **Water consumption today**, weekly and monthly totals include completed or manually recorded watering. Active sessions are shown separately in irrigation diagnostics and included in budget checks. `recent_records` exposes the last ten records; `recent_sessions` exposes the last ten valve sessions. Cumulative readings crossing midnight are allocated in proportion to elapsed time and marked `allocation_estimated`; known total volume is preserved. Old records without measurement intervals retain their original date allocation.
 
-Undo removes ledger volume and soil-model credit. Physical measurements remain in last-session diagnostics with `undone: true`, `undone_at` and `effective_model_mm: 0`. The once-per-day automatic watering lock is retained for safety; undo does not trigger another automatic session.
+Undo removes soil-model credit. Physically measured irrigation remains in the consumption ledger and continues counting against daily/weekly limits. Erroneous manual usage entries are removed. Physical measurements remain in last-session diagnostics with `undone: true`, `undone_at` and `effective_model_mm: 0`. The once-per-day automatic watering lock is retained for safety; undo does not trigger another automatic session.
 
 `suspend_irrigation` now accepts **`duration_hours`** (0.25–168), alternatively to `until`. Omit both to clear a hold. New templates: [Care plan](docs/dashboard/care-plan.en.yaml), [Consumption and history](docs/dashboard/consumption.en.yaml). The [irrigation card](docs/dashboard/irrigation.en.yaml) provides 1/3/5 mm, 100 liters and 2/24-hour holds. Other custom quantities are available in the HA action dialog.
 
