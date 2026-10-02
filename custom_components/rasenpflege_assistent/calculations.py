@@ -19,6 +19,8 @@ from datetime import date, datetime, timedelta, timezone
 from itertools import pairwise
 from typing import Any
 
+from .diagnostic_types import ModelConfidence, SoilBalance
+
 
 def _forecast_datetime(value: str) -> datetime:
     """Normalize naive provider timestamps to UTC before sorting/comparing."""
@@ -61,6 +63,8 @@ def sum_forecast_rain(
         value = item.get("precipitation")
         if value is None:
             value = item.get("native_precipitation")
+        if value is None:
+            return None
         try:
             numeric = float(value)
             if not math.isfinite(numeric) or numeric < 0:
@@ -217,6 +221,8 @@ def next_forecast_rain_at(
         ]
     for _timestamp, item in dated:
         value = item.get("precipitation", item.get("native_precipitation"))
+        if value is None:
+            continue
         try:
             if float(value) >= 0.1:
                 timestamp = item.get("datetime")
@@ -225,6 +231,8 @@ def next_forecast_rain_at(
             continue
     for item in undated:
         value = item.get("precipitation", item.get("native_precipitation"))
+        if value is None:
+            continue
         try:
             if float(value) >= 0.1:
                 return None
@@ -238,6 +246,54 @@ def days_since(value: date | None, today: date) -> int | None:
     if value is None:
         return None
     return max(0, (today - value).days)
+
+
+def assess_soil_confidence(
+    *,
+    modeled_percent: float,
+    measured_percent: float | None,
+    rain_known: bool,
+    weather_stale: bool,
+    model_gap_hours: float,
+    method: str,
+) -> ModelConfidence:
+    """Assess input quality before blending a sensor into the water model.
+
+    A fresh sensor alone does not validate the entire root-zone model. Large
+    disagreement requires calibration/source review; missing rain and model
+    gaps remain visible even with a sensor. Twenty percentage points is a
+    diagnostic rule, not a calibrated uncertainty interval.
+    """
+    reasons: list[str] = []
+    severe: list[str] = []
+    if not rain_known:
+        severe.append("observed_rain_unknown")
+    if weather_stale:
+        severe.append("weather_stale")
+    if model_gap_hours > 0:
+        severe.append("model_interval_gap")
+    if method in {"estimated_fallback", "unavailable"}:
+        severe.append("evapotranspiration_fallback")
+    deviation = (
+        round(measured_percent - modeled_percent, 2)
+        if measured_percent is not None
+        else None
+    )
+    if deviation is not None and abs(deviation) >= 20:
+        severe.append("soil_sensor_model_disagreement")
+    if measured_percent is None:
+        reasons.append("soil_sensor_not_available")
+    if method == "penman_monteith_estimated_radiation":
+        reasons.append("solar_radiation_estimated")
+    elif method == "hargreaves_samani":
+        reasons.append("temperature_based_evapotranspiration")
+    reasons = severe + reasons
+    return {
+        "level": "low" if severe else "medium" if measured_percent is None else "high",
+        "reasons": reasons,
+        "sensor_deviation_percentage_points": deviation,
+        "disagreement_threshold_percentage_points": 20.0,
+    }
 
 
 SOIL_PROFILES = {
@@ -464,10 +520,11 @@ def recommended_watering_window(
         actual_end = actual_start + timedelta(hours=1)
         if actual_start > actual_now + timedelta(hours=48) or actual_end <= actual_now:
             continue
+        raw_precipitation = item.get("precipitation", item.get("native_precipitation"))
+        if raw_precipitation is None:
+            continue
         try:
-            precipitation = float(
-                item.get("precipitation", item.get("native_precipitation"))
-            )
+            precipitation = float(raw_precipitation)
             if not math.isfinite(precipitation) or precipitation < 0:
                 continue
         except (TypeError, ValueError):
@@ -519,11 +576,11 @@ def recommended_watering_window(
             "temperature": None,
             "wind_speed_m_s": None,
         }
-    _, start, item, wind = min(candidates, key=lambda candidate: candidate[0])
+    _, start, item, selected_wind = min(candidates, key=lambda candidate: candidate[0])
     try:
-        temperature = round(float(item["temperature"]), 1)
+        selected_temperature: float | None = round(float(item["temperature"]), 1)
     except (KeyError, TypeError, ValueError):
-        temperature = None
+        selected_temperature = None
     return {
         "start": start.isoformat(),
         "end": (start.astimezone(timezone.utc) + timedelta(hours=1))
@@ -532,8 +589,10 @@ def recommended_watering_window(
         "reason": "cool_calm_dry_period"
         if 4 <= start.hour < 10
         else "best_available_period",
-        "temperature": temperature,
-        "wind_speed_m_s": round(wind, 1) if wind is not None else None,
+        "temperature": selected_temperature,
+        "wind_speed_m_s": round(selected_wind, 1)
+        if selected_wind is not None
+        else None,
     }
 
 
@@ -551,7 +610,7 @@ def update_soil_water_balance(
     slope: str = "flat",
     compaction: str = "normal",
     interception_available_mm: float | None = None,
-) -> dict[str, float]:
+) -> SoilBalance:
     """Update a bounded lawn root-zone balance with infiltration and ET stress.
 
     Separate canopy interception from throughfall, limit infiltration
@@ -585,8 +644,20 @@ def update_soil_water_balance(
     readily_available = capacity * profile["readily_available_fraction"]
     stress_factor = min(1.0, available_before_et / max(0.1, readily_available))
     potential_et = max(0.0, reference_et_mm * crop_coefficient)
-    actual_et = min(available_before_et, potential_et * stress_factor)
-    updated = max(0.0, available_before_et - actual_et)
+    # Integrate dW/dD = -min(1, W / threshold), where D is cumulative
+    # potential ET demand. Applying the initial stress factor to an entire
+    # interval overdraws dry soil when callers use a longer update interval.
+    # Linear loss above the threshold followed by exponential loss below it
+    # gives the same dry-down for one long or several shorter intervals.
+    threshold = max(0.1, readily_available)
+    unstressed_loss = min(potential_et, max(0.0, available_before_et - threshold))
+    stressed_demand = potential_et - unstressed_loss
+    updated = (available_before_et - unstressed_loss) * math.exp(
+        -stressed_demand / threshold
+    )
+    actual_et = available_before_et - updated
+    if potential_et > 0:
+        stress_factor = actual_et / potential_et
     return {
         "water_mm": round(updated, 3),
         "actual_et_mm": round(actual_et, 3),
@@ -746,7 +817,7 @@ def mower_recommendation(
             "autumn_slowdown": 5,
             "first_awakening": 5,
         }
-    interval = intervals.get(growth)
+    interval: float | None = intervals.get(growth)
     if interval is not None:
         interval = round(interval * max(0.5, min(2.0, interval_factor)), 2)
     next_date = None
@@ -755,7 +826,11 @@ def mower_recommendation(
         next_at = last_mowing_at + timedelta(days=interval)
     if interval is not None and last_mowing is not None:
         next_date = last_mowing + timedelta(days=math.ceil(interval))
-        waiting = now < next_at if next_at is not None else today < next_date
+        waiting = (
+            now < next_at
+            if next_at is not None and now is not None
+            else today < next_date
+        )
         if waiting and base_state in {
             "mow_regularly",
             "mow_less",
@@ -820,6 +895,7 @@ def watering_recommendation(
         rain_48h = sum_forecast_rain(forecast, 2)
     if rain_72h is None and len(forecast) >= 3:
         rain_72h = daily_rain
+    rain: float | None
     if rain_72h is not None:
         rain = rain_72h
     elif rain_48h is not None:

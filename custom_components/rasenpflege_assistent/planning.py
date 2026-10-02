@@ -16,7 +16,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 
 
-def schedule_allowed(settings: dict, now: datetime) -> bool:
+def schedule_allowed(settings: dict[str, Any], now: datetime) -> bool:
     """Evaluate local weekdays, including windows spanning midnight.
 
     An overnight window belongs to the weekday on which it starts.
@@ -47,7 +47,7 @@ def schedule_allowed(settings: dict, now: datetime) -> bool:
     return within and str(owner_day.weekday()) in weekdays
 
 
-def consumption_summary(records: list[dict[str, Any]], today: date) -> dict:
+def consumption_summary(records: list[dict[str, Any]], today: date) -> dict[str, Any]:
     """Sum local calendar periods; keep unknown and partial sessions explicit.
 
     Prefer explicit date allocations; older records fall back to their
@@ -115,7 +115,9 @@ def consumption_summary(records: list[dict[str, Any]], today: date) -> dict:
     return output
 
 
-def allocate_volume(start: datetime, end: datetime, liters: float) -> list[dict]:
+def allocate_volume(
+    start: datetime, end: datetime, liters: float
+) -> list[dict[str, Any]]:
     """Split a measured interval at local midnight using actual elapsed seconds.
 
     Advance boundaries in the supplied local timezone, but divide volume
@@ -148,7 +150,7 @@ def allocate_volume(start: datetime, end: datetime, liters: float) -> list[dict]
 
 
 def next_schedule_time(
-    settings: dict, earliest: datetime, latest: datetime
+    settings: dict[str, Any], earliest: datetime, latest: datetime
 ) -> datetime | None:
     """Find an allowed instant in a forecast interval, including DST transitions.
 

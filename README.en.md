@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.8.7 · [Changelog](CHANGELOG.md)
+Version 3.9.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -259,6 +259,18 @@ the OpenWeatherMap API directly.
 Diagnostic entities expose data quality, confidence, sources, forecast age,
 evapotranspiration method, and other model values. Some are disabled by default
 and can be enabled in Home Assistant.
+
+## Extended model diagnostics
+
+Download diagnostics from **Settings → Devices & services → Lawn Care Assistant → Download diagnostics**. The export includes `inputs`, `soil_model`, `storage` and `updates`. Soil moisture attributes also expose `model_diagnostics`, `model_confidence_reasons`, readable reason texts and `sensor_deviation_percentage_points`. Data quality includes storage and update diagnostics. Reading these snapshots uses existing data and does not command devices.
+
+`soil_model.last_balance` explains the latest calculation: elapsed/integrated hours, initial water, corrected rainfall, interception, effective rain, runoff, drainage, actual evapotranspiration and final sensor correction, in millimeters. `balance_residual_mm` is the rounding residual before the separately reported sensor correction. Recorded watering changes storage when booked and is not extra rainfall in this calculation step.
+
+Confidence is a diagnostic heuristic. Unknown observed rain, stale weather, model integration gaps, seasonal evapotranspiration estimates or a pre-correction sensor/model difference of at least 20 percentage points make it low. The threshold is not a statistical confidence interval. Without a valid soil sensor confidence is at most medium; high confidence does not prove field accuracy. Sensor corrections require a new observation and at least six hours since the previous correction, preventing repeated blending of the same unchanged reading.
+
+`storage` reports the last successful write, last failed operation (`save` or `verify`), exception type, consecutive failures and pending writes. `updates` reports successful and failed calculations. Failure history remains visible after recovery until reload; diagnostic counters are not persisted. Error messages and filesystem paths are not exported.
+
+The moisture percentage represents modeled plant-available root-zone capacity, not sensor volumetric water content. This single-bucket model uses profile-based soil parameters and estimated radiation/day-night distribution; it has not been validated against local field measurements. Water stress is integrated within each step to keep dry-down estimates comparable across calculation intervals.
 
 ## Soil water and limitations
 

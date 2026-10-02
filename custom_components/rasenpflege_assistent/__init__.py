@@ -15,11 +15,12 @@ from __future__ import annotations
 
 import math
 from datetime import timedelta
+from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON
-from homeassistant.core import Event, HomeAssistant, ServiceCall
+from homeassistant.core import Event, EventStateChangedData, HomeAssistant, ServiceCall
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
@@ -111,14 +112,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
     async def _start_irrigation(call: ServiceCall) -> None:
         coordinator = _coordinator(call)
-        await coordinator.irrigation.async_start(
+        await coordinator.irrigation_controller.async_start(
             manual=True,
             target_liters=call.data.get("target_liters"),
             target_mm=call.data.get("target_mm"),
         )
 
     async def _stop_irrigation(call: ServiceCall) -> None:
-        await _coordinator(call).irrigation.async_stop()
+        await _coordinator(call).irrigation_controller.async_stop()
 
     async def _suspend_irrigation(call: ServiceCall) -> None:
         """Apply a validated temporary automatic irrigation hold.
@@ -143,7 +144,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             )
         if duration is not None:
             until = dt_util.utcnow() + timedelta(hours=duration)
-        await _coordinator(call).irrigation.async_suspend_automation(until)
+        await _coordinator(call).irrigation_controller.async_suspend_automation(until)
 
     async def _record_watering(call: ServiceCall) -> None:
         """Record user-supplied watering for the selected entry.
@@ -153,7 +154,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         current soil model, because that earlier water may already be gone.
         """
         coordinator = _coordinator(call)
-        if coordinator.irrigation and coordinator.irrigation.active:
+        if coordinator.irrigation and coordinator.irrigation_controller.active:
             raise ServiceValidationError(
                 "Cannot manually record water during a controlled irrigation session",
                 translation_domain=DOMAIN,
@@ -186,8 +187,11 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             raise vol.Invalid("A finite quantity is required")
         return value
 
-    entry_schema = {vol.Required("config_entry_id"): cv.string}
-    history_schema = {**entry_schema, vol.Optional("recorded_at"): cv.string}
+    entry_schema: dict[Any, Any] = {vol.Required("config_entry_id"): cv.string}
+    history_schema: dict[Any, Any] = {
+        **entry_schema,
+        vol.Optional("recorded_at"): cv.string,
+    }
     hass.services.async_register(
         DOMAIN,
         "start_irrigation",
@@ -268,18 +272,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
     coordinator.irrigation = IrrigationController(hass, coordinator)
-    entry.async_on_unload(coordinator.irrigation.detach)
+    entry.async_on_unload(coordinator.irrigation_controller.detach)
     try:
         if (
-            coordinator.irrigation.configured
-            or coordinator.irrigation.active
-            or coordinator._state.irrigation_recent_valve_id
+            coordinator.irrigation_controller.configured
+            or coordinator.irrigation_controller.active
+            or coordinator.state.irrigation_recent_valve_id
         ):
-            await coordinator.irrigation.async_initialize()
+            await coordinator.irrigation_controller.async_initialize()
             await coordinator.async_request_refresh()
 
         registry = er.async_get(hass)
-        if not coordinator.irrigation.configured and not coordinator.irrigation.active:
+        if (
+            not coordinator.irrigation_controller.configured
+            and not coordinator.irrigation_controller.active
+        ):
             _remove_unused_irrigation_entities(hass, entry.entry_id)
         for key in (
             "watering_due",
@@ -293,7 +300,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
             if entity_id:
                 registry.async_remove(entity_id)
 
-        async def _async_record_event(event: Event, action: str) -> None:
+        async def _async_record_event(
+            event: Event[EventStateChangedData], action: str
+        ) -> None:
             """Record a maintenance event only for a real off-to-on transition."""
             old_state = event.data.get("old_state")
             new_state = event.data.get("new_state")
@@ -311,7 +320,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
                     source="completion_input",
                 )
             else:
-                if coordinator.irrigation and coordinator.irrigation.active:
+                if coordinator.irrigation and coordinator.irrigation_controller.active:
                     return
                 await coordinator.async_mark_watered(deduplicate=True)
 
@@ -323,7 +332,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
             if entity_id:
 
                 async def _async_handle_event(
-                    event: Event, selected_action: str = action
+                    event: Event[EventStateChangedData], selected_action: str = action
                 ) -> None:
                     await _async_record_event(event, selected_action)
 
@@ -349,8 +358,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
         return True
     except BaseException:
-        if await coordinator.irrigation.async_shutdown():
-            coordinator.irrigation.detach()
+        if await coordinator.irrigation_controller.async_shutdown():
+            coordinator.irrigation_controller.detach()
         raise
 
 
@@ -363,14 +372,16 @@ async def async_unload_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> boo
     """
     if (
         entry.runtime_data.irrigation
-        and not await entry.runtime_data.irrigation.async_shutdown(detach=False)
+        and not await entry.runtime_data.irrigation_controller.async_shutdown(
+            detach=False
+        )
     ):
         return False
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
-        entry.runtime_data.irrigation.detach()
+        entry.runtime_data.irrigation_controller.detach()
     else:
-        entry.runtime_data.irrigation._shutting_down = False
+        entry.runtime_data.irrigation_controller._shutting_down = False
     return unloaded
 
 

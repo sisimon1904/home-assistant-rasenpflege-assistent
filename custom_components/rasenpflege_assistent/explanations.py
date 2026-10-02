@@ -15,6 +15,14 @@ separately in strings.json and translations/*.json.
 # Keep readable labels separate so automations remain independent of UI language.
 EXPLANATIONS = {
     "de": {
+        "observed_rain_unknown": "Gemessener Niederschlag ist unbekannt",
+        "weather_stale": "Wetterdaten sind veraltet",
+        "model_interval_gap": "Bodenmodell enthält eine Zeitlücke",
+        "evapotranspiration_fallback": "Verdunstung wird saisonal geschätzt",
+        "soil_sensor_model_disagreement": "Bodensensor und Modell weichen um mindestens 20 Prozentpunkte ab",
+        "soil_sensor_not_available": "Kein gültiger Bodensensor verfügbar",
+        "solar_radiation_estimated": "Sonnenstrahlung wird geschätzt",
+        "temperature_based_evapotranspiration": "Verdunstung beruht auf Temperaturdaten",
         "ready": "Start möglich",
         "running": "Bewässerung läuft",
         "paused": "Pausiert – zweites Ventil geöffnet",
@@ -111,6 +119,14 @@ EXPLANATIONS = {
         "robot_estimate": "Geschätzte Mähdauer; Rückkehr zur Station bestätigt keine vollständige Flächenabdeckung.",
     },
     "en": {
+        "observed_rain_unknown": "Observed precipitation is unknown",
+        "weather_stale": "Weather data is stale",
+        "model_interval_gap": "Soil model has an integration gap",
+        "evapotranspiration_fallback": "Evapotranspiration uses a seasonal estimate",
+        "soil_sensor_model_disagreement": "Soil sensor and model differ by at least 20 percentage points",
+        "soil_sensor_not_available": "No valid soil sensor is available",
+        "solar_radiation_estimated": "Solar radiation is estimated",
+        "temperature_based_evapotranspiration": "Evapotranspiration is based on temperature data",
         "ready": "Ready to start",
         "running": "Watering",
         "paused": "Paused – other valve open",

@@ -102,6 +102,8 @@ class LawnData:
     watering_window_temperature: float | None = None
     watering_window_wind_speed_m_s: float | None = None
     soil_model_confidence: str = "low"
+    soil_model_confidence_reasons: list[str] = field(default_factory=list)
+    soil_sensor_deviation_percentage_points: float | None = None
     next_action: str = "collecting_data"
     data_quality: str = "insufficient"
     data_warnings: list[str] = field(default_factory=list)

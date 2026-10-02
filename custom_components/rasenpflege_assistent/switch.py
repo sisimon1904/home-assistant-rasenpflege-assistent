@@ -29,7 +29,7 @@ async def async_setup_entry(
 ) -> None:
     """Only add a toggle if valve control is configured."""
     coordinator: LawnCoordinator = entry.runtime_data
-    if coordinator.irrigation and coordinator.irrigation.configured:
+    if coordinator.irrigation and coordinator.irrigation_controller.configured:
         async_add_entities([AutomaticIrrigationSwitch(coordinator)])
 
 
@@ -44,12 +44,12 @@ class AutomaticIrrigationSwitch(LawnEntity, SwitchEntity):
     @property
     def is_on(self) -> bool:
         """Return the persisted automation state."""
-        return bool(self.coordinator._state.irrigation_enabled)
+        return bool(self.coordinator.state.irrigation_enabled)
 
     async def async_turn_on(self, **kwargs) -> None:
         """Allow one qualified watering session per day."""
-        await self.coordinator.irrigation.async_set_auto_enabled(True)
+        await self.coordinator.irrigation_controller.async_set_auto_enabled(True)
 
     async def async_turn_off(self, **kwargs) -> None:
         """Suspend automation and close an automatically opened valve."""
-        await self.coordinator.irrigation.async_set_auto_enabled(False)
+        await self.coordinator.irrigation_controller.async_set_auto_enabled(False)

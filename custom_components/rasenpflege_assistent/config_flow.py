@@ -204,368 +204,355 @@ def _schema(
     values are applied by the flow, not by changing the persisted defaults.
     The external watered input is hidden when valve control owns accounting.
     """
-    schema = vol.Schema(
-        {
-            vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
-            vol.Required(CONF_WEATHER_ENTITY): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="weather")
-            ),
-            vol.Optional(CONF_TEMPERATURE_ENTITY): selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain="sensor", device_class="temperature"
+    schema_fields: dict[Any, Any] = {
+        vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
+        vol.Required(CONF_WEATHER_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain="weather")
+        ),
+        vol.Optional(CONF_TEMPERATURE_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
+        ),
+        vol.Optional(CONF_MOWED_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain="binary_sensor")
+        ),
+        **(
+            {
+                vol.Optional(CONF_WATERED_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="binary_sensor")
                 )
-            ),
-            vol.Optional(CONF_MOWED_ENTITY): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="binary_sensor")
-            ),
-            **(
-                {
-                    vol.Optional(CONF_WATERED_ENTITY): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="binary_sensor")
-                    )
-                }
-                if show_watered
-                else {}
-            ),
-            vol.Optional(CONF_LEAF_WETNESS_ENTITY): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="binary_sensor")
-            ),
-            vol.Required(
-                CONF_IRRIGATION_WEEKDAYS, default=["0", "1", "2", "3", "4", "5", "6"]
-            ): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=["0", "1", "2", "3", "4", "5", "6"],
-                    multiple=True,
-                    translation_key="irrigation_weekdays",
-                )
-            ),
-            vol.Required(
-                CONF_IRRIGATION_START_TIME, default="00:00:00"
-            ): selector.TimeSelector(),
-            vol.Required(
-                CONF_IRRIGATION_END_TIME, default="00:00:00"
-            ): selector.TimeSelector(),
-            vol.Required(
-                CONF_IRRIGATION_CYCLE_MINUTES, default=0
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0,
-                    max=60,
-                    step=1,
-                    unit_of_measurement="min",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                CONF_IRRIGATION_SOAK_MINUTES, default=15
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=1,
-                    max=120,
-                    step=1,
-                    unit_of_measurement="min",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Optional(CONF_IRRIGATION_VALVE): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="switch")
-            ),
-            vol.Optional(CONF_OTHER_VALVE): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["switch", "binary_sensor"])
-            ),
-            vol.Optional(CONF_IRRIGATION_FLOW): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="sensor")
-            ),
-            vol.Optional(CONF_MOWER_LOCATION): selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain=["lawn_mower", "vacuum", "binary_sensor", "sensor"]
-                )
-            ),
-            vol.Optional(CONF_MOWER_SAFE_STATE, default="docked"): str,
-            vol.Optional(CONF_ALLOW_UNMETERED_MANUAL, default=False): bool,
-            vol.Required("irrigation_weather_stop", default=True): bool,
-            vol.Required(
-                "irrigation_rain_stop_mm", default=0.5
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0.1,
-                    max=20,
-                    step="any",
-                    unit_of_measurement="mm",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                "irrigation_wind_stop_m_s", default=8
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=1,
-                    max=30,
-                    step="any",
-                    unit_of_measurement="m/s",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                "irrigation_weather_stop_delay_seconds", default=120
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0,
-                    max=600,
-                    step="any",
-                    unit_of_measurement="s",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                "irrigation_daily_limit_liters", default=0
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0,
-                    max=100000,
-                    step="any",
-                    unit_of_measurement="L",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                "irrigation_weekly_limit_liters", default=0
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0,
-                    max=500000,
-                    step="any",
-                    unit_of_measurement="L",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                CONF_MIN_IRRIGATION_MINUTES, default=DEFAULT_MIN_IRRIGATION_MINUTES
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=1, max=60, step=1, mode=selector.NumberSelectorMode.BOX
-                )
-            ),
-            vol.Required(
-                CONF_MAX_IRRIGATION_MINUTES, default=DEFAULT_MAX_IRRIGATION_MINUTES
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=5, max=240, step=1, mode=selector.NumberSelectorMode.BOX
-                )
-            ),
-            vol.Required(
-                CONF_MAX_IRRIGATION_LITERS, default=DEFAULT_MAX_IRRIGATION_LITERS
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=10, max=50000, step="any", mode=selector.NumberSelectorMode.BOX
-                )
-            ),
-            vol.Required(
-                CONF_FLOW_START_GRACE, default=DEFAULT_FLOW_START_GRACE
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=30, max=600, step=1, mode=selector.NumberSelectorMode.BOX
-                )
-            ),
-            vol.Required(
-                CONF_MIN_FLOW_L_MIN, default=DEFAULT_MIN_FLOW_L_MIN
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0, max=100, step="any", mode=selector.NumberSelectorMode.BOX
-                )
-            ),
-            vol.Required(
-                CONF_MAX_FLOW_L_MIN, default=DEFAULT_MAX_FLOW_L_MIN
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=1, max=1000, step="any", mode=selector.NumberSelectorMode.BOX
-                )
-            ),
-            vol.Optional(CONF_PRECIPITATION_ENTITY): selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain="sensor",
-                    device_class=[
-                        SensorDeviceClass.PRECIPITATION,
-                        SensorDeviceClass.PRECIPITATION_INTENSITY,
-                    ],
-                )
-            ),
-            vol.Required(
-                CONF_PRECIPITATION_MODE,
-                default=DEFAULT_PRECIPITATION_MODE,
-            ): _select(
-                "precipitation_mode",
-                ["auto", "rate", "cumulative", "increment"],
-            ),
-            vol.Optional(CONF_SOIL_MOISTURE_ENTITY): selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain="sensor", device_class=SensorDeviceClass.MOISTURE
-                )
-            ),
-            vol.Optional(CONF_SOIL_TEMPERATURE_ENTITY): selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain="sensor", device_class=SensorDeviceClass.TEMPERATURE
-                )
-            ),
-            vol.Required(
-                CONF_DEFAULT_WATERING_AMOUNT,
-                default=DEFAULT_WATERING_AMOUNT,
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=1,
-                    max=50,
-                    step=0.5,
-                    unit_of_measurement="mm",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(CONF_AREA, default=DEFAULT_AREA): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=1,
-                    max=10000,
-                    step=1,
-                    unit_of_measurement=UnitOfArea.SQUARE_METERS,
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                CONF_SUN_EXPOSURE,
-                default=DEFAULT_SUN_EXPOSURE,
-            ): _select("sun_exposure", ["sunny", "partial_shade", "shade"]),
-            vol.Required(
-                CONF_LAWN_TYPE,
-                default=DEFAULT_LAWN_TYPE,
-            ): _select("lawn_type", ["family", "play", "ornamental", "shade"]),
-            vol.Required(
-                CONF_SOIL_TYPE,
-                default=DEFAULT_SOIL_TYPE,
-            ): _select("soil_type", ["sandy", "loamy", "clayey"]),
-            vol.Required(
-                CONF_SOIL_SENSOR_MAX_AGE, default=DEFAULT_SOIL_SENSOR_MAX_AGE
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=30,
-                    max=2880,
-                    step=30,
-                    unit_of_measurement="min",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Optional(CONF_LAST_WATERING): selector.DateSelector(),
-            vol.Optional(CONF_LAST_FERTILIZING): selector.DateSelector(),
-            vol.Optional(CONF_LAST_MOWING): selector.DateSelector(),
-            vol.Required(CONF_MOWING_MODE, default=DEFAULT_MOWING_MODE): _select(
-                "mowing_mode", ["manual", "robot"]
-            ),
-            vol.Required(
-                CONF_MOWING_INTERVAL_FACTOR, default=1.0
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0.5, max=2.0, step=0.1, mode=selector.NumberSelectorMode.BOX
-                )
-            ),
-            vol.Optional(CONF_MOWING_ENTITY): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain=["lawn_mower", "vacuum", "sensor"])
-            ),
-            vol.Required(CONF_MOWING_ACTIVE_STATE, default="mowing"): str,
-            vol.Required(CONF_MOWING_DONE_STATE, default="docked"): str,
-            vol.Required(
-                CONF_MOWING_MIN_MINUTES, default=DEFAULT_MOWING_MIN_MINUTES
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=1,
-                    max=180,
-                    step=1,
-                    unit_of_measurement="min",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                CONF_INITIAL_GTS,
-                default=DEFAULT_INITIAL_GTS,
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0,
-                    max=5000,
-                    step=0.1,
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                CONF_INITIAL_SOIL_MOISTURE,
-                default=DEFAULT_INITIAL_SOIL_MOISTURE,
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0,
-                    max=100,
-                    step=1,
-                    unit_of_measurement="%",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                CONF_ROOT_DEPTH, default=DEFAULT_ROOT_DEPTH
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=5,
-                    max=30,
-                    step=1,
-                    unit_of_measurement="cm",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(CONF_SLOPE, default=DEFAULT_SLOPE): _select(
-                "slope", ["flat", "gentle", "steep"]
-            ),
-            vol.Required(CONF_COMPACTION, default=DEFAULT_COMPACTION): _select(
-                "compaction", ["normal", "compacted"]
-            ),
-            vol.Required(
-                CONF_IRRIGATION_EFFICIENCY,
-                default=DEFAULT_IRRIGATION_EFFICIENCY,
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0.5,
-                    max=1.0,
-                    step=0.05,
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                CONF_RAIN_CORRECTION, default=DEFAULT_RAIN_CORRECTION
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0.5,
-                    max=1.5,
-                    step=0.05,
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                CONF_SOIL_SENSOR_DRY, default=DEFAULT_SOIL_SENSOR_DRY
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0,
-                    max=100,
-                    step=1,
-                    unit_of_measurement="%",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Required(
-                CONF_SOIL_SENSOR_WET,
-                default=DEFAULT_SOIL_SENSOR_WET,
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0,
-                    max=100,
-                    step=1,
-                    unit_of_measurement="%",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
-        }
-    )
+            }
+            if show_watered
+            else {}
+        ),
+        vol.Optional(CONF_LEAF_WETNESS_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain="binary_sensor")
+        ),
+        vol.Required(
+            CONF_IRRIGATION_WEEKDAYS, default=["0", "1", "2", "3", "4", "5", "6"]
+        ): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=["0", "1", "2", "3", "4", "5", "6"],
+                multiple=True,
+                translation_key="irrigation_weekdays",
+            )
+        ),
+        vol.Required(
+            CONF_IRRIGATION_START_TIME, default="00:00:00"
+        ): selector.TimeSelector(),
+        vol.Required(
+            CONF_IRRIGATION_END_TIME, default="00:00:00"
+        ): selector.TimeSelector(),
+        vol.Required(CONF_IRRIGATION_CYCLE_MINUTES, default=0): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0,
+                max=60,
+                step=1,
+                unit_of_measurement="min",
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(CONF_IRRIGATION_SOAK_MINUTES, default=15): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=1,
+                max=120,
+                step=1,
+                unit_of_measurement="min",
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Optional(CONF_IRRIGATION_VALVE): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain="switch")
+        ),
+        vol.Optional(CONF_OTHER_VALVE): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain=["switch", "binary_sensor"])
+        ),
+        vol.Optional(CONF_IRRIGATION_FLOW): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain="sensor")
+        ),
+        vol.Optional(CONF_MOWER_LOCATION): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain=["lawn_mower", "vacuum", "binary_sensor", "sensor"]
+            )
+        ),
+        vol.Optional(CONF_MOWER_SAFE_STATE, default="docked"): str,
+        vol.Optional(CONF_ALLOW_UNMETERED_MANUAL, default=False): bool,
+        vol.Required("irrigation_weather_stop", default=True): bool,
+        vol.Required("irrigation_rain_stop_mm", default=0.5): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0.1,
+                max=20,
+                step="any",
+                unit_of_measurement="mm",
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required("irrigation_wind_stop_m_s", default=8): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=1,
+                max=30,
+                step="any",
+                unit_of_measurement="m/s",
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(
+            "irrigation_weather_stop_delay_seconds", default=120
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0,
+                max=600,
+                step="any",
+                unit_of_measurement="s",
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(
+            "irrigation_daily_limit_liters", default=0
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0,
+                max=100000,
+                step="any",
+                unit_of_measurement="L",
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(
+            "irrigation_weekly_limit_liters", default=0
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0,
+                max=500000,
+                step="any",
+                unit_of_measurement="L",
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(
+            CONF_MIN_IRRIGATION_MINUTES, default=DEFAULT_MIN_IRRIGATION_MINUTES
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=1, max=60, step=1, mode=selector.NumberSelectorMode.BOX
+            )
+        ),
+        vol.Required(
+            CONF_MAX_IRRIGATION_MINUTES, default=DEFAULT_MAX_IRRIGATION_MINUTES
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=5, max=240, step=1, mode=selector.NumberSelectorMode.BOX
+            )
+        ),
+        vol.Required(
+            CONF_MAX_IRRIGATION_LITERS, default=DEFAULT_MAX_IRRIGATION_LITERS
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=10, max=50000, step="any", mode=selector.NumberSelectorMode.BOX
+            )
+        ),
+        vol.Required(
+            CONF_FLOW_START_GRACE, default=DEFAULT_FLOW_START_GRACE
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=30, max=600, step=1, mode=selector.NumberSelectorMode.BOX
+            )
+        ),
+        vol.Required(
+            CONF_MIN_FLOW_L_MIN, default=DEFAULT_MIN_FLOW_L_MIN
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0, max=100, step="any", mode=selector.NumberSelectorMode.BOX
+            )
+        ),
+        vol.Required(
+            CONF_MAX_FLOW_L_MIN, default=DEFAULT_MAX_FLOW_L_MIN
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=1, max=1000, step="any", mode=selector.NumberSelectorMode.BOX
+            )
+        ),
+        vol.Optional(CONF_PRECIPITATION_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain="sensor",
+                device_class=[
+                    SensorDeviceClass.PRECIPITATION,
+                    SensorDeviceClass.PRECIPITATION_INTENSITY,
+                ],
+            )
+        ),
+        vol.Required(
+            CONF_PRECIPITATION_MODE,
+            default=DEFAULT_PRECIPITATION_MODE,
+        ): _select(
+            "precipitation_mode",
+            ["auto", "rate", "cumulative", "increment"],
+        ),
+        vol.Optional(CONF_SOIL_MOISTURE_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain="sensor", device_class=SensorDeviceClass.MOISTURE
+            )
+        ),
+        vol.Optional(CONF_SOIL_TEMPERATURE_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain="sensor", device_class=SensorDeviceClass.TEMPERATURE
+            )
+        ),
+        vol.Required(
+            CONF_DEFAULT_WATERING_AMOUNT,
+            default=DEFAULT_WATERING_AMOUNT,
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=1,
+                max=50,
+                step=0.5,
+                unit_of_measurement="mm",
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(CONF_AREA, default=DEFAULT_AREA): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=1,
+                max=10000,
+                step=1,
+                unit_of_measurement=UnitOfArea.SQUARE_METERS,
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(
+            CONF_SUN_EXPOSURE,
+            default=DEFAULT_SUN_EXPOSURE,
+        ): _select("sun_exposure", ["sunny", "partial_shade", "shade"]),
+        vol.Required(
+            CONF_LAWN_TYPE,
+            default=DEFAULT_LAWN_TYPE,
+        ): _select("lawn_type", ["family", "play", "ornamental", "shade"]),
+        vol.Required(
+            CONF_SOIL_TYPE,
+            default=DEFAULT_SOIL_TYPE,
+        ): _select("soil_type", ["sandy", "loamy", "clayey"]),
+        vol.Required(
+            CONF_SOIL_SENSOR_MAX_AGE, default=DEFAULT_SOIL_SENSOR_MAX_AGE
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=30,
+                max=2880,
+                step=30,
+                unit_of_measurement="min",
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Optional(CONF_LAST_WATERING): selector.DateSelector(),
+        vol.Optional(CONF_LAST_FERTILIZING): selector.DateSelector(),
+        vol.Optional(CONF_LAST_MOWING): selector.DateSelector(),
+        vol.Required(CONF_MOWING_MODE, default=DEFAULT_MOWING_MODE): _select(
+            "mowing_mode", ["manual", "robot"]
+        ),
+        vol.Required(CONF_MOWING_INTERVAL_FACTOR, default=1.0): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0.5, max=2.0, step=0.1, mode=selector.NumberSelectorMode.BOX
+            )
+        ),
+        vol.Optional(CONF_MOWING_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain=["lawn_mower", "vacuum", "sensor"])
+        ),
+        vol.Required(CONF_MOWING_ACTIVE_STATE, default="mowing"): str,
+        vol.Required(CONF_MOWING_DONE_STATE, default="docked"): str,
+        vol.Required(
+            CONF_MOWING_MIN_MINUTES, default=DEFAULT_MOWING_MIN_MINUTES
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=1,
+                max=180,
+                step=1,
+                unit_of_measurement="min",
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(
+            CONF_INITIAL_GTS,
+            default=DEFAULT_INITIAL_GTS,
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0,
+                max=5000,
+                step=0.1,
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(
+            CONF_INITIAL_SOIL_MOISTURE,
+            default=DEFAULT_INITIAL_SOIL_MOISTURE,
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0,
+                max=100,
+                step=1,
+                unit_of_measurement="%",
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(
+            CONF_ROOT_DEPTH, default=DEFAULT_ROOT_DEPTH
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=5,
+                max=30,
+                step=1,
+                unit_of_measurement="cm",
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(CONF_SLOPE, default=DEFAULT_SLOPE): _select(
+            "slope", ["flat", "gentle", "steep"]
+        ),
+        vol.Required(CONF_COMPACTION, default=DEFAULT_COMPACTION): _select(
+            "compaction", ["normal", "compacted"]
+        ),
+        vol.Required(
+            CONF_IRRIGATION_EFFICIENCY,
+            default=DEFAULT_IRRIGATION_EFFICIENCY,
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0.5,
+                max=1.0,
+                step=0.05,
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(
+            CONF_RAIN_CORRECTION, default=DEFAULT_RAIN_CORRECTION
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0.5,
+                max=1.5,
+                step=0.05,
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(
+            CONF_SOIL_SENSOR_DRY, default=DEFAULT_SOIL_SENSOR_DRY
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0,
+                max=100,
+                step=1,
+                unit_of_measurement="%",
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(
+            CONF_SOIL_SENSOR_WET,
+            default=DEFAULT_SOIL_SENSOR_WET,
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0,
+                max=100,
+                step=1,
+                unit_of_measurement="%",
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
+    }
+    schema = vol.Schema(schema_fields)
     if fields is None:
         return schema
     return vol.Schema(
@@ -923,7 +910,7 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
         return await self._section("general", GENERAL_FIELDS, user_input)
 
     async def async_step_sensors(self, user_input=None) -> ConfigFlowResult:
-        fields = SENSOR_FIELDS
+        fields: tuple[str, ...] = SENSOR_FIELDS
         if self._current_settings().get(CONF_IRRIGATION_VALVE):
             fields = tuple(key for key in fields if key != CONF_WATERED_ENTITY)
         return await self._section("sensors", fields, user_input)

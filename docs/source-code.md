@@ -9,6 +9,7 @@ Alle Python-Dateien besitzen einen englischen Modulheader mit Dateipfad, Zweck u
 | `__init__.py` | HA-Einrichtung, Aktionen, Migrationen, Listener und sicheres Entladen. |
 | `config_flow.py` | Eingabeformulare, Optionsseiten und Validierung vorhandener Datenquellen. |
 | `const.py` | Stabile Konfigurationsschlüssel, Standardwerte, Intervalle und Versionskennungen. |
+| `diagnostic_types.py` | Typverträge für Wasserbilanz, Modellvertrauen und Speicherdiagnose. |
 | `models.py` | Berechnete `LawnData` und dauerhaft gespeicherte `RuntimeState`. |
 | `coordinator.py` | Messwertnormalisierung, Vorhersagecache, Bodenmodell und Pflege-Transaktionen. |
 | `calculations.py` | Reine Berechnungen für Wachstum, Verdunstung, Wasserbilanz und Empfehlungen. |
@@ -49,3 +50,9 @@ Die zweite Ventilquelle bleibt ausschließlich lesend. Eine erfolgreiche Schalta
 Berechnungen verwenden Celsius, Millimeter und m/s; die Bewässerung verwendet Liter und Liter/Minute. Ein Millimeter auf einem Quadratmeter entspricht einem Liter. Lokale Tage und Wochentage richten sich nach der HA-Zeitzone; für tatsächliche Zeitabstände an Sommerzeitgrenzen werden UTC-Zeitpunkte verwendet. Vorhersagen stammen aus vorhandenen HA-Wetterquellen und deren Cache.
 
 Bei reinen Kommentaränderungen lassen sich Python-Syntaxbäume ohne Docstrings sowie geladene YAML-Inhalte vergleichen. Ergänzend sichern Ruff und die vollständige Testsuite Syntax, Formatierung und Verhalten ab. Das Ergebnis der aktuellen lokalen Prüfung steht im [Qualitätsaudit](quality-audit.md).
+
+## Typprüfung und Regressionen
+
+`python -m mypy` verwendet `mypy.ini` und prüft alle 17 Programmdateien einschließlich bisher untypisierter Funktionskörper. Berechnungen, Diagnoseverträge, Datenmodelle, Zeitplanung und Speicherung verwenden zusätzlich strenge Prüfoptionen. Dynamische HA-/Provider-Payloads und Teile des Controllers verwenden weiterhin `Any`; eine vollständige Strict-Typisierung des gesamten Pakets ist damit nicht behauptet. Die GitHub-Tests führen dieselbe Prüfung mit Mypy 2.4.0 aus.
+
+Die neuen Regressionen in `test_release_390_model.py`, `test_release_390_diagnostics.py` und `test_release_390_config.py` prüfen mehrtägige Wassererhaltung, Intervallvergleich, Modellvertrauen, Sensorabgleich, Speicherfehler, Diagnoseexport und unabhängige Optionsseiten. Sie ergänzen die bisherigen Geräte-/Lebenszyklustests.

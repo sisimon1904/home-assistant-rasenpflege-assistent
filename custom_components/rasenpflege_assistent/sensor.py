@@ -729,7 +729,7 @@ async def async_setup_entry(
             "next_automatic_start",
             "irrigation_remaining_time",
         }
-        or (coordinator.irrigation and coordinator.irrigation.configured)
+        or (coordinator.irrigation and coordinator.irrigation_controller.configured)
     )
 
 
@@ -760,21 +760,21 @@ class LawnSensor(LawnEntity, SensorEntity):
         }:
             period = self.entity_description.key.rsplit("_", 1)[1]
             return consumption_summary(
-                self.coordinator._state.water_usage,
+                self.coordinator.state.water_usage,
                 dt_util.as_local(dt_util.now()).date(),
             )[f"{period}_liters"]
         if self.entity_description.key == "next_automatic_start":
             return dt_util.parse_datetime(
-                self.coordinator.irrigation.next_start_details()["at"] or ""
+                self.coordinator.irrigation_controller.next_start_details()["at"] or ""
             )
         if self.entity_description.key == "irrigation_remaining_time":
-            return self.coordinator.irrigation.remaining_time_details()[
+            return self.coordinator.irrigation_controller.remaining_time_details()[
                 "session_remaining_active_minutes"
             ]
         if self.entity_description.key == "irrigation_readiness":
-            return self.coordinator.irrigation.readiness()
+            return self.coordinator.irrigation_controller.readiness()
         if self.entity_description.key == "irrigation_auto_decision":
-            return self.coordinator.irrigation.automatic_blocker() or "ready"
+            return self.coordinator.irrigation_controller.automatic_blocker() or "ready"
         return self.entity_description.value_fn(self.coordinator.data)
 
     @property
@@ -788,10 +788,10 @@ class LawnSensor(LawnEntity, SensorEntity):
         key = self.entity_description.key
         language = self.coordinator.hass.config.language
         if key == "next_automatic_start":
-            details = self.coordinator.irrigation.next_start_details()
+            details = self.coordinator.irrigation_controller.next_start_details()
             return {**details, "reason_text": reason_text(details["reason"], language)}
         if key == "irrigation_remaining_time":
-            details = self.coordinator.irrigation.remaining_time_details()
+            details = self.coordinator.irrigation_controller.remaining_time_details()
             return {
                 **details,
                 "reason_text": reason_text(details["session_eta_reason"], language),
@@ -840,7 +840,7 @@ class LawnSensor(LawnEntity, SensorEntity):
         }:
             return {
                 **consumption_summary(
-                    self.coordinator._state.water_usage,
+                    self.coordinator.state.water_usage,
                     dt_util.as_local(dt_util.now()).date(),
                 ),
                 "recent_records": [
@@ -849,14 +849,16 @@ class LawnSensor(LawnEntity, SensorEntity):
                         "source_text": reason_text(record.get("source"), language),
                         "reason_text": reason_text(record.get("reason"), language),
                     }
-                    for record in reversed(self.coordinator._state.water_usage)
+                    for record in reversed(self.coordinator.state.water_usage)
                 ][:10],
                 "totals_include_active_session": False,
             }
         if key in {"irrigation_readiness", "irrigation_auto_decision"}:
-            details = self.coordinator.irrigation.diagnostic_attributes()
+            details = self.coordinator.irrigation_controller.diagnostic_attributes()
             details["reason_text"] = reason_text(self.native_value, language)
-            details["action_hint"] = self.coordinator.irrigation.action_hint(language)
+            details["action_hint"] = self.coordinator.irrigation_controller.action_hint(
+                language
+            )
             details["automatic_blockers_text"] = [
                 reason_text(code, language) for code in details["automatic_blockers"]
             ]
@@ -864,8 +866,21 @@ class LawnSensor(LawnEntity, SensorEntity):
         details = self.entity_description.attributes_fn(self.coordinator.data)
         if key == "soil_moisture":
             details["input_diagnostics"] = self.coordinator.input_diagnostics()
+            details["model_diagnostics"] = self.coordinator.model_diagnostics()
+            details["model_confidence_reasons"] = (
+                self.coordinator.data.soil_model_confidence_reasons
+            )
+            details["model_confidence_reasons_text"] = [
+                reason_text(code, language)
+                for code in self.coordinator.data.soil_model_confidence_reasons
+            ]
+            details["sensor_deviation_percentage_points"] = (
+                self.coordinator.data.soil_sensor_deviation_percentage_points
+            )
         if key == "data_quality":
             details["input_diagnostics"] = self.coordinator.input_diagnostics()
+            details["storage_diagnostics"] = self.coordinator._store.diagnostic_status()
+            details["update_diagnostics"] = self.coordinator.update_diagnostics()
             details["forecast_diagnostics"] = {
                 "provider": self.coordinator.settings.get("weather_entity"),
                 "daily_updated_at": self.coordinator._forecast_updated_at.isoformat()
@@ -897,8 +912,12 @@ class LawnSensor(LawnEntity, SensorEntity):
             "irrigation_auto_decision",
             "irrigation_readiness",
         }:
-            details.update(self.coordinator.irrigation.diagnostic_attributes())
-            details["action_hint"] = self.coordinator.irrigation.action_hint(language)
+            details.update(
+                self.coordinator.irrigation_controller.diagnostic_attributes()
+            )
+            details["action_hint"] = self.coordinator.irrigation_controller.action_hint(
+                language
+            )
             if details.get("last_session"):
                 details["last_session"] = {
                     **details["last_session"],

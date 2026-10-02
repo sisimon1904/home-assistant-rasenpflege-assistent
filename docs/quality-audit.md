@@ -1,4 +1,4 @@
-# Qualitätsaudit – 3.8.7
+# Qualitätsaudit – 3.9.0
 
 Geprüft am 2. Oktober 2026 gegen die [Home Assistant Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/). Dies ist eine Selbstauskunft für eine HACS-Integration, keine offizielle Einstufung. Fehlerfreiheit und vollständige Erfüllung sämtlicher Quality-Scale-Stufen werden nicht behauptet.
 
@@ -106,6 +106,16 @@ Ein Vergleich der Python-Syntaxbäume unter Auslassung der Docstrings bestätigt
 | Brands | Kein vollständiger Nachweis im separaten Home-Assistant-Brands-Repository. HACS-Validierung ist keine Brands-Zertifizierung. |
 | Vollständige Config-Flow-Abdeckung | Noch offen: einzelne Fehler-/Optionspfade sind nicht vollständig abgedeckt. |
 | Über 95 % Abdeckung in jedem Modul | Noch offen. Das CI-Mindestniveau von 83 % insgesamt erfüllt diese strengere Silver-Anforderung nicht. |
-| Strict typing | Noch offen. Die ergänzten Config-Entry-Typen sind ein Teilfortschritt; Mypy meldet noch fehlende Optional-Eingrenzungen und Hilfsfunktionstypen. Eine Platinum-Einstufung wäre falsch. |
+| Strict typing | Noch offen. Die ergänzten Config-Entry-Typen sind ein Teilfortschritt; Mypy prüft in 3.9.0 alle 17 Dateien ohne Befund; fünf Kernmodule nutzen zusätzliche strenge Optionen. Dynamische Payloads und Teile des Controllers verwenden weiterhin `Any`. Eine Platinum-Einstufung wäre falsch. |
 
 Die Mindestversion bleibt Home Assistant 2026.4.0 gemäß `hacs.json`; der hier dokumentierte vollständige Testlauf wurde mit 2026.9.4 ausgeführt. Eine vollständige Versionsmatrix und echte Hardware-Dauertests sind nicht Teil dieses Nachweises. Schätzwerte für Bodenwasser, Mäherabdeckung und zeitliche Zuordnung bleiben Schätzwerte; fehlerfreie Hardware und sofortige Schalt-/Messrückmeldungen können durch Software nicht garantiert werden.
+
+## Prüfung für 3.9.0
+
+**488 Tests bestanden, 86,97 % kombinierte Zeilen-/Zweigabdeckung** unter Python 3.14.7 / Home Assistant 2026.9.4. Konfigurationsfluss: rund 92 % kombinierte Abdeckung; Speicher: 100 %. Die 80 zusätzlichen Fälle prüfen Konfigurations- und Fehlerpfade, lesenden Diagnoseexport, Speicherfehler und Wiederherstellung, Sensorabgleich sowie mehrtägige Wassererhaltung bei drei Bodenarten mit Trockenheit, Regen und Bewässerung.
+
+Ein Intervallvergleich reproduzierte unterschiedliche Trockenverluste durch die bisherige Anwendung des anfänglichen Wasserstressfaktors auf den gesamten Schritt. Die bestehende lineare Stressfunktion wird jetzt innerhalb des Schritts integriert; Vergleiche zwischen 5/15/60 Minuten und 24 Stunden bestehen innerhalb der ausgewiesenen Rundungstoleranz. Das ist ein rechnerischer Konsistenznachweis, keine Feldvalidierung. Profilparameter, Strahlung und zeitliche Wetterverteilung bleiben Näherungen.
+
+Modellvertrauen berücksichtigt Datenlücken und die Sensorabweichung vor der Korrektur; derselbe unveränderte Sensorbericht kann nicht wiederholt kalibrieren. Exportierte Bilanz-, Speicher- und Aktualisierungsdaten bleiben lesend und JSON-kompatibel. Beschädigte Sitzungszeitstempel verhindern die sichere Schließung nach Neustart nicht.
+
+Mypy 2.4.0 prüft alle 17 Programmdateien ohne Befund. Strengere Prüfoptionen gelten für Berechnungen, Diagnoseverträge, Modelle, Zeitplanung und Speicherung. Die vollständige Strict-Typisierung sowie über 95 % Abdeckung jedes Moduls bleiben offene Anforderungen. Ruff, Python-Kompilierung, JSON/YAML, relative Dokumentationslinks und Git-Whitespace-Prüfung sind Bestandteil der Abschlussprüfung. CI enthält nun ebenfalls Mypy.

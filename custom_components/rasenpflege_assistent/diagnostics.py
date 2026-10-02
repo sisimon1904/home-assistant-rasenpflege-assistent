@@ -42,13 +42,17 @@ async def async_get_config_entry_diagnostics(
         "config_entry_version": entry.version,
         "data": data,
         "last_update_success": coordinator.last_update_success,
+        "inputs": coordinator.input_diagnostics(),
+        "soil_model": coordinator.model_diagnostics(),
+        "storage": coordinator._store.diagnostic_status(),
+        "updates": coordinator.update_diagnostics(),
         "irrigation": (
             {
-                "readiness": coordinator.irrigation.readiness(),
-                **coordinator.irrigation.diagnostic_attributes(),
-                "automatic_enabled": coordinator._state.irrigation_enabled,
+                "readiness": coordinator.irrigation_controller.readiness(),
+                **coordinator.irrigation_controller.diagnostic_attributes(),
+                "automatic_enabled": coordinator.irrigation_controller.state.irrigation_enabled,
             }
-            if coordinator.irrigation and coordinator.irrigation.configured
+            if coordinator.irrigation and coordinator.irrigation_controller.configured
             else None
         ),
     }

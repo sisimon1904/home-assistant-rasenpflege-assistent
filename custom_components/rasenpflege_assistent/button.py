@@ -46,15 +46,15 @@ BUTTONS: tuple[LawnButtonDescription, ...] = (
         key="mark_watered",
         translation_key="mark_watered",
         press_fn=lambda coordinator: (
-            coordinator.irrigation.async_start(manual=True)
-            if coordinator.irrigation and coordinator.irrigation.configured
+            coordinator.irrigation_controller.async_start(manual=True)
+            if coordinator.irrigation and coordinator.irrigation_controller.configured
             else coordinator.async_mark_watered()
         ),
     ),
     LawnButtonDescription(
         key="stop_irrigation",
         translation_key="stop_irrigation",
-        press_fn=lambda coordinator: coordinator.irrigation.async_stop(),
+        press_fn=lambda coordinator: coordinator.irrigation_controller.async_stop(),
     ),
     LawnButtonDescription(
         key="mark_fertilized",
@@ -81,7 +81,7 @@ async def async_setup_entry(
         LawnButton(coordinator, description)
         for description in BUTTONS
         if description.key != "stop_irrigation"
-        or (coordinator.irrigation and coordinator.irrigation.configured)
+        or (coordinator.irrigation and coordinator.irrigation_controller.configured)
     )
 
 
@@ -99,7 +99,7 @@ class LawnButton(LawnEntity, ButtonEntity):
             replace(description, translation_key="start_irrigation")
             if description.key == "mark_watered"
             and coordinator.irrigation
-            and coordinator.irrigation.configured
+            and coordinator.irrigation_controller.configured
             else description
         )
 

@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.8.7 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.9.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -94,7 +94,7 @@ Die Diagnose liest vorhandene Zustände; sie löst keine zusätzlichen regelmä�
 | `last_session` | Objekt | Beginn, Ende, Liter, mm, tatsächlich wirksamer Modellbeitrag, Dauer, Quelle, Messlücke und Abschlussgrund. |
 | Bewässerungsdiagnose: `automatic_conditions`, `automatic_blockers`, `automatic_blockers_text` | Objekt / Listen | Alle Startbedingungen und gleichzeitig blockierende Gründe, zusätzlich lesbar. |
 | `automation_suspended_until` | ISO-Zeit | Ende einer temporären Automatiksperre; nach Ablauf blockiert sie nicht mehr. |
-| Bodenfeuchte / Datenqualität: `input_diagnostics` | Objekt | Entität, Wert, Einheit, Alter, Höchstalter und Verwerfungsgrund für Boden- und Blattnässesensoren. |
+| Bodenfeuchte / Datenqualität: `input_diagnostics` | Objekt | Quelle, Rohwert, normalisierter Wert, Einheit, Meldezeit, Alter und Verwerfungsgrund für Wetter-, Regen-, Boden-, Durchfluss- und Sicherheitsquellen. |
 | Datenqualität: `forecast_diagnostics` | Objekt | Wetterentität, Aktualisierung je Prognosetyp, Anzahl Einträge und fehlende Eingangswerte. |
 | Mähroboterstatus: `live_robot_session` | Objekt | Aktive Minuten, Beginn und Beobachtungsstatus; kein Nachweis vollständiger Flächenabdeckung. |
 | `last_robot_session_started_at`, `last_robot_session_finished_at`, `last_robot_session_active_minutes` | ISO-Zeit, min | Letzte geschätzte Robotersitzung ohne Pausen und Rückfahrt. |
@@ -274,10 +274,22 @@ Diagnose-Entitäten zeigen Datenqualität, Modellvertrauen, Quellen,
 Vorhersagealter, Verdunstungsverfahren und weitere Modellwerte. Einige sind
 standardmäßig deaktiviert und können in Home Assistant aktiviert werden.
 
+## Erweiterte Modelldiagnose
+
+Unter **Einstellungen → Geräte & Dienste → Rasenpflege-Assistent → Diagnose herunterladen** enthält der Export `inputs`, `soil_model`, `storage` und `updates`. Die Bodenfeuchteattribute zeigen zusätzlich `model_diagnostics`, `model_confidence_reasons`, deren lesbare Texte und `sensor_deviation_percentage_points`. Die Datenqualität enthält Speicher- und Aktualisierungsdiagnosen. Die Diagnose liest vorhandene Daten und schaltet keine Geräte.
+
+`soil_model.last_balance` erklärt den letzten Berechnungsschritt: verstrichene und tatsächlich integrierte Stunden, Anfangsvorrat, korrigierten Regen, Blattbenetzung, wirksamen Regen, Abfluss, Drainage, tatsächliche Verdunstung und abschließende Sensorkorrektur in Millimetern. `balance_residual_mm` zeigt den Rundungsrest der Bilanz vor der separat ausgewiesenen Sensorkorrektur. Protokollierte Bewässerungen verändern den Speicher bei ihrer Buchung und sind keine zusätzlichen Regenmengen in diesem Berechnungsschritt.
+
+Das Modellvertrauen ist eine Diagnoseheuristik. Unbekannter beobachteter Regen, veraltetes Wetter, Modellzeitlücken, saisonal geschätzte Verdunstung oder mindestens 20 Prozentpunkte Abweichung zwischen Sensor und Modell vor der Korrektur setzen es auf niedrig. Der Grenzwert ist kein statistisches Konfidenzintervall. Ohne gültigen Bodensensor ist das Vertrauen höchstens mittel. Auch hohes Vertrauen bestätigt keine vor Ort gemessene Modellgenauigkeit. Sensorkorrekturen erfordern eine neue Meldung und mindestens sechs Stunden seit der letzten Korrektur; derselbe unveränderte Messwert wird nicht wiederholt eingemischt.
+
+`storage` zeigt letzte erfolgreiche Speicherung, letzte fehlgeschlagene Operation (`save` oder `verify`), Exception-Typ, aufeinanderfolgende Fehler und laufende Schreibvorgänge. `updates` zeigt die letzte erfolgreiche bzw. fehlgeschlagene Berechnung. Fehlerhistorie bleibt nach einer Erholung bis zum Neuladen sichtbar; diese Diagnosezähler werden nicht dauerhaft gespeichert. Fehlertexte und Dateipfade werden nicht exportiert.
+
 ## Bodenwasser und Grenzen
 
 Das Modell führt einen virtuellen Wasserspeicher: wirksamer gemessener Regen
 und protokollierte Bewässerung füllen ihn; geschätzte Verdunstung leert ihn.
+Der Prozentwert bezeichnet den Anteil an der modellierten pflanzenverfügbaren Wurzelzonenkapazität, nicht den volumetrischen Wassergehalt eines Sensors. Das Ein-Speicher-Modell verwendet profilbasierte Bodenparameter und geschätzte Strahlung sowie Tages-/Nachtverteilung. Es ist nicht durch lokale Feldmessungen validiert. Die Wasserstressfunktion wird innerhalb eines Zeitschritts integriert, damit trockene Zeiträume bei unterschiedlichen Berechnungsintervallen vergleichbar bleiben.
+
 Dabei berücksichtigt es Bodenart, Wurzeltiefe, Blattbenetzung, Versickerung,
 Abfluss und Wasserstress. Die Verdunstung stammt aus Penman-Monteith mit
 geschätzter Strahlung oder bei fehlenden Eingangswerten aus Hargreaves-Samani.

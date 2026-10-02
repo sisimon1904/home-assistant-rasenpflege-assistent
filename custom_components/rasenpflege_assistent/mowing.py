@@ -14,9 +14,9 @@ completion input takes precedence. This module never commands a mower.
 from __future__ import annotations
 
 import asyncio
-from datetime import timedelta
+from datetime import datetime, timedelta
 
-from homeassistant.core import Event, callback
+from homeassistant.core import Event, EventStateChangedData, callback
 from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_time_interval,
@@ -54,8 +54,8 @@ class MowingObserver:
         history unchanged. Unknown states or implausibly long observations
         must not later produce a convincing completion estimate.
         """
-        self.started_at = None
-        self.active_since = None
+        self.started_at: datetime | None = None
+        self.active_since: datetime | None = None
         self.active_seconds = 0.0
 
     def diagnostic_attributes(self) -> dict:
@@ -112,7 +112,7 @@ class MowingObserver:
                 )
             )
 
-    async def async_handle_event(self, event: Event) -> None:
+    async def async_handle_event(self, event: Event[EventStateChangedData]) -> None:
         """Accumulate mowing time, excluding returns and pauses.
 
         Serialize transitions; attribute-only reports do not add active time.
