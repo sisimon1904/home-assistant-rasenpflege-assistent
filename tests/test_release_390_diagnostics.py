@@ -239,3 +239,15 @@ async def test_restored_invalid_session_timing_still_closes_valve(hass, invalid)
     assert restored.state.irrigation_last_reason == "interrupted_by_restart"
     assert restored.state.irrigation_last_session["measurement_gap"]
     assert await restored.async_shutdown()
+
+
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf"), float("-inf")])
+async def test_nonfinite_raw_weather_attributes_remain_json_safe(hass, invalid):
+    """Keep invalid source evidence without emitting invalid JSON numbers."""
+    controller = _controller(hass)
+    hass.states.async_set(
+        "weather.openweathermap", "sunny", {"temperature": invalid, "humidity": invalid}
+    )
+    inputs = controller.coordinator.input_diagnostics()
+    json.dumps(inputs, allow_nan=False)
+    assert isinstance(inputs["weather_entity"]["raw_attributes"]["temperature"], str)

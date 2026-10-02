@@ -5,6 +5,7 @@
 ### Diagnostics and model quality
 - Export raw and normalized input observations, source age/rejection reasons, model assumptions, pre-correction sensor disagreement and a complete last-step soil balance.
 - Explain model confidence conservatively: a fresh soil sensor no longer hides missing rain, stale weather, integration gaps or seasonal ET fallback. Expose readable German/English reasons.
+- Preserve non-finite raw weather attributes as text so diagnostic exports remain valid JSON.
 - Record storage save/verification outcomes and calculation failures without exposing error messages or filesystem paths; retain failure history after recovery until reload.
 - Integrate the existing water-stress function within each step, fixing dry-down differences between short and long update intervals.
 - Require a new sensor observation before the six-hour soil calibration can blend another reading.
@@ -12,8 +13,8 @@
 
 ### Validation and documentation
 - Resolve the existing type-checking errors, introduce typed balance/confidence/storage contracts and run Mypy in GitHub CI. Apply stricter checks to five core modules; dynamic boundary payloads remain explicitly documented.
-- Add 80 regression cases for multi-day conservation, interval sensitivity, calibration, diagnostic exports, storage/update failures and configuration error paths.
-- All 488 tests pass with 86.97% combined line/branch coverage. Update German/English README, source-code guide and quality audit.
+- Add 83 regression cases for multi-day conservation, interval sensitivity, calibration, diagnostic exports, storage/update failures and configuration error paths.
+- All 491 tests pass with 86.98% combined line/branch coverage. Update German/English README, source-code guide and quality audit.
 
 ## 3.8.7
 

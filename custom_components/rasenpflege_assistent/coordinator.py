@@ -1073,6 +1073,11 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 "dew_point",
             )
         }
+        # Preserve invalid provider evidence as text; JSON has no NaN/infinity.
+        raw_attributes = result[CONF_WEATHER_ENTITY]["raw_attributes"]
+        for name, value in raw_attributes.items():
+            if isinstance(value, float) and not math.isfinite(value):
+                raw_attributes[name] = str(value)
         result[CONF_TEMPERATURE_ENTITY]["effective_source"] = (
             selected_temperature_source
         )

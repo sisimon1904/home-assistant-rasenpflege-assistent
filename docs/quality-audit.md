@@ -112,10 +112,12 @@ Die Mindestversion bleibt Home Assistant 2026.4.0 gemäß `hacs.json`; der hier 
 
 ## Prüfung für 3.9.0
 
-**488 Tests bestanden, 86,97 % kombinierte Zeilen-/Zweigabdeckung** unter Python 3.14.7 / Home Assistant 2026.9.4. Konfigurationsfluss: rund 92 % kombinierte Abdeckung; Speicher: 100 %. Die 80 zusätzlichen Fälle prüfen Konfigurations- und Fehlerpfade, lesenden Diagnoseexport, Speicherfehler und Wiederherstellung, Sensorabgleich sowie mehrtägige Wassererhaltung bei drei Bodenarten mit Trockenheit, Regen und Bewässerung.
+**491 Tests bestanden, 86,98 % kombinierte Zeilen-/Zweigabdeckung** unter Python 3.14.7 / Home Assistant 2026.9.4. Konfigurationsfluss: rund 92 % kombinierte Abdeckung; Speicher: 100 %. Die 83 zusätzlichen Fälle prüfen Konfigurations- und Fehlerpfade, lesenden Diagnoseexport, Speicherfehler und Wiederherstellung, Sensorabgleich sowie mehrtägige Wassererhaltung bei drei Bodenarten mit Trockenheit, Regen und Bewässerung.
 
 Ein Intervallvergleich reproduzierte unterschiedliche Trockenverluste durch die bisherige Anwendung des anfänglichen Wasserstressfaktors auf den gesamten Schritt. Die bestehende lineare Stressfunktion wird jetzt innerhalb des Schritts integriert; Vergleiche zwischen 5/15/60 Minuten und 24 Stunden bestehen innerhalb der ausgewiesenen Rundungstoleranz. Das ist ein rechnerischer Konsistenznachweis, keine Feldvalidierung. Profilparameter, Strahlung und zeitliche Wetterverteilung bleiben Näherungen.
 
 Modellvertrauen berücksichtigt Datenlücken und die Sensorabweichung vor der Korrektur; derselbe unveränderte Sensorbericht kann nicht wiederholt kalibrieren. Exportierte Bilanz-, Speicher- und Aktualisierungsdaten bleiben lesend und JSON-kompatibel. Beschädigte Sitzungszeitstempel verhindern die sichere Schließung nach Neustart nicht.
 
 Mypy 2.4.0 prüft alle 17 Programmdateien ohne Befund. Strengere Prüfoptionen gelten für Berechnungen, Diagnoseverträge, Modelle, Zeitplanung und Speicherung. Die vollständige Strict-Typisierung sowie über 95 % Abdeckung jedes Moduls bleiben offene Anforderungen. Ruff, Python-Kompilierung, JSON/YAML, relative Dokumentationslinks und Git-Whitespace-Prüfung sind Bestandteil der Abschlussprüfung. CI enthält nun ebenfalls Mypy.
+
+Zusätzliche Exportprüfung: NaN und positive/negative Unendlichkeit in Wetter-Rohattributen werden als Text ausgegeben. Drei Regressionen reproduzierten den JSON-Fehler vor der Korrektur und bestehen danach. Der abschließende Stand umfasst die oben genannten 491 Tests.
