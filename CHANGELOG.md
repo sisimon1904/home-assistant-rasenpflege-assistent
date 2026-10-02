@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.8.5
+
+### Fixed
+
+- Close automatically controlled irrigation before waiting for storage when automation is disabled, including blocked controller operations and failed writes.
+- Run active safety checks before persisting expired late-opening supervision.
+- Recheck watering demand, forecast freshness, rain availability, confidence and the forecast window immediately before initial automatic valve opening.
+- Calculate forecast windows in elapsed hours across spring and autumn daylight-saving changes.
+- Reject implausible soil temperatures after unit conversion and expose invalid readings in input diagnostics.
+- Preserve the physical watering date, automatic daily lock and wet-lawn timestamp when completion bookkeeping crosses midnight.
+
+### Changed
+
+- Add 18 regression cases; all 342 tests pass with 85.25% combined line/branch coverage.
+- Update German/English documentation, version identifiers and the quality audit.
+
 ## 3.8.4
 
 ### Fixed

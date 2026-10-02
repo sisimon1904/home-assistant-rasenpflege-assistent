@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.8.4 · [Changelog](CHANGELOG.md)
+Version 3.8.5 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -24,6 +24,8 @@ Configure these options under **Configure → Irrigation safety**. Weather stops
 Daily/weekly budgets default to **0 (disabled)**. All recorded watering counts, including manual amounts and estimates; unknown or incomplete amounts block automatic starts for the affected budget period. Automatic targets are capped at the remaining budget. Reporting and valve delays can still cause overshoot. Manual starts retain the existing safety limits. The second valve remains strictly read-only.
 
 Meter outages, stale readings, unit changes and counter resets mark a session as incompletely measured. Known quantities remain in the usage ledger; enabled daily/weekly limits block further automatic starts in the affected period. After at least one minute of confirmed watering with a measurement gap, the lawn is treated as wet even if no delivered quantity can be established. Runtime and completion time refer to confirmed valve closure rather than subsequent storage waits.
+
+Disabling automation closes automatically controlled watering before saving the setting. A manually started session continues. Immediately before initial automatic opening, watering demand, data quality and the forecast window are checked again after any storage wait. Forecast windows span one elapsed hour across daylight-saving transitions.
 
 ### Predictions, history and undo
 

@@ -1006,6 +1006,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 value = TemperatureConverter.convert(
                     value, unit, UnitOfTemperature.CELSIUS
                 )
+            if not -90 <= value <= 70:
+                return None
             return round(value, 1)
         except (TypeError, ValueError, HomeAssistantError):
             return None
@@ -2053,6 +2055,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         was_wet: bool = False,
         recorded_at: datetime | None = None,
         usage: bool = True,
+        completed_at: datetime | None = None,
     ) -> None:
         """Record watering and add the calculated or configured amount."""
         assert self._state is not None
@@ -2072,7 +2075,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             "soil_water_mm": self._state.soil_water_mm,
         }
         now = dt_util.now()
-        event_at = recorded_at or now
+        event_at = recorded_at or completed_at or now
         historical = recorded_at is not None
         last_at = dt_util.parse_datetime(self._state.last_watering_at or "")
         last_date = _parse_date(self._state.last_watering)

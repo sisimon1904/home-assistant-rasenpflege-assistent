@@ -1,4 +1,4 @@
-# Qualitätsaudit – 3.8.4
+# Qualitätsaudit – 3.8.5
 
 Geprüft am 2. Oktober 2026 gegen die [Home Assistant Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/). Dies ist eine Selbstauskunft für eine HACS-Integration, keine offizielle Einstufung. Fehlerfreiheit und vollständige Erfüllung sämtlicher Quality-Scale-Stufen werden nicht behauptet.
 
@@ -13,6 +13,19 @@ Geprüft am 2. Oktober 2026 gegen die [Home Assistant Integration Quality Scale]
 ## Ergänzende Prüfung für 3.8.4
 
 `tests/test_audit_384.py` ergänzt 31 Regressionen. Sie prüfen parallele Stopps während des Abschlusses, Messlücken und Budgetfreigaben, Verbrauch vor Sicherheitsstopps und während verzögerter Schließbefehle, Endzeiten bei blockiertem Modellzugriff, Wetterausfall vor Start/Wiederaufnahme, Wettereinheiten und ungültige Messwerte, Sommerzeitfenster, Listener-Abmeldung beim HA-Stopp sowie übereinstimmende Versionsangaben in Manifest, Gerät und Diagnose. Bereits bestehende Wiederanlaufprüfungen bestätigen weiterhin, dass gemeinsame Zählerstände über einen HA-Neustart nicht dem Rasen zugerechnet werden.
+
+## Ergänzende Prüfung für 3.8.5
+
+Der veröffentlichte Commit `a0a0e5d1cd1c10e199781ddc753e635a9af78a0d` besteht die vorhandenen 324 Tests. Zusätzliche Fehler wurden zunächst durch elf fehlschlagende Regressionen reproduziert und anschließend lokal behoben. `tests/test_audit_385.py` ergänzt insgesamt 18 Fälle einschließlich weiterer Prüfungen für veränderte Startbedingungen, fehlgeschlagene Speicherung beim Abschalten und die Fortsetzung manueller Sitzungen:
+
+- Automatik-Deaktivierung schließt eine gesteuerte Sitzung vor Speicherwartezeiten, auch bei bereits blockiertem Controllerzugriff.
+- Ein aktueller Sicherheitscheck wird vor dem Speichern einer abgelaufenen Nachüberwachung ausgeführt.
+- Automatische Erststarts prüfen nach der Speicherung erneut Pflegebedarf, Prognosequalität und das noch gültige Startfenster.
+- Prognosefenster verwenden echte Zeitstunden über Sommerzeitwechsel hinweg; lokale Uhrzeiten bleiben für die Auswahl relevant.
+- Bodentemperaturen außerhalb von −90 bis 70 °C werden nach der Umrechnung verworfen und in der Eingangsdiagnose als ungültig angezeigt.
+- Bewässerungsdatum, Automatik-Tageskennung und Nassrasen-Zeitstempel bleiben an den physischen Abschluss gebunden, auch bei Speicherwartezeiten über Mitternacht. Die gemessene Wassermenge wird weiterhin dem Modell gutgeschrieben.
+
+Prüfergebnis für 3.8.5: **342 Tests bestanden, 85,25 % kombinierte Zeilen-/Zweigabdeckung**. Ruff-Formatierung, Ruff-Prüfung, Python-Kompilierung und Git-Whitespace-Prüfung erfolgreich. Manifest, Geräte-/Diagnoseversion sowie beide README-Versionsangaben sind auf 3.8.5 aktualisiert. Dies erweitert den Testnachweis; die unten aufgeführten offenen Quality-Scale-Anforderungen und Hardware-/Versionsmatrix-Grenzen gelten weiter.
 
 ## Behobene Befunde
 
@@ -33,7 +46,7 @@ Geprüft am 2. Oktober 2026 gegen die [Home Assistant Integration Quality Scale]
 
 - Python 3.14.7 / Home Assistant 2026.9.4; zusätzlich wurde die Umgebung 2026.10.0b0 vor den letzten Korrekturen geprüft.
 - Pytest einschließlich echter HA-Plattform-Einrichtung und -Entladung, Dienstaktionen, Diagnose-JSON, fehlgeschlagenem Speichern, ungültigen Daten und Abbruch von Schaltbefehlen.
-- 324 Tests bestanden; 84,98 % kombinierte Zeilen-/Zweigabdeckung im abschließenden Lauf.
+- 342 Tests bestanden; 85,25 % kombinierte Zeilen-/Zweigabdeckung im abschließenden Lauf.
 - Ruff-Formatierung, Ruff-Prüfung und Python-Kompilierung.
 - GitHub CI verwendet Python 3.14, einen festgelegten HA-Testpaketstand und ein Mindestniveau von 83 % kombinierter Zeilen-/Zweigabdeckung. Der Coverage-Bericht wird als Workflow-Artefakt bereitgestellt.
 - Hassfest und HACS werden durch den Validate-Workflow geprüft. Deren Ergebnis ist am jeweiligen Commit abzulesen; es ersetzt keine Prüfung aller Quality-Scale-Regeln.

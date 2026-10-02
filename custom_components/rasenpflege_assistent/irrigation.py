@@ -609,6 +609,33 @@ class IrrigationController:
                 now
             ).get("stale", True):
                 return "weather_unavailable"
+            # Initial eligibility can expire while awaiting storage. Resumes
+            # retain their original session target and use live safety gates.
+            if int(session.get("cycle_number", 1)) == 1:
+                data = self.coordinator.data
+                if data is None or data.forecast_stale:
+                    return "weather_unavailable"
+                if data.observed_rain_today_mm is None:
+                    return "rain_unavailable"
+                if (
+                    data.watering_confidence == "low"
+                    or data.soil_model_confidence == "low"
+                ):
+                    return "low_confidence"
+                if (
+                    not data.watering_recommended
+                    or data.watering_status != "water_now"
+                    or data.watering_mm <= 0
+                ):
+                    return "watering_not_due"
+                start = dt_util.parse_datetime(data.watering_window_start or "")
+                end = dt_util.parse_datetime(data.watering_window_end or "")
+                if start is None or end is None:
+                    return "no_suitable_window"
+                if now < start:
+                    return "waiting_for_window"
+                if now >= end:
+                    return "window_expired"
             blocker = self._weather_start_blocker() or self._budget_blocker(session)
             if blocker:
                 return blocker
@@ -1163,8 +1190,8 @@ class IrrigationController:
     async def _async_input_changed(self, _event) -> None:
         """Check mower, valve and meter immediately when their state changes."""
         await self._async_close_unsafe_busy_valve()
-        await self._async_close_late_open()
         await self.async_check()
+        await self._async_close_late_open()
         self._publish_session()
 
     async def _async_close_unsafe_busy_valve(self) -> None:
@@ -1435,16 +1462,24 @@ class IrrigationController:
 
     async def async_set_auto_enabled(self, enabled: bool) -> None:
         """Expose a user-facing, persisted automation master switch."""
+        if not enabled:
+            # A disable request must reach physical safety before any storage
+            # await, including another operation already holding our lock.
+            self.state.irrigation_enabled = False
+            session = self.state.irrigation_session
+            if session and session["source"] == "auto":
+                session["closing_reason"] = "automation_disabled"
+                await self._async_close_unsafe_busy_valve()
         async with self._lock:
             previous = self.state.irrigation_enabled
             self.state.irrigation_enabled = enabled
+            session = self.state.irrigation_session
+            if not enabled and session and session["source"] == "auto":
+                await self._async_stop_locked("automation_disabled")
             saved = await self._async_persist_state()
-            if not saved and enabled:
+            if not saved and enabled and self.state.irrigation_enabled:
                 self.state.irrigation_enabled = previous
             self._publish_session()
-        session = self.state.irrigation_session
-        if not enabled and session and session["source"] == "auto":
-            await self.async_stop("automation_disabled")
         await self.coordinator.async_request_refresh()
         if not saved:
             raise ServiceValidationError(
@@ -2225,11 +2260,11 @@ class IrrigationController:
         )
         self.state.irrigation_last_reason = reason
         self.state.irrigation_last_liters = liters
+        now = dt_util.parse_datetime(session.get("closed_at") or "") or dt_util.now()
         if session["source"] == "auto" and liters is not None and liters > 0:
             self.state.irrigation_last_auto_date = (
-                dt_util.as_local(dt_util.now()).date().isoformat()
+                dt_util.as_local(now).date().isoformat()
             )
-        now = dt_util.parse_datetime(session.get("closed_at") or "") or dt_util.now()
         self.state.irrigation_last_active_seconds = round(
             float(session.get("active_seconds", 0))
             + (
@@ -2346,7 +2381,7 @@ class IrrigationController:
         if liters is not None and liters > 0:
             area = float(self.coordinator.settings.get(CONF_AREA, DEFAULT_AREA))
             await self.coordinator._async_mark_watered_locked(
-                liters / area, usage=False
+                liters / area, usage=False, completed_at=now
             )
         elif (
             (
@@ -2371,7 +2406,7 @@ class IrrigationController:
             and (session.get("ever_confirmed_open") or session.get("confirmed_open"))
         ):
             await self.coordinator._async_mark_watered_locked(
-                0, was_wet=True, usage=False
+                0, was_wet=True, usage=False, completed_at=now
             )
         else:
             if not await self._async_persist_state(already_locked=True):

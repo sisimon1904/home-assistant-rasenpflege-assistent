@@ -396,10 +396,10 @@ def recommended_watering_window(
             reference = reference.replace(tzinfo=timestamp.tzinfo)
         elif reference.tzinfo is not None:
             timestamp = timestamp.replace(tzinfo=reference.tzinfo)
-        if (
-            not timestamp <= reference + timedelta(hours=48)
-            or timestamp + timedelta(hours=1) <= reference
-        ):
+        actual_start = timestamp.astimezone(timezone.utc)
+        actual_now = reference.astimezone(timezone.utc)
+        actual_end = actual_start + timedelta(hours=1)
+        if actual_start > actual_now + timedelta(hours=48) or actual_end <= actual_now:
             continue
         try:
             precipitation = float(
@@ -445,7 +445,7 @@ def recommended_watering_window(
             hour_penalty += 5
         temperature_penalty = max(0.0, (temperature or 18.0) - 24) * 0.8
         score = hour_penalty + wind * 1.5 + temperature_penalty + probability / 25
-        if timestamp <= reference < timestamp + timedelta(hours=1):
+        if actual_start <= actual_now < actual_end:
             score -= 100
         candidates.append((score, timestamp, item, wind))
     if not candidates:
@@ -463,7 +463,9 @@ def recommended_watering_window(
         temperature = None
     return {
         "start": start.isoformat(),
-        "end": (start + timedelta(hours=1)).isoformat(),
+        "end": (start.astimezone(timezone.utc) + timedelta(hours=1))
+        .astimezone(start.tzinfo)
+        .isoformat(),
         "reason": "cool_calm_dry_period"
         if 4 <= start.hour < 10
         else "best_available_period",
