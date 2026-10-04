@@ -125,8 +125,34 @@ cards:
 
     '') }}
 
-    {{ p.get(''reason_text'') or '''' }}'
+    {{ p.get(''reason_text'') or '''' }}
+
+    Prognosealter: {{ p.get(''forecast_age_minutes'') if p.get(''forecast_age_minutes'') is not none else ''—''
+    }} min
+
+    {{ (p.get(''quality_reasons_text'') or []) | join('' · '') }}
+
+    {{ (p.get(''change'') or {}).get(''reason_text'') or '''' }}'
   icon: mdi:weather-fog
+  multiline_secondary: true
+  tap_action:
+    action: more-info
+- type: custom:mushroom-template-card
+  entity: sensor.rasen_modellierte_bodenfeuchte
+  primary: Bodenwasserbilanz
+  secondary: '{% set m = state_attr(entity, ''model_diagnostics'') or {} %}{% set e = m.get(''explanation'') or
+    {} %}
+
+    {{ e.get(''scope_text'') or '''' }}
+
+    {% for term in e.get(''terms'') or [] %}{{ term.get(''text'') }} {{ term.get(''amount_mm'') if term.get(''amount_mm'')
+    is not none else ''—'' }} mm
+
+    {% endfor %}
+
+    {% set w = e.get(''last_watering_credit'') or {} %}{% if w %}{{ w.get(''text'') }} {{ w.get(''model_credit_mm'')
+    if w.get(''model_credit_mm'') is not none else ''—'' }} mm{% endif %}'
+  icon: mdi:water-percent
   multiline_secondary: true
   tap_action:
     action: more-info

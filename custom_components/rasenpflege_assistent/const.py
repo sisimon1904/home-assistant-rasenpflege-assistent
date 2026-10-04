@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 DOMAIN = "rasenpflege_assistent"
-INTEGRATION_VERSION = "3.13.0"
+INTEGRATION_VERSION = "3.14.0"
 PLATFORMS = ["sensor", "button", "switch"]
 
 # Persisted configuration field names. Changing a string here requires checking

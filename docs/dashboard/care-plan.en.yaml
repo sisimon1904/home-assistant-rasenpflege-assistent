@@ -85,7 +85,22 @@ cards:
 
     {{ p.get(''quality_text'') or '''' }}
 
-    {{ (p.get(''quality_reasons_text'') or []) | join('' · '') }}'
+    {{ (p.get(''quality_reasons_text'') or []) | join('' · '') }}
+
+
+    {% set p = state_attr(entity, ''mowing_window'') or {} %}
+
+    {% set s = p.get(''duration_suggestion'') or {} %}
+
+    Suggested duration: {{ s.get(''suggested_minutes'') if s.get(''suggested_minutes'') is not none else ''—'' }}
+    min · {{ s.get(''sample_count'', 0) }} observations
+
+    {{ s.get(''reason_text'') or '''' }}
+
+    Forecast age: {{ p.get(''forecast_age_minutes'') if p.get(''forecast_age_minutes'') is not none else ''—'' }}
+    min
+
+    {{ (p.get(''change'') or {}).get(''reason_text'') or '''' }}'
   multiline_secondary: true
   icon: mdi:grass
   tap_action:

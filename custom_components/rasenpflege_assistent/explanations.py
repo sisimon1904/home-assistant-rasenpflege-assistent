@@ -593,6 +593,75 @@ _MOWING_PLAN_EXPLANATIONS = {
         "Erhöhtes Taurisiko: Abtrocknen abwarten und Rasen vor dem Mähen prüfen.",
         "Elevated dew risk: allow drying and check the grass before mowing.",
     ),
+    "mowing_days_disabled": ("Keine Mähtage erlaubt.", "No mowing days are allowed."),
+    "mowing_forecast_stale": (
+        "Die Stundenprognose ist veraltet oder ihr Zeitstempel ungültig.",
+        "The hourly forecast is stale or has an invalid update timestamp.",
+    ),
+    "duration_suggestion_estimated": (
+        "Typische Durchgangsdauer aus vergleichbaren Beobachtungen, geschätzt; keine bestätigte Flächenabdeckung.",
+        "Typical mowing session duration from comparable observations, estimated; full coverage is not confirmed.",
+    ),
+    "duration_suggestion_insufficient": (
+        "Mindestens drei aktuelle, vergleichbare und weitgehend ununterbrochene Durchgänge erforderlich.",
+        "At least three recent, comparable, mostly uninterrupted observations are required.",
+    ),
+    "duration_suggestion_variable": (
+        "Die bisherigen Mähdauern schwanken zu stark für einen verlässlichen Vorschlag.",
+        "Observed durations vary too much for a reliable suggestion.",
+    ),
+    "mowing_change_baseline": (
+        "Seit diesem Start noch keine wesentliche Terminänderung erfasst.",
+        "No material recommendation change recorded since this startup.",
+    ),
+    "mowing_change_schedule": (
+        "Empfehlung nach Änderung der Mähzeiten oder benötigten Dauer neu bewertet.",
+        "Recommendation reviewed after mowing schedule or required duration changed.",
+    ),
+    "mowing_change_interval": (
+        "Empfehlung nach Änderung der Mähfälligkeit neu bewertet.",
+        "Recommendation reviewed after the mowing due time changed.",
+    ),
+    "mowing_change_data": (
+        "Empfehlung wegen fehlender, widersprüchlicher oder veralteter Wetterdaten geändert.",
+        "Recommendation changed because weather evidence is missing, conflicting or stale.",
+    ),
+    "mowing_change_wet": (
+        "Empfehlung nach Änderung der Nassrasenpause neu bewertet.",
+        "Recommendation reviewed after the wet-lawn hold changed.",
+    ),
+    "mowing_change_dew": (
+        "Empfehlung nach Änderung der Tau-Einschätzung neu bewertet.",
+        "Recommendation reviewed after the dew estimate changed.",
+    ),
+    "mowing_change_weather": (
+        "Empfehlung anhand geänderter Wetterbedingungen neu bewertet.",
+        "Recommendation reviewed using changed weather conditions.",
+    ),
+    "soil_term_effective_rain_mm": (
+        "Wirksamer Regen: Zugang im letzten Rechenschritt.",
+        "Effective rain: water added in the last calculation.",
+    ),
+    "soil_term_actual_et_mm": (
+        "Verdunstung: Abzug im letzten Rechenschritt.",
+        "Evapotranspiration: water removed in the last calculation.",
+    ),
+    "soil_term_drainage_mm": (
+        "Versickerung unter die Wurzelzone: Abzug.",
+        "Drainage below the root zone: water removed.",
+    ),
+    "soil_term_sensor_correction_mm": (
+        "Modellkorrektur anhand des Bodenfeuchtesensors.",
+        "Model correction using the soil moisture sensor.",
+    ),
+    "soil_watering_separate": (
+        "Letzte Bewässerungsgutschrift separat; sie kann bereits im Anfangswert enthalten sein. Nicht erneut addieren.",
+        "Last watering credit shown separately; it may already be included in initial water. Do not add it again.",
+    ),
+    "soil_last_step": (
+        "Letzter Rechenschritt in Millimetern: Anfang + wirksamer Regen − Verdunstung − Drainage + Sensorkorrektur = Ende.",
+        "Last calculation in millimeters: initial + effective rain − evapotranspiration − drainage + sensor correction = final.",
+    ),
     "mowing_window_too_short": (
         "Die belegten Mähfenster sind kürzer als die eingestellte Mähdauer.",
         "Supported mowing windows are shorter than the configured mowing duration.",

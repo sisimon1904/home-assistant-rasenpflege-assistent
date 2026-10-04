@@ -279,7 +279,10 @@
           "mowing_min_minutes": "Minimum mowing time for detection (minutes)",
           "mowing_start_time": "Allowed mowing window start",
           "mowing_end_time": "Allowed mowing window end",
-          "mowing_duration_minutes": "Required mowing duration (minutes)"
+          "mowing_duration_minutes": "Required mowing duration (minutes)",
+          "mowing_weekdays": "Allowed mowing days",
+          "mowing_weekend_start_time": "Weekend mowing start",
+          "mowing_weekend_end_time": "Weekend mowing end"
         },
         "data_description": {
           "mowing_mode": "Manual mower: 4/7/10 days; robot: 1/3/5 days for active/slow/autumn growth. Wet, frost and drought pauses take precedence. No mower commands are sent.",
@@ -290,7 +293,10 @@
           "mowing_min_minutes": "Only active mowing counts; pauses and return travel do not. Short starts, errors, unknown states and restarts do not confirm a session.",
           "mowing_start_time": "Local time for recommendations; default 09:00. The assistant does not command the mower.",
           "mowing_end_time": "Local time; default 20:00. Equal times allow all day; an earlier end means an overnight window.",
-          "mowing_duration_minutes": "Recommend only continuous weather windows of at least this duration. 0 disables the minimum duration. Does not control the mower."
+          "mowing_duration_minutes": "Recommend only continuous weather windows of at least this duration. 0 disables the minimum duration. Does not control the mower.",
+          "mowing_weekdays": "Only suggest these days; an empty selection blocks all windows. Overnight windows belong to their start day.",
+          "mowing_weekend_start_time": "Optional for Saturday/Sunday. Leave empty to use the general mowing start.",
+          "mowing_weekend_end_time": "Optional for Saturday/Sunday. Leave empty to use the general mowing end."
         }
       },
       "schedule": {
@@ -328,7 +334,8 @@
       "mowing_states_invalid": "Enter distinct valid mowing and docking states; error and paused states are not allowed.",
       "invalid_number": "Enter a finite number.",
       "mowing_time_invalid": "Enter a valid local time without a timezone.",
-      "mowing_duration_invalid": "Enter a duration between 0 and 1440 minutes."
+      "mowing_duration_invalid": "Enter a duration between 0 and 1440 minutes.",
+      "mowing_weekdays_invalid": "Select valid weekdays."
     }
   },
   "selector": {

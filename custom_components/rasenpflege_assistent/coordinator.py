@@ -125,6 +125,12 @@ from .const import (
 from .diagnostic_types import ModelConfidence, SoilTrace, SoilUpdate
 from .everyday import care_priorities, sensor_review, weekly_comparison
 from .explanations import reason_text
+from .guidance import (
+    duration_context,
+    duration_suggestion,
+    restore_maintenance_history,
+    soil_explanation,
+)
 from .inputs import meter_observation
 from .insights import (
     HISTORY_DAYS,
@@ -201,6 +207,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         self._last_calculation_success_at: str | None = None
         self._last_calculation_failure_at: str | None = None
         self._last_calculation_error_type: str | None = None
+        # Process-local advice change tracking: entity reads stay side-effect free.
+        self._previous_mowing_advice: dict[str, Any] | None = None
+        self._mowing_advice_change: dict[str, Any] = {
+            "reason": "mowing_change_baseline",
+            "detected_at": None,
+        }
 
     @property
     def state(self) -> RuntimeState:
@@ -313,7 +325,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                     stored.get("last_soil_model_gap_hours", 0.0)
                 ),
                 last_growth_state=stored.get("last_growth_state"),
-                maintenance_history=list(stored.get("maintenance_history", []))[-20:],
+                maintenance_history=restore_maintenance_history(
+                    stored.get("maintenance_history"), dt_util.now()
+                ),
                 weather_samples=list(stored.get("weather_samples", []))[-96:],
                 daily_effective_rain_mm=float(
                     stored.get("daily_effective_rain_mm", 0.0)
@@ -1190,6 +1204,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         return {
             "confidence": deepcopy(self._last_model_confidence),
             "last_balance": deepcopy(self._last_soil_trace),
+            "explanation": soil_explanation(
+                self._last_soil_trace,
+                self.state.maintenance_history,
+                dt_util.now(),
+                self.hass.config.language,
+            ),
             "moisture_basis": "percentage_of_modeled_plant_available_capacity",
             "field_validated": False,
             "assumptions": [
@@ -1270,7 +1290,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             "stored_history_count": len(history),
         }
 
-    def mowing_plan_details(self) -> dict[str, Any]:
+    def mowing_plan_details(
+        self, data_override: LawnData | None = None
+    ) -> dict[str, Any]:
         """Estimate a mowing window from existing HA caches without device I/O.
 
         Growth-dependent due dates remain separate from weather suitability.
@@ -1291,7 +1313,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             and timedelta(0) <= now - updated <= FORECAST_STALE_AFTER
         )
         hourly = self._hourly_forecast_cache if valid_cache else []
-        data = self.data
+        data = data_override if data_override is not None else self.data
         leaf_id = self.settings.get(CONF_LEAF_WETNESS_ENTITY)
         leaf = self.hass.states.get(leaf_id) if leaf_id else None
         leaf_state = "not_configured" if not leaf_id else "unknown"
@@ -1338,6 +1360,11 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             start_time=self.settings.get("mowing_start_time", "09:00:00"),
             end_time=self.settings.get("mowing_end_time", "20:00:00"),
             duration_minutes=self.settings.get("mowing_duration_minutes", 0),
+            weekdays=self.settings.get(
+                "mowing_weekdays", [str(day) for day in range(7)]
+            ),
+            weekend_start_time=self.settings.get("mowing_weekend_start_time"),
+            weekend_end_time=self.settings.get("mowing_weekend_end_time"),
         )
         if wet_history_uncertain and leaf_state != "dry":
             plan.update(
@@ -1353,8 +1380,43 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 }
             )
             plan["missing_inputs"].append("mowing_wet_history_unknown")
+        suggestion = duration_suggestion(
+            self.state.maintenance_history, self.settings, now
+        )
+        suggestion["reason_text"] = reason_text(
+            suggestion["reason"], self.hass.config.language
+        )
+        cache_age = (
+            (now - fetched).total_seconds() / 60 if fetched and fetched <= now else None
+        )
+        if (not valid_cache or not hourly) and not plan["start"]:
+            plan["quality_reasons"].append(
+                "mowing_forecast_stale"
+                if fetched and not valid_cache
+                else "mowing_hourly_unavailable"
+            )
         return {
             **plan,
+            "duration_suggestion": suggestion,
+            "wet_hold_until": wet_until.isoformat() if wet_until else None,
+            "forecast_updated_at": fetched.isoformat() if fetched else None,
+            "weather_age_minutes": weather.get("age_minutes"),
+            "forecast_age_minutes": round(cache_age, 1)
+            if cache_age is not None
+            else None,
+            "change": {
+                **self._mowing_advice_change,
+                "reason_text": reason_text(
+                    self._mowing_advice_change["reason"], self.hass.config.language
+                ),
+            },
+            "weekdays": self.settings.get(
+                "mowing_weekdays", [str(day) for day in range(7)]
+            ),
+            "weekend_start_time": self.settings.get("mowing_weekend_start_time")
+            or self.settings.get("mowing_start_time", "09:00:00"),
+            "weekend_end_time": self.settings.get("mowing_weekend_end_time")
+            or self.settings.get("mowing_end_time", "20:00:00"),
             "wet_history_uncertain": bool(wet_history_uncertain),
             "quality_text": reason_text(
                 "mowing_quality_" + plan["quality"], self.hass.config.language
@@ -2290,7 +2352,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             today=today,
             mode=settings.get(CONF_MOWING_MODE, "manual"),
             interval_factor=float(settings.get(CONF_MOWING_INTERVAL_FACTOR, 1.0)),
-            last_mowing_at=dt_util.parse_datetime(self.state.last_mowing_at or ""),
+            last_mowing_at=aware_time(self.state.last_mowing_at),
             now=now,
         )
         wet_until, wet_reason = self._pause_mower_when_wet(now, mower)
@@ -2615,7 +2677,74 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         )
         self.apply_live_irrigation_status(data)
         await self._store.async_save(self.state.as_dict())
+        self._record_mowing_advice(data, now)
         return data
+
+    def _record_mowing_advice(self, data: LawnData, now: datetime) -> None:
+        """Track material recommendation changes after a successful model save.
+
+        Do not persist or mutate history on attribute reads. Fifteen minutes
+        suppresses tiny shifts caused by the current observation clock. After
+        restart the first result establishes a baseline, not a claimed change.
+        """
+        plan = self.mowing_plan_details(data)
+        old = self._previous_mowing_advice
+        schedule = repr(
+            tuple(
+                self.settings.get(key)
+                for key in (
+                    "mowing_start_time",
+                    "mowing_end_time",
+                    "mowing_weekdays",
+                    "mowing_weekend_start_time",
+                    "mowing_weekend_end_time",
+                    "mowing_duration_minutes",
+                )
+            )
+        )
+        snapshot = {
+            "start": plan["start"],
+            "reason": plan["reason"],
+            "due": plan["earliest_due_at"],
+            "schedule": schedule,
+            "wet_until": plan.get("wet_hold_until"),
+            "dew": plan["current_dew"]["risk"],
+        }
+        if old is not None:
+            previous_at, new_at = aware_time(old["start"]), aware_time(plan["start"])
+            changed = (
+                (previous_at is None) != (new_at is None)
+                or old["reason"] != plan["reason"]
+                or (
+                    previous_at is not None
+                    and new_at is not None
+                    and abs((new_at - previous_at).total_seconds()) >= 900
+                )
+            )
+            if changed:
+                reason = (
+                    "mowing_change_schedule"
+                    if old["schedule"] != schedule
+                    else "mowing_change_interval"
+                    if old["due"] != plan["earliest_due_at"]
+                    else "mowing_change_data"
+                    if plan["missing_inputs"]
+                    or plan["forecast_stale"]
+                    or "mowing_hourly_unavailable" in plan["quality_reasons"]
+                    else "mowing_change_wet"
+                    if plan["wet_history_uncertain"]
+                    or old["wet_until"] != plan.get("wet_hold_until")
+                    else "mowing_change_dew"
+                    if old["dew"] != plan["current_dew"]["risk"]
+                    else "mowing_change_weather"
+                )
+                self._mowing_advice_change = {
+                    "reason": reason,
+                    "detected_at": now.isoformat(),
+                    "previous_start": old["start"],
+                    "new_start": plan["start"],
+                }
+        self._previous_mowing_advice = snapshot
 
     def _append_maintenance_event(
         self, action: str, previous: dict[str, Any], **details: Any
@@ -3005,7 +3134,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             ):
                 return
             now = recorded_at or dt_util.now()
-            previous_at = dt_util.parse_datetime(self.state.last_mowing_at or "")
+            previous_at = aware_time(self.state.last_mowing_at)
             if event_id and previous_at and now <= previous_at:
                 return
             previous = {
@@ -3037,6 +3166,11 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 previous,
                 source=source,
                 active_seconds=active_seconds,
+                session_started_at=session_started_at.isoformat()
+                if session_started_at
+                else None,
+                interruptions=interruptions,
+                duration_context=duration_context(self.settings),
                 recorded_at=now.isoformat(),
             )
             await self._async_save_maintenance_locked()

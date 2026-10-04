@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.13.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.14.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -339,6 +339,16 @@ Unter **Optionen → Mähen → Benötigte Mähdauer** lässt sich die erforderl
 `required_minutes` enthält die eingestellte Dauer, `available_minutes` die verfügbare Länge des empfohlenen Fensters. `alternative` zeigt das nächste getrennte ausreichend lange Fenster mit `start`, `end` und `available_minutes`; ohne zweiten geeigneten Termin bleibt es `null`. Es handelt sich um einen Ausweichtermin, nicht um einen zweiten Start innerhalb desselben Fensters.
 
 `quality` ist `estimated` bei einer belegten Empfehlung und `insufficient` ohne ausreichendes Fenster. `quality_text` und `quality_reasons_text` erklären dies in der HA-Sprache. `missing_inputs_text` beschreibt fehlende Informationen im untersuchten Zeitraum; fehlende Werte außerhalb des empfohlenen Fensters machen dessen Qualität nicht automatisch unzureichend. Die Empfehlung bestätigt weiterhin keine trockene Rasenoberfläche. Mähdauer und Ausweichtermin erscheinen in den aktualisierten Mäh- und Pflegeplankarten.
+
+### Mähtage, Dauer-Vorschlag und Änderungen
+
+Unter **Optionen → Mähen** sind erlaubte Wochentage und optionale Wochenendzeiten einstellbar. Leere Wochenendfelder übernehmen die allgemeinen Zeiten; eine leere Tagesauswahl sperrt alle Empfehlungen. Nachtfenster gehören zum Starttag, auch beim Wechsel von Freitag auf Samstag. Es erfolgt keine Mähersteuerung.
+
+`duration_suggestion` zeigt die typische Durchgangsdauer aus mindestens drei vergleichbaren Roboterbeobachtungen der letzten 90 Tage. Es werden höchstens zehn geeignete Durchgänge verwendet: aktive Zeit mindestens entsprechend der Erfassungsgrenze, mindestens 85 % der Gesamtdauer, höchstens eine Unterbrechung und gleiche Quelle/Erfassungseinstellungen. Stark schwankende, alte oder unvollständige Daten ergeben keinen Vorschlag. Neue Aufzeichnungen enthalten die nötigen Angaben; alte Datensätze werden nicht nachträglich als vollständige Beobachtungen gewertet. **Eine Rückkehr zur Ladestation bestätigt keine vollständige Fläche.** Kurze Rückkehr-/Pausenzeiten sind in der vorgeschlagenen Gesamtdauer enthalten. Der Vorschlag ist geschätzt und wird nicht automatisch als benötigte Mähdauer übernommen.
+
+`forecast_updated_at`, `forecast_age_minutes` und `weather_age_minutes` zeigen die Aktualität; fehlende Werte bleiben unbekannt. `change` erklärt wesentliche Änderungen des empfohlenen Beginns seit dem laufenden HA-Start anhand von Wetter-/Tauinformationen, Datenlücken, Nassrasenpause oder Mähfälligkeit. Kleine Uhrverschiebungen unter 15 Minuten werden unterdrückt. Neustart/Neuladen setzt die Vergleichsbasis zurück; Attributabfragen ändern den Verlauf nicht.
+
+Die Bodenmodell-Diagnose enthält unter `explanation` eine lesbare Bilanz des **letzten Rechenschritts**: Anfang + wirksamer Regen − Verdunstung − Drainage + Sensorkorrektur = Ende. Eine letzte Bewässerungsgutschrift steht separat, weil sie bereits im Anfangswert enthalten sein kann. Sie darf nicht erneut addiert werden. Die Werte beschreiben das Modell und bestätigen keine Messgenauigkeit im Boden.
 
 ## Erweiterte Modelldiagnose
 

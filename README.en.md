@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.13.0 · [Changelog](CHANGELOG.md)
+Version 3.14.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -325,6 +325,16 @@ Under **Options → Mowing → Required mowing duration**, configure the time ne
 `required_minutes` reports the configured duration; `available_minutes` reports the recommended window length. `alternative` contains the next separate sufficiently long window with `start`, `end` and `available_minutes`, or `null` when no second window is available. It is a fallback window, not a second start inside the same window.
 
 `quality` is `estimated` for a supported recommendation and `insufficient` when no sufficient window exists. `quality_text` and `quality_reasons_text` explain this in the HA language. `missing_inputs_text` describes missing information across the reviewed horizon; missing values outside the recommended window do not automatically reduce that window's quality. Dry grass is still not confirmed. Updated mowing and care-plan cards show duration and alternative windows.
+
+### Mowing days, suggested duration and changes
+
+Under **Options → Mowing**, select allowed weekdays and optional weekend times. Empty weekend fields inherit the general times; an empty weekday selection blocks all recommendations. Overnight windows belong to their starting day, including Friday-to-Saturday transitions. No mower commands are issued.
+
+`duration_suggestion` reports typical elapsed mowing time from at least three comparable robot observations within 90 days. At most ten suitable observations are used: active time meets the recording minimum and at least 85% of elapsed time, at most one interruption, and matching source/observation settings. Variable, old or incomplete evidence yields no suggestion. New records include the required metadata; legacy records are not retroactively treated as complete observations. **Docking does not confirm full coverage.** Short return/pause periods are included in the suggested elapsed duration. The suggestion remains estimated and is never automatically applied as the required mowing duration.
+
+`forecast_updated_at`, `forecast_age_minutes` and `weather_age_minutes` expose freshness; missing values remain unknown. `change` explains material recommended-start changes since the current HA startup using weather/dew evidence, data gaps, wet-lawn holds or mowing due times. Clock shifts below 15 minutes are suppressed. Restart/reload resets the baseline; attribute reads do not change history.
+
+Soil-model diagnostics include `explanation`, a readable balance for the **last calculation**: initial + effective rain − evapotranspiration − drainage + sensor correction = final. The last watering credit is separate because it may already be included in initial water. Do not add it again. These values describe the model and do not confirm field accuracy.
 
 ## Extended model diagnostics
 

@@ -176,6 +176,9 @@ def mowing_window(
     start_time: str = "09:00:00",
     end_time: str = "20:00:00",
     duration_minutes: object = 0,
+    weekdays: object = None,
+    weekend_start_time: str | None = None,
+    weekend_end_time: str | None = None,
 ) -> MowingWindow:
     """Select the earliest suitable hourly window within 48 actual hours.
 
@@ -230,7 +233,45 @@ def mowing_window(
         due_at.astimezone(timezone.utc) if due_at else utc_now,
         wet_until.astimezone(timezone.utc) if wet_until else utc_now,
     )
-    schedule = {"irrigation_start_time": start_time, "irrigation_end_time": end_time}
+    # Reuse the tested overnight/DST scheduler twice. Overnight windows belong
+    # to their starting weekday, including Friday-to-Saturday transitions.
+    selected = [str(day) for day in range(7)] if weekdays is None else weekdays
+    if not isinstance(selected, (list, tuple, set)) or any(
+        not isinstance(day, str) or day not in {str(i) for i in range(7)}
+        for day in selected
+    ):
+        selected = []
+    schedules = [
+        {
+            "irrigation_start_time": start_time,
+            "irrigation_end_time": end_time,
+            "irrigation_weekdays": [
+                day for day in selected if day in {"0", "1", "2", "3", "4"}
+            ],
+        },
+        {
+            "irrigation_start_time": weekend_start_time
+            if weekend_start_time is not None
+            else start_time,
+            "irrigation_end_time": weekend_end_time
+            if weekend_end_time is not None
+            else end_time,
+            "irrigation_weekdays": [day for day in selected if day in {"5", "6"}],
+        },
+    ]
+
+    def allowed_at(at: datetime) -> bool:
+        return any(schedule_allowed(schedule, at) for schedule in schedules)
+
+    if not selected:
+        result.update(
+            {
+                "status": "blocked",
+                "reason": "mowing_days_disabled",
+                "quality_reasons": ["mowing_days_disabled"],
+            },
+        )
+        return result
     rows: dict[datetime, dict[str, object]] = {}
     for row in hourly:
         at = aware_time(row.get("datetime"))
@@ -322,15 +363,29 @@ def mowing_window(
             )
             blockers.add("mowing_rain")
         candidate = max(at, earliest, rain_hold)
-        scheduled = next_schedule_time(
-            schedule, candidate.astimezone(now.tzinfo), slot_end.astimezone(now.tzinfo)
+        starts = [
+            value
+            for schedule in schedules
+            if (
+                value := next_schedule_time(
+                    schedule,
+                    candidate.astimezone(now.tzinfo),
+                    slot_end.astimezone(now.tzinfo),
+                )
+            )
+            is not None
+        ]
+        scheduled = (
+            min(starts, key=lambda value: value.astimezone(timezone.utc))
+            if starts
+            else None
         )
         if scheduled is not None:
             candidate = scheduled.astimezone(timezone.utc)
         dry_ready = not drying_needed or (
             dry_since is not None and candidate - dry_since >= timedelta(hours=1)
         )
-        allowed = schedule_allowed(schedule, candidate.astimezone(now.tzinfo))
+        allowed = allowed_at(candidate.astimezone(now.tzinfo))
         # Find the exact first disallowed instant, including second-valued
         # policies and UTC-offset transitions. Never extend past a slot end.
         end = slot_end
@@ -339,11 +394,11 @@ def mowing_window(
             candidate.replace(second=0, microsecond=0) + timedelta(minutes=1), end
         )
         while candidate < end and probe <= end:
-            if not schedule_allowed(schedule, probe.astimezone(now.tzinfo)):
+            if not allowed_at(probe.astimezone(now.tzinfo)):
                 upper = probe
                 while upper - lower > timedelta(microseconds=1):
                     middle = lower + (upper - lower) / 2
-                    if schedule_allowed(schedule, middle.astimezone(now.tzinfo)):
+                    if allowed_at(middle.astimezone(now.tzinfo)):
                         lower = middle
                     else:
                         upper = middle

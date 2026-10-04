@@ -279,7 +279,10 @@
           "mowing_min_minutes": "Mindestmähzeit für Erkennung (Minuten)",
           "mowing_start_time": "Beginn des erlaubten Mähzeitfensters",
           "mowing_end_time": "Ende des erlaubten Mähzeitfensters",
-          "mowing_duration_minutes": "Benötigte Mähdauer (Minuten)"
+          "mowing_duration_minutes": "Benötigte Mähdauer (Minuten)",
+          "mowing_weekdays": "Erlaubte Mähtage",
+          "mowing_weekend_start_time": "Mähbeginn am Wochenende",
+          "mowing_weekend_end_time": "Mähende am Wochenende"
         },
         "data_description": {
           "mowing_mode": "Handmäher: 4/7/10 Tage; Mähroboter: 1/3/5 Tage bei vollem/langsamem/herbstlichem Wachstum. Nässe-, Frost- und Trockenpausen haben Vorrang. Es werden keine Mäherbefehle gesendet.",
@@ -290,7 +293,10 @@
           "mowing_min_minutes": "Nur aktive Mähzeit zählt; Pausen und Rückfahrt zählen nicht. Kurze Starts, Fehler, unbekannte Zustände und Neustarts bestätigen keinen Einsatz.",
           "mowing_start_time": "Lokale Uhrzeit für Empfehlungen; Standard 09:00. Der Assistent steuert den Mäher nicht.",
           "mowing_end_time": "Lokale Uhrzeit; Standard 20:00. Gleiche Zeiten erlauben den ganzen Tag; ein früheres Ende bedeutet ein Fenster über Mitternacht.",
-          "mowing_duration_minutes": "Nur zusammenhängende Wetterfenster mit dieser Mindestdauer empfehlen. 0 deaktiviert die Mindestdauer. Keine Mähersteuerung."
+          "mowing_duration_minutes": "Nur zusammenhängende Wetterfenster mit dieser Mindestdauer empfehlen. 0 deaktiviert die Mindestdauer. Keine Mähersteuerung.",
+          "mowing_weekdays": "Nur Empfehlungen an diesen Tagen; eine leere Auswahl sperrt alle Mähfenster. Bei Nachtfenstern zählt der Starttag.",
+          "mowing_weekend_start_time": "Optional für Samstag/Sonntag. Leer übernimmt den allgemeinen Mähbeginn.",
+          "mowing_weekend_end_time": "Optional für Samstag/Sonntag. Leer übernimmt das allgemeine Mähende."
         }
       },
       "schedule": {
@@ -328,7 +334,8 @@
       "mowing_states_invalid": "Gib unterschiedliche gültige Zustände für Mähen und Station an; Fehler- und Pausenzustände sind nicht zulässig.",
       "invalid_number": "Eine endliche Zahl angeben.",
       "mowing_time_invalid": "Gültige lokale Uhrzeit ohne Zeitzone eingeben.",
-      "mowing_duration_invalid": "Eine Dauer zwischen 0 und 1440 Minuten eingeben."
+      "mowing_duration_invalid": "Eine Dauer zwischen 0 und 1440 Minuten eingeben.",
+      "mowing_weekdays_invalid": "Gültige Wochentage auswählen."
     }
   },
   "selector": {

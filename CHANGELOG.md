@@ -1,5 +1,25 @@
 # Changelog
 
+## 3.14.0
+
+### Added
+- Select allowed mowing weekdays and optional weekend start/end times. Empty weekday selection blocks recommendations; overnight windows belong to their starting day.
+- Suggest typical elapsed mowing duration from at least three recent comparable robot observations, including short return/pause periods. Exclude incomplete, stale, source-changed, conflicting or highly variable observations; never apply suggestions automatically or claim full coverage.
+- Expose forecast/current-weather age and process-local explanations for material recommended-start changes. Attribute reads remain side-effect free; restart/reload establishes a new comparison baseline.
+- Explain the last soil calculation with signed rain, evapotranspiration, drainage and sensor-correction terms; show previous watering credit separately to avoid double counting.
+- Update German/English settings, dashboards and documentation using existing entities and weather caches.
+
+### Fixed
+- Restore structurally valid maintenance history safely when persisted optional records are malformed; preserve older valid entries without detailed metadata.
+- Reject saved mowing timestamps without timezone information before comparing them with new recorded events.
+
+### Validation
+- Reproduce four failing restore/clock cases against the previous coordinator before correction.
+- Add 42 tests covering observation eligibility, persisted/undone duration samples, source changes, weekday/weekend schedules, overnight/DST boundaries, invalid configuration, data freshness, advice changes, history recovery and rendered German/English dashboards.
+- All 754 tests pass with 89.09% combined line/branch coverage. Ruff and Mypy pass; Mypy checks all 22 program modules.
+- Existing irrigation restart, soak-pause, sensor failure and safety regressions pass. No additional regular weather polling or mower commands; the second valve remains read-only.
+- Mowing duration and grass dryness remain estimates; the soil model still requires field validation.
+
 ## 3.13.0
 
 ### Added

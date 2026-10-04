@@ -184,6 +184,9 @@ MOWING_FIELDS = (
     "mowing_start_time",
     "mowing_end_time",
     "mowing_duration_minutes",
+    "mowing_weekdays",
+    "mowing_weekend_start_time",
+    "mowing_weekend_end_time",
 )
 
 
@@ -448,6 +451,17 @@ def _schema(
         vol.Optional(CONF_LAST_MOWING): selector.DateSelector(),
         vol.Required("mowing_start_time", default="09:00:00"): selector.TimeSelector(),
         vol.Required("mowing_end_time", default="20:00:00"): selector.TimeSelector(),
+        vol.Required(
+            "mowing_weekdays", default=[str(day) for day in range(7)]
+        ): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=[str(day) for day in range(7)],
+                multiple=True,
+                translation_key="irrigation_weekdays",
+            )
+        ),
+        vol.Optional("mowing_weekend_start_time"): selector.TimeSelector(),
+        vol.Optional("mowing_weekend_end_time"): selector.TimeSelector(),
         vol.Required("mowing_duration_minutes", default=0): selector.NumberSelector(
             selector.NumberSelectorConfig(
                 min=0,
@@ -850,7 +864,20 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
                 or not 0 <= duration <= 1440
             ):
                 errors["mowing_duration_minutes"] = "mowing_duration_invalid"
-            for key in ("mowing_start_time", "mowing_end_time"):
+            days = merged.get("mowing_weekdays", [str(day) for day in range(7)])
+            if not isinstance(days, list) or any(
+                not isinstance(day, str) or day not in {str(i) for i in range(7)}
+                for day in days
+            ):
+                errors["mowing_weekdays"] = "mowing_weekdays_invalid"
+            for key in (
+                "mowing_start_time",
+                "mowing_end_time",
+                "mowing_weekend_start_time",
+                "mowing_weekend_end_time",
+            ):
+                if key.startswith("mowing_weekend") and merged.get(key) is None:
+                    continue
                 raw_time = merged.get(
                     key, "09:00:00" if key == "mowing_start_time" else "20:00:00"
                 )
