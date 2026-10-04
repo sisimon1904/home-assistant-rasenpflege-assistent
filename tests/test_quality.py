@@ -394,7 +394,7 @@ async def test_malformed_forecast_units_dates_and_probabilities_are_rejected(has
         "weather.openweathermap",
     )
     data = coordinator._normalize_forecast(
-        [{"datetime": "2026-07-20T12:00:00", "precipitation_probability": 50}],
+        [{"datetime": "2026-07-20T12:00:00+00:00", "precipitation_probability": 50}],
         "weather.openweathermap",
     )
     assert dt_util.parse_datetime(data[0]["datetime"]).tzinfo is not None

@@ -538,6 +538,105 @@ for _code, _texts in _EVERYDAY_EXPLANATIONS.items():
     EXPLANATIONS["en"][_code] = _texts[1]
 
 
+# Weather-window and care explanations added in 3.12.0.
+_MOWING_PLAN_EXPLANATIONS = {
+    "mowing_wet_history_unknown": (
+        "Gespeicherte Regen-/Bewässerungszeit ist ungültig oder liegt in der Zukunft; Nassrasenpause ist unbekannt.",
+        "Stored rain/watering time is invalid or in the future; the wet-grass hold is unknown.",
+    ),
+    "mowing_fog": (
+        "Nebel abwarten; ein trockener Blattnässewert ersetzt keine geeigneten Wetterbedingungen.",
+        "Wait for fog to clear; a dry leaf observation does not replace suitable weather conditions.",
+    ),
+    "mowing_weather_unknown": (
+        "Außergewöhnliche Wetterlage: kein sicher belegtes Mähfenster.",
+        "Exceptional weather: no sufficiently supported mowing window.",
+    ),
+    "forecast_conflict": (
+        "Widersprüchliche Prognosen für denselben Zeitpunkt; Werte sind unbekannt und die automatische Bewässerung bleibt bei betroffener Vorhersage gesperrt.",
+        "Conflicting forecasts for the same instant; values are unknown and automatic watering remains blocked when the relevant forecast is affected.",
+    ),
+    "cycle_resume_unknown": (
+        "Pausenende ist unbekannt; eine Gesamtdauer kann nicht verlässlich geschätzt werden.",
+        "Pause end is unknown; total duration cannot be reliably estimated.",
+    ),
+    "mowing_temperature_unknown": (
+        "Temperatur für dieses Mähfenster fehlt.",
+        "Temperature is missing for this mowing window.",
+    ),
+    "mowing_frost": ("Bei Frost nicht mähen.", "Do not mow during frost."),
+    "mowing_heat": (
+        "Kühleres Mähfenster unter 28 °C abwarten.",
+        "Wait for a cooler mowing window below 28 °C.",
+    ),
+    "mowing_rain": (
+        "Regen oder nasse Wetterbedingungen: trockenen Rasen abwarten.",
+        "Rain or wet weather: wait for the grass to dry.",
+    ),
+    "mowing_rain_unknown": (
+        "Niederschlag für dieses Zeitfenster ist unbekannt.",
+        "Precipitation is unknown for this window.",
+    ),
+    "mowing_wind_unknown": (
+        "Windgeschwindigkeit für dieses Zeitfenster fehlt.",
+        "Wind speed is missing for this window.",
+    ),
+    "mowing_wind": (
+        "Ruhigeres Wetter zum Mähen abwarten.",
+        "Wait for calmer mowing weather.",
+    ),
+    "mowing_dew_unknown": (
+        "Ohne Luftfeuchte oder Taupunkt ist das Taurisiko unbekannt.",
+        "Dew risk is unknown without humidity or dew-point data.",
+    ),
+    "mowing_dew_risk": (
+        "Erhöhtes Taurisiko: Abtrocknen abwarten und Rasen vor dem Mähen prüfen.",
+        "Elevated dew risk: allow drying and check the grass before mowing.",
+    ),
+    "mowing_no_window": (
+        "Kein ausreichend belegtes Mähfenster innerhalb von 48 Stunden gefunden.",
+        "No sufficiently supported mowing window found within 48 hours.",
+    ),
+    "mowing_not_due": (
+        "Wachstumsstatus erlaubt derzeit keine Mähplanung.",
+        "The growth status currently does not support mowing planning.",
+    ),
+    "mowing_outside_schedule": (
+        "Außerhalb des eingestellten täglichen Mähzeitfensters.",
+        "Outside the configured daily mowing window.",
+    ),
+    "mowing_drying": (
+        "Nach Tau-, Nebel- oder Frostrisiko zunächst eine zusammenhängende trockene Prognosestunde abwarten.",
+        "After dew, fog or frost risk, first allow one continuous low-risk dry forecast hour.",
+    ),
+    "mowing_window_estimated": (
+        "Voraussichtlich geeignetes Mähfenster; trockenen Rasen vor Ort prüfen.",
+        "Estimated suitable mowing window; check that the grass is dry on site.",
+    ),
+    "mowing_hourly_unavailable": (
+        "Keine nutzbare Stundenprognose oder frische aktuelle Wetterbeobachtung vorhanden.",
+        "No usable hourly forecast or fresh current weather observation is available.",
+    ),
+    "dew_risk_high": ("Hohes Taurisiko, geschätzt", "High dew risk, estimated"),
+    "dew_risk_moderate": (
+        "Erhöhtes Taurisiko, geschätzt",
+        "Elevated dew risk, estimated",
+    ),
+    "dew_risk_low": ("Geringes Taurisiko, geschätzt", "Low dew risk, estimated"),
+    "dew_risk_unknown": ("Taurisiko unbekannt", "Dew risk unknown"),
+    "care_now": ("Jetzt sinnvoll, als Empfehlung", "Suggested now"),
+    "care_later": ("Danach oder später einplanen", "Plan afterwards or later"),
+    "care_blocked": (
+        "Derzeit kein belegtes Zeitfenster",
+        "No supported window currently",
+    ),
+    "care_not_needed": ("Derzeit nicht erforderlich", "Not currently needed"),
+}
+for _code, _texts in _MOWING_PLAN_EXPLANATIONS.items():
+    EXPLANATIONS["de"][_code] = _texts[0]
+    EXPLANATIONS["en"][_code] = _texts[1]
+
+
 def reason_text(code: str | None, language: str) -> str | None:
     """Return a localized explanation, preserving unknown codes for diagnosis."""
     if code is None:

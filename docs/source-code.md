@@ -19,6 +19,7 @@ Alle Python-Dateien besitzen einen englischen Modulheader mit Dateipfad, Zweck u
 | `planning.py` | Lokale Zeitfenster, Sommerzeit, Verbrauchsperioden und Tageszuordnung. |
 | `irrigation.py` | Ventilbesitz, Start/Pause/Fortsetzung/Stopp, Sicherheitsprüfungen und Abrechnung. |
 | `storage.py` | Speichern und anschließendes Bestätigen der gespeicherten Momentaufnahme. |
+| `mowing_plan.py` | Reine Taupunkt-/Risikohilfe und lokale Mähfenster aus vorhandenen Wetterdaten. |
 | `mowing.py` | Ausschließlich lesende Beobachtung geschätzter Mährobotersitzungen. |
 | `entity.py` | Gemeinsame Identität, virtuelles Rasengerät und Coordinator-Anbindung. |
 | `sensor.py` | Zustände, Einheiten, Attribute und lesbare Diagnoseinformationen. |
@@ -56,7 +57,7 @@ Bei reinen Kommentaränderungen lassen sich Python-Syntaxbäume ohne Docstrings 
 
 ## Typprüfung und Regressionen
 
-`python -m mypy` verwendet `mypy.ini` und prüft alle 20 Programmdateien einschließlich bisher untypisierter Funktionskörper. Berechnungen, Diagnoseverträge, Datenmodelle, Zeitplanung, Speicherung, Eingangsprüfung, Verlaufshilfen, Alltagshinweise und Mäherbeobachtung verwenden zusätzlich strenge Prüfoptionen. Dynamische HA-/Provider-Payloads und Teile des Controllers verwenden weiterhin `Any`; eine vollständige Strict-Typisierung des gesamten Pakets ist damit nicht behauptet. Die GitHub-Tests führen dieselbe Prüfung mit Mypy 2.4.0 aus.
+`python -m mypy` verwendet `mypy.ini` und prüft alle 21 Programmdateien einschließlich bisher untypisierter Funktionskörper. Berechnungen, Diagnoseverträge, Datenmodelle, Zeitplanung, Speicherung, Eingangsprüfung, Verlaufshilfen, Alltagshinweise, Mäherbeobachtung und Mähfenster verwenden zusätzlich strenge Prüfoptionen. Dynamische HA-/Provider-Payloads und Teile des Controllers verwenden weiterhin `Any`; eine vollständige Strict-Typisierung des gesamten Pakets ist damit nicht behauptet. Die GitHub-Tests führen dieselbe Prüfung mit Mypy 2.4.0 aus.
 
 Die neuen Regressionen in `test_release_390_model.py`, `test_release_390_diagnostics.py` und `test_release_390_config.py` prüfen mehrtägige Wassererhaltung, Intervallvergleich, Modellvertrauen, Sensorabgleich, Speicherfehler, Diagnoseexport und unabhängige Optionsseiten. Sie ergänzen die bisherigen Geräte-/Lebenszyklustests.
 

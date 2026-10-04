@@ -245,6 +245,30 @@ def weekly_comparison(
         )
         if comparable and current_moisture is not None and previous_moisture is not None
         else None,
+        "changes": {
+            "observed_rain_mm": round(
+                current["observed_rain_mm"] - previous["observed_rain_mm"], 3
+            )
+            if current["observed_rain_mm"] is not None
+            and previous["observed_rain_mm"] is not None
+            else None,
+            "estimated_et_mm": round(
+                current["estimated_et_mm"] - previous["estimated_et_mm"], 3
+            )
+            if comparable
+            else None,
+            "recorded_liters": round(
+                current["recorded_liters"] - previous["recorded_liters"], 2
+            )
+            if current["unknown_volume_records"]
+            == previous["unknown_volume_records"]
+            == 0
+            else None,
+            "volume_includes_estimates": bool(
+                current["estimated_volume_records"]
+                or previous["estimated_volume_records"]
+            ),
+        },
         "consumption_date_allocation_estimated": True,
         "rain_is_observed": True,
         "period_hours": 168,
@@ -331,6 +355,9 @@ def cycle_guidance(
     cycle_minutes: float,
     soak_minutes: float,
     maximum_minutes: float,
+    first_cycle_remaining_minutes: float | None = None,
+    current_soak_remaining_minutes: float = 0.0,
+    minimum_active_minutes: float = 0.0,
 ) -> CycleGuidance:
     """Explain configured cycles and suggest a manual review when applying too fast.
 
@@ -348,7 +375,7 @@ def cycle_guidance(
         "suggested_cycle_minutes": None,
         "suggested_soak_minutes": None,
     }
-    if liters <= 0:
+    if liters <= 0 and minimum_active_minutes <= 0:
         return result
     if (
         flow_l_min is None
@@ -358,9 +385,25 @@ def cycle_guidance(
     ):
         result["review_reasons"] = ["cycle_flow_unknown"]
         return result
-    active = liters / flow_l_min
-    count = max(1, math.ceil(active / cycle_minutes)) if cycle_minutes > 0 else 1
-    pause = max(0, count - 1) * max(0, soak_minutes)
+    active = max(0.0, liters / flow_l_min, minimum_active_minutes)
+    if cycle_minutes > 0:
+        first = (
+            cycle_minutes
+            if first_cycle_remaining_minutes is None
+            else max(0.0, min(cycle_minutes, first_cycle_remaining_minutes))
+        )
+        count = (
+            1 + max(0, math.ceil((active - first) / cycle_minutes))
+            if first > 0
+            else max(1, math.ceil(active / cycle_minutes))
+        )
+        # At an already exhausted active segment, a pause is due immediately.
+        intermediate = max(0, count - 1) + int(first <= 0)
+        pause = intermediate * max(0.0, soak_minutes) + max(
+            0.0, current_soak_remaining_minutes
+        )
+    else:
+        count, pause = 1, max(0.0, current_soak_remaining_minutes)
     rate = flow_l_min / area_m2 * 60
     reasons = []
     if rate > infiltration_mm_h:

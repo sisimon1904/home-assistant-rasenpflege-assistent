@@ -104,7 +104,8 @@
       "maximum_below_minimum": "Der Maximalwert muss über dem Minimalwert liegen.",
       "safe_state_required": "Gib den Zustand für einen an der Station befindlichen Roboter ein.",
       "invalid_number": "Eine endliche Zahl angeben.",
-      "irrigation_active": "Bewässerung vor dem Ändern der Einstellungen stoppen."
+      "irrigation_active": "Bewässerung vor dem Ändern der Einstellungen stoppen.",
+      "mowing_time_invalid": "Gültige lokale Uhrzeit ohne Zeitzone eingeben."
     },
     "abort": {
       "already_configured": "Ein Rasen mit diesem Namen ist bereits eingerichtet.",
@@ -275,7 +276,9 @@
           "mowing_entity": "Mäherstatus für Einsatzerkennung (optional)",
           "mowing_active_state": "Zustand während des Mähens",
           "mowing_done_state": "Zustand nach Rückkehr zur Station",
-          "mowing_min_minutes": "Mindestmähzeit für Erkennung (Minuten)"
+          "mowing_min_minutes": "Mindestmähzeit für Erkennung (Minuten)",
+          "mowing_start_time": "Beginn des erlaubten Mähzeitfensters",
+          "mowing_end_time": "Ende des erlaubten Mähzeitfensters"
         },
         "data_description": {
           "mowing_mode": "Handmäher: 4/7/10 Tage; Mähroboter: 1/3/5 Tage bei vollem/langsamem/herbstlichem Wachstum. Nässe-, Frost- und Trockenpausen haben Vorrang. Es werden keine Mäherbefehle gesendet.",
@@ -283,7 +286,9 @@
           "mowing_entity": "Nur gelesen. Im Robotermodus wird ausreichende aktive Mähzeit mit anschließender Rückkehr erfasst. Das ist eine Schätzung, kein Nachweis vollständiger Flächenabdeckung. Der Eingang „Rasen wurde gemäht“ hat Vorrang.",
           "mowing_active_state": "Exakter interner Zustand, z. B. mowing; bei vacuum-Entitäten häufig cleaning. Angezeigte Übersetzungen sind keine Zustandswerte.",
           "mowing_done_state": "Exakter interner Zustand, normalerweise docked. Eine Rückkehr zum Laden kann ebenfalls zählen. Für verlässliche Auftragsabschlüsse den Binäreingang verwenden.",
-          "mowing_min_minutes": "Nur aktive Mähzeit zählt; Pausen und Rückfahrt zählen nicht. Kurze Starts, Fehler, unbekannte Zustände und Neustarts bestätigen keinen Einsatz."
+          "mowing_min_minutes": "Nur aktive Mähzeit zählt; Pausen und Rückfahrt zählen nicht. Kurze Starts, Fehler, unbekannte Zustände und Neustarts bestätigen keinen Einsatz.",
+          "mowing_start_time": "Lokale Uhrzeit für Empfehlungen; Standard 09:00. Der Assistent steuert den Mäher nicht.",
+          "mowing_end_time": "Lokale Uhrzeit; Standard 20:00. Gleiche Zeiten erlauben den ganzen Tag; ein früheres Ende bedeutet ein Fenster über Mitternacht."
         }
       },
       "schedule": {
@@ -319,7 +324,8 @@
       "safe_state_required": "Gib den Zustand für einen an der Station befindlichen Roboter ein.",
       "irrigation_active": "Bewässerung vor dem Ändern der Einstellungen stoppen.",
       "mowing_states_invalid": "Gib unterschiedliche gültige Zustände für Mähen und Station an; Fehler- und Pausenzustände sind nicht zulässig.",
-      "invalid_number": "Eine endliche Zahl angeben."
+      "invalid_number": "Eine endliche Zahl angeben.",
+      "mowing_time_invalid": "Gültige lokale Uhrzeit ohne Zeitzone eingeben."
     }
   },
   "selector": {

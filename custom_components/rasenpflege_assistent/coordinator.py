@@ -138,6 +138,7 @@ from .insights import (
     watering_response,
 )
 from .models import LawnData, RuntimeState
+from .mowing_plan import MowingWindow, mowing_window
 from .storage import VerifiedStore as Store
 
 if TYPE_CHECKING:
@@ -588,8 +589,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 )
             )
         for timestamp, reason in wet_events:
-            event_at = dt_util.parse_datetime(timestamp or "")
-            if event_at is None:
+            event_at = aware_time(timestamp)
+            if event_at is None or event_at > now:
                 continue
             local_event = dt_util.as_local(event_at)
             next_local_day = dt_util.start_of_local_day(local_event + timedelta(days=1))
@@ -679,6 +680,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 reported_at = self._reported_at(weather)
                 if not timedelta(0) <= now - reported_at <= CURRENT_WEATHER_STALE_AFTER:
                     return None, "unavailable", self._age_minutes(now, reported_at)
+                if isinstance(weather.attributes["temperature"], bool):
+                    raise TypeError("Boolean temperature")
                 value = float(weather.attributes["temperature"])
                 if not math.isfinite(value):
                     raise ValueError("weather temperature is not finite")
@@ -702,6 +705,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
     def _number_attribute(state, key: str) -> float | None:
         """Read a finite numeric weather attribute."""
         try:
+            if isinstance(state.attributes[key], bool):
+                return None
             value = float(state.attributes[key])
         except (KeyError, TypeError, ValueError):
             return None
@@ -874,12 +879,14 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 continue
             normalized = dict(item)
             if normalized.get("datetime") is not None:
-                timestamp = dt_util.parse_datetime(str(normalized["datetime"]))
+                timestamp = aware_time(normalized["datetime"])
                 if timestamp is None:
                     continue
                 normalized["datetime"] = dt_util.as_utc(timestamp).isoformat()
             if normalized.get("precipitation_probability") is not None:
                 try:
+                    if isinstance(normalized["precipitation_probability"], bool):
+                        raise TypeError("Boolean probability")
                     probability = float(normalized["precipitation_probability"])
                     if not math.isfinite(probability) or not 0 <= probability <= 100:
                         continue
@@ -891,6 +898,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 if normalized.get(key) is None:
                     continue
                 try:
+                    if isinstance(normalized[key], bool):
+                        raise TypeError("Boolean forecast value")
                     value = float(normalized[key])
                     if not math.isfinite(value):
                         raise ValueError("Non-finite forecast")
@@ -907,8 +916,51 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                     valid = False
                     break
             if valid:
+                if "humidity" in normalized:
+                    try:
+                        raw_humidity = normalized["humidity"]
+                        humidity = (
+                            float(raw_humidity)
+                            if not isinstance(raw_humidity, bool)
+                            else float("nan")
+                        )
+                        normalized["humidity"] = (
+                            humidity
+                            if math.isfinite(humidity) and 0 < humidity <= 100
+                            else None
+                        )
+                    except (ValueError, TypeError):
+                        normalized["humidity"] = None
                 result.append(normalized)
-        return result
+        # Identical retries cannot double-count rain. Conflicting records have
+        # no trustworthy revision order: retain an explicitly unknown slot.
+        dated: dict[str, dict[str, Any]] = {}
+        conflicts: set[str] = set()
+        undated = []
+        for item in result:
+            timestamp = item.get("datetime")
+            if not timestamp:
+                undated.append(item)
+            elif timestamp in dated and dated[timestamp] != item:
+                conflicts.add(timestamp)
+            else:
+                dated[timestamp] = item
+        return [
+            (
+                {
+                    "datetime": key,
+                    "forecast_conflict": True,
+                    "precipitation": None,
+                    "temperature": None,
+                    "wind_speed": None,
+                    "humidity": None,
+                    "dew_point": None,
+                }
+                if key in conflicts
+                else dated[key]
+            )
+            for key in sorted(dated)
+        ] + undated
 
     def _soil_sensor_fresh(self, state: State | None) -> TypeGuard[State]:
         """Accept physical soil measurements only within the configured age."""
@@ -1218,36 +1270,169 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             "stored_history_count": len(history),
         }
 
+    def mowing_plan_details(self) -> dict[str, Any]:
+        """Estimate a mowing window from existing HA caches without device I/O.
+
+        Growth-dependent due dates remain separate from weather suitability.
+        Fresh leaf observations override only current dew evidence; current
+        wetness and irrigation cannot be cleared by a favorable forecast.
+        """
+        now = dt_util.now()
+        weather = self._read_weather_conditions(now)
+        temperature, _, _ = self._read_temperature(now)
+        weather["temperature"] = temperature
+        source = self.hass.states.get(self.settings[CONF_WEATHER_ENTITY])
+        weather["condition"] = source.state if source else None
+        fetched = self._hourly_forecast_updated_at
+        reported = self._reported_at(source) if source else None
+        updated = min(fetched, reported) if fetched and reported else fetched
+        valid_cache = (
+            updated is not None
+            and timedelta(0) <= now - updated <= FORECAST_STALE_AFTER
+        )
+        hourly = self._hourly_forecast_cache if valid_cache else []
+        data = self.data
+        leaf_id = self.settings.get(CONF_LEAF_WETNESS_ENTITY)
+        leaf = self.hass.states.get(leaf_id) if leaf_id else None
+        leaf_state = "not_configured" if not leaf_id else "unknown"
+        if self._soil_sensor_fresh(leaf) and leaf.state in {"on", "off"}:
+            leaf_state = "wet" if leaf.state == "on" else "dry"
+        due = aware_time(data.next_mowing_at) if data else None
+        if due is None and data and data.next_mowing_date:
+            due = dt_util.start_of_local_day(
+                datetime.combine(data.next_mowing_date, datetime.min.time(), now.tzinfo)
+            )
+        wet_mower: dict[str, Any] = {
+            "status": data.mower_status if data else "collecting_data",
+            "next_at": due,
+            "next_date": data.next_mowing_date if data else None,
+        }
+        wet_until, _ = self._pause_mower_when_wet(now, wet_mower)
+        wet_history_uncertain = any(
+            raw and ((at := aware_time(raw)) is None or at > now)
+            for raw in (self.state.last_watering_at, self.state.last_wet_rain_at)
+        )
+        soil_temperature = self._read_soil_temperature()
+        plan: MowingWindow = mowing_window(
+            now=now,
+            hourly=hourly,
+            current=weather,
+            due_at=due,
+            eligible=bool(
+                data
+                and data.mower_status
+                in {
+                    "start_mower",
+                    "mow_regularly",
+                    "mow_less",
+                    "reduce_mowing",
+                    "wait_to_mow",
+                    "pause_wet",
+                    "pause_frost",
+                }
+            ),
+            wet_until=wet_until,
+            irrigation_active=self.state.irrigation_session is not None,
+            soil_frost=soil_temperature is not None and soil_temperature <= 0,
+            leaf_wetness=leaf_state,
+            start_time=self.settings.get("mowing_start_time", "09:00:00"),
+            end_time=self.settings.get("mowing_end_time", "20:00:00"),
+        )
+        if wet_history_uncertain and leaf_state != "dry":
+            plan.update(
+                {
+                    "status": "blocked",
+                    "start": None,
+                    "end": None,
+                    "reason": "mowing_wet_history_unknown",
+                }
+            )
+            plan["missing_inputs"].append("mowing_wet_history_unknown")
+        return {
+            **plan,
+            "wet_history_uncertain": bool(wet_history_uncertain),
+            "reason_text": reason_text(plan["reason"], self.hass.config.language),
+            "blockers_text": [
+                reason_text(code, self.hass.config.language)
+                for code in plan["blockers"]
+            ],
+            "missing_inputs_text": [
+                reason_text(code, self.hass.config.language)
+                for code in plan["missing_inputs"]
+            ],
+            "current_dew_risk_text": reason_text(
+                "dew_risk_" + plan["current_dew"]["risk"], self.hass.config.language
+            ),
+            "earliest_due_at": due.isoformat() if due else None,
+            "forecast_stale": bool(self._hourly_forecast_cache) and not valid_cache,
+            "allowed_start_time": self.settings.get("mowing_start_time", "09:00:00"),
+            "allowed_end_time": self.settings.get("mowing_end_time", "20:00:00"),
+        }
+
     def care_priority_details(self) -> list[dict[str, Any]]:
         """Explain the order of existing care recommendations; never execute them."""
         data = self.data
         if data is None:
             return []
-        current, _, _ = self._read_temperature(dt_util.now())
+        now = dt_util.now()
+        current, _, _ = self._read_temperature(now)
+        wet_at = aware_time(data.mower_wet_until)
+        soil_temperature = self._read_soil_temperature()
         steps = care_priorities(
             watering_status=data.watering_status,
             mower_status=data.mower_status,
             fertilizing=data.fertilizing_recommended,
             irrigation_active=self.state.irrigation_session is not None,
-            wet_until=data.mower_wet_until,
+            wet_until=wet_at.isoformat() if wet_at and wet_at > now else None,
             temperature_available=current is not None,
             frost=(current is not None and current <= 0)
-            or (data.soil_temperature is not None and data.soil_temperature <= 0),
+            or (soil_temperature is not None and soil_temperature <= 0),
         )
-        return [
-            {
-                **step,
-                "action_text": reason_text(step["action"], self.hass.config.language),
-                "reason_text": reason_text(step["reason"], self.hass.config.language),
-                "not_before": data.next_mowing_at
-                if step["action"] == "mow_lawn"
-                else data.mower_wet_until
-                if step["action"] == "wait_until_dry"
-                else None,
-                "estimated": True,
-            }
-            for step in steps
-        ]
+        plan = self.mowing_plan_details()
+        results = []
+        for step in steps:
+            is_mowing = step["action"] == "mow_lawn"
+            not_before = (
+                plan["start"]
+                if is_mowing
+                else wet_at.isoformat()
+                if step["action"] == "wait_until_dry" and wet_at and wet_at > now
+                else None
+            )
+            scheduled = aware_time(not_before)
+            availability = (
+                "blocked"
+                if is_mowing and plan["start"] is None
+                else "later"
+                if step["after"]
+                or (scheduled is not None and scheduled > now)
+                or step["action"].startswith("wait_")
+                else "not_needed"
+                if step["action"] == "no_action"
+                else "now"
+            )
+            results.append(
+                {
+                    **step,
+                    "action_text": reason_text(
+                        step["action"], self.hass.config.language
+                    ),
+                    "reason_text": reason_text(
+                        step["reason"], self.hass.config.language
+                    ),
+                    "not_before": not_before,
+                    "estimated": True,
+                    "availability": availability,
+                    "availability_text": reason_text(
+                        "care_" + availability, self.hass.config.language
+                    ),
+                    "blocker": plan["reason"] if availability == "blocked" else None,
+                    "blocker_text": plan["reason_text"]
+                    if availability == "blocked"
+                    else None,
+                }
+            )
+        return results
 
     def update_diagnostics(self) -> dict[str, Any]:
         """Expose process-local refresh outcomes without retaining error text."""
@@ -2014,6 +2199,18 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         usable_forecast = [] if daily_stale else forecast
         usable_hourly_forecast = [] if hourly_stale else hourly_forecast
         forecast_stale = daily_stale or hourly_stale
+        forecast_conflict = any(
+            item.get("forecast_conflict")
+            and (at := aware_time(item.get("datetime"))) is not None
+            and dt_util.as_utc(now) - duration
+            < at
+            <= dt_util.as_utc(now) + timedelta(hours=72)
+            for rows, duration in (
+                (usable_forecast, timedelta(days=1)),
+                (usable_hourly_forecast, timedelta(hours=1)),
+            )
+            for item in rows
+        )
         forecast_updates = [
             value
             for value, available in (
@@ -2126,6 +2323,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 "clayey": 0.7,
             }.get(settings.get(CONF_SOIL_TYPE, DEFAULT_SOIL_TYPE), 0.85),
         )
+        if forecast_conflict:
+            watering["confidence"] = "low"
+            watering["reasons"].append("forecast_conflict")
         watering_window = recommended_watering_window(
             usable_hourly_forecast,
             dt_util.as_local(now),
@@ -2165,6 +2365,8 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             fertilizing["reasons"].insert(0, "postpone_fertilizing_above_28c")
 
         data_warnings: list[str] = []
+        if forecast_conflict:
+            data_warnings.append("forecast_conflict")
         if temperature is None:
             data_warnings.append("temperature_unavailable")
         if weather_conditions.get("stale", True):

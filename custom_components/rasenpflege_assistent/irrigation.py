@@ -1135,6 +1135,46 @@ class IrrigationController:
                 maximum_minutes
                 - max(0.0, (dt_util.now() - started).total_seconds()) / 60,
             )
+        cycle_minutes = float(
+            self.coordinator.settings.get("irrigation_cycle_minutes", 0)
+        )
+        first_remaining = None
+        soak_remaining = 0.0
+        minimum_active = 0.0
+        pause_unknown = False
+        if session:
+            active_seconds = finite_number(session.get("active_seconds")) or 0.0
+            active_since = aware_time(session.get("segment_started_at"))
+            if not session.get("paused_at") and active_since:
+                active_seconds += max(
+                    0.0, (dt_util.now() - active_since).total_seconds()
+                )
+            if session.get("source") == "manual" and not session.get("explicit_target"):
+                minimum_active = max(
+                    0.0,
+                    float(
+                        self.coordinator.settings.get(
+                            CONF_MIN_IRRIGATION_MINUTES, DEFAULT_MIN_IRRIGATION_MINUTES
+                        )
+                    )
+                    - active_seconds / 60,
+                )
+            segment = aware_time(session.get("segment_started_at"))
+            if session.get("paused_at"):
+                resume = aware_time(session.get("resume_after"))
+                if session.get("pause_reason") == "soak_pause" and resume:
+                    soak_remaining = max(
+                        0.0, (resume - dt_util.now()).total_seconds() / 60
+                    )
+                    first_remaining = cycle_minutes
+                else:
+                    pause_unknown = True
+            elif segment and cycle_minutes > 0:
+                first_remaining = max(
+                    0.0,
+                    cycle_minutes
+                    - max(0.0, (dt_util.now() - segment).total_seconds()) / 60,
+                )
         result = cycle_guidance(
             liters=liters,
             area_m2=float(self.coordinator.settings.get(CONF_AREA, DEFAULT_AREA)),
@@ -1147,7 +1187,13 @@ class IrrigationController:
                 self.coordinator.settings.get("irrigation_soak_minutes", 0)
             ),
             maximum_minutes=maximum_minutes,
+            first_cycle_remaining_minutes=first_remaining,
+            current_soak_remaining_minutes=soak_remaining,
+            minimum_active_minutes=minimum_active,
         )
+        if pause_unknown:
+            result["total_minutes"] = None
+            result["review_reasons"].append("cycle_resume_unknown")
         return {
             **result,
             "flow_l_min": rate,
@@ -1157,6 +1203,11 @@ class IrrigationController:
             if session
             else "current_recommendation",
             "cycle_phase_estimated": bool(session),
+            "current_cycle_remaining_minutes": round(first_remaining, 1)
+            if first_remaining is not None
+            else None,
+            "current_soak_remaining_minutes": round(soak_remaining, 1),
+            "resume_time_unknown": pause_unknown,
             "reasons_text": [
                 reason_text(code, self.hass.config.language)
                 for code in result["review_reasons"]

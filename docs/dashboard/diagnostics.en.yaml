@@ -91,7 +91,11 @@ cards:
 
     {{ (model.get(''sensor_review'', {}).get(''reasons_text'') or []) | join(''
 
-    '') }}'
+    '') }}
+
+    Change rain / ET / liters: {% set d = w.get(''changes'', {}) %}{{ d.get(''observed_rain_mm'') if d.get(''observed_rain_mm'')
+    is not none else ''—'' }} mm / {{ d.get(''estimated_et_mm'') if d.get(''estimated_et_mm'') is not none else
+    ''—'' }} mm / {{ d.get(''recorded_liters'') if d.get(''recorded_liters'') is not none else ''—'' }} L'
   multiline_secondary: true
   icon: mdi:chart-box
   tap_action:
@@ -109,5 +113,20 @@ cards:
     '') }}'
   multiline_secondary: true
   icon: mdi:water-sync
+  tap_action:
+    action: more-info
+- type: custom:mushroom-template-card
+  entity: sensor.rasen_datenqualitat
+  primary: Mowing window – evidence
+  secondary: '{% set p = state_attr(entity, ''mowing_window_quality'') or {} %}{{ p.get(''current_dew_risk_text'')
+    or '''' }}
+
+    {{ (p.get(''missing_inputs_text'') or []) | join(''
+
+    '') }}
+
+    {{ p.get(''reason_text'') or '''' }}'
+  icon: mdi:weather-fog
+  multiline_secondary: true
   tap_action:
     action: more-info

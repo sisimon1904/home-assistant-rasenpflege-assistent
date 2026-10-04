@@ -15,11 +15,25 @@ secondary: '{{ state_translated(entity) }}
 
   {{ state_attr(entity, ''recommendation_reason_text'') or '''' }}
 
-  Next mowing: {% set at = state_attr(entity, ''next_mowing_at'') %}{{ as_local(as_datetime(at)).strftime(''%d.%m. %H:%M'') if at else ''—'' }}
+  Next mowing: {% set at = state_attr(entity, ''next_mowing_at'') %}{{ as_local(as_datetime(at)).strftime(''%d.%m.
+  %H:%M'') if at else ''—'' }}
 
-  {% set live = state_attr(entity, ''live_robot_session'') or {} %}Active minutes: {{ live.get(''active_minutes'', 0) }} · {{ live.get(''status'', ''idle'') }}
+  {% set live = state_attr(entity, ''live_robot_session'') or {} %}Active minutes: {{ live.get(''active_minutes'',
+  0) }} · {{ live.get(''status'', ''idle'') }}
 
-  Last session, estimated: {{ state_attr(entity, ''last_robot_session_active_minutes'') if state_attr(entity, ''last_robot_session_active_minutes'') is not none else ''—'' }} min'
+  Last session, estimated: {{ state_attr(entity, ''last_robot_session_active_minutes'') if state_attr(entity, ''last_robot_session_active_minutes'')
+  is not none else ''—'' }} min
+
+  {% set p = state_attr(entity, ''mowing_window'') or {} %}
+
+  Estimated mowing window: {% if p.get(''start'') %}{{ as_local(as_datetime(p.get(''start''))).strftime(''%d.%m.
+  %H:%M'') }}–{{ as_local(as_datetime(p.get(''end''))).strftime(''%H:%M'') }}{% else %}—{% endif %}
+
+  {{ p.get(''current_dew_risk_text'') or '''' }}
+
+  {{ p.get(''reason_text'') or '''' }}
+
+  {{ (p.get(''missing_inputs_text'') or []) | join('' · '') }}'
 icon: mdi:robot-mower
 icon_color: '{{ state_attr(entity, ''icon_color'') or ''grey'' }}'
 multiline_secondary: true

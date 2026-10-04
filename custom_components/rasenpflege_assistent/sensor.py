@@ -833,6 +833,7 @@ class LawnSensor(LawnEntity, SensorEntity):
                 },
                 "forecast_estimated": True,
                 "prioritized_steps": self.coordinator.care_priority_details(),
+                "mowing_window": self.coordinator.mowing_plan_details(),
             }
         if key in {
             "water_consumption_day",
@@ -884,6 +885,7 @@ class LawnSensor(LawnEntity, SensorEntity):
                 self.coordinator.data.soil_sensor_deviation_percentage_points
             )
         if key == "data_quality":
+            details["mowing_window_quality"] = self.coordinator.mowing_plan_details()
             insights = self.coordinator.insight_diagnostics()
             details["model_initialization"] = insights["initialization"]
             details["data_gaps"] = insights["data_gaps"]
@@ -905,12 +907,21 @@ class LawnSensor(LawnEntity, SensorEntity):
                     item.get("precipitation", item.get("native_precipitation")) is None
                     for item in self.coordinator._forecast_cache
                 ),
+                "hourly_conflicting_entries": sum(
+                    bool(item.get("forecast_conflict"))
+                    for item in self.coordinator._hourly_forecast_cache
+                ),
+                "daily_conflicting_entries": sum(
+                    bool(item.get("forecast_conflict"))
+                    for item in self.coordinator._forecast_cache
+                ),
                 "hourly_missing_wind_values": sum(
                     item.get("wind_speed") is None
                     for item in self.coordinator._hourly_forecast_cache
                 ),
             }
         if key == "mower_status":
+            details["mowing_window"] = self.coordinator.mowing_plan_details()
             observer = getattr(self.coordinator, "mowing_observer", None)
             details["live_robot_session"] = (
                 observer.diagnostic_attributes()

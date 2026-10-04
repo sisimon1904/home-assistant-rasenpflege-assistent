@@ -1,6 +1,6 @@
-# Qualitätsaudit – 3.11.0
+# Qualitätsaudit – 3.12.0
 
-Geprüft am 2. Oktober 2026 gegen die [Home Assistant Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/). Dies ist eine Selbstauskunft für eine HACS-Integration, keine offizielle Einstufung. Fehlerfreiheit und vollständige Erfüllung sämtlicher Quality-Scale-Stufen werden nicht behauptet.
+Geprüft am 4. Oktober 2026 gegen die [Home Assistant Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/). Dies ist eine Selbstauskunft für eine HACS-Integration, keine offizielle Einstufung. Fehlerfreiheit und vollständige Erfüllung sämtlicher Quality-Scale-Stufen werden nicht behauptet.
 
 ## Ergänzende Prüfung für 3.8.2
 
@@ -144,3 +144,13 @@ Geprüft am 4. Oktober 2026. Sieben fehlschlagende Regressionen wurden vor der K
 **606 Tests bestanden, 88,83 % kombinierte Zeilen-/Zweigabdeckung** unter Python 3.14.7 / Home Assistant 2026.9.4. Gegenüber 3.10.0 wurden 52 Tests ergänzt. Mypy 2.4.0 prüft alle 20 Programmdateien ohne Befund; neun Kernmodule verwenden strengere Prüfoptionen. Ruff-Formatierung, Ruff-Prüfung, Python-Kompilierung, JSON/YAML, tatsächliches HA-Rendern sämtlicher Dashboard-Vorlagen, Dateiheader, relative Dokumentationslinks und Git-Whitespace-Prüfung sind erfolgreich.
 
 Die neuen Pflege- und Zyklushinweise sind Heuristiken und ändern keine Einstellungen oder Geräte. Fehlende historische Daten werden nicht ergänzt. Wochen-Regenwerte erscheinen nur bei ausreichender Aufzeichnung und bekannter Regenquelle; die Zuordnung von Verbrauch anhand lokaler Tage bleibt geschätzt. Flache Messwerte sind kein bestätigter Defekt; Mährobotersitzungen bestätigen keine Flächenabdeckung. Das Bodenmodell bleibt ein nicht vor Ort validiertes Profilmodell. Vollständige Strict-Typisierung, über 95 % Abdeckung in jedem Modul sowie Hardware- und Versionsmatrixprüfungen bleiben offen.
+
+## Ergänzende Prüfung für 3.12.0
+
+Acht zunächst fehlschlagende Regressionen wurden reproduziert und korrigiert: naive Prognosezeitpunkte, doppelte absolute Prognosestunden, ungültige Luftfeuchte einschließlich Boolean-Werten, widersprüchliche Prognosen derselben Stunde, Boolean-Werte im aktuellen Wetter, Boolean-Niederschlag, abgelaufene Nassrasen-Pflegesperren und naive gespeicherte Nassrasen-Zeitpunkte. Widersprüche bleiben als unbekannte Daten sichtbar und senken die Bewässerungs-Prognosesicherheit; sie werden nicht als trockene Stunde interpretiert.
+
+Die beiden neuen Testdateien ergänzen 79 Fälle für Taupunktreferenzen, fehlende und ungültige Wetterdaten, Regen-/Tau-Trocknung, Frost, Hitze, Wind, Nebel, Prognoselücken, lokale und sekundengenaue Mähzeitfenster einschließlich Zeitumstellungen, vorhandene Blattnässe-Eingänge, Konfigurationsfehler, lokalisierte Diagnosen, Pflegeverfügbarkeit, laufende Bewässerungssegmente/Einweichpausen, Mindestlaufzeiten, unbekannte Pausenenden und beobachtete Wochenänderungen. Die deutschen und englischen Dashboard-Vorlagen werden mit Home Assistants tatsächlicher Template-Engine geprüft, einschließlich befüllter Mähfenster.
+
+**685 Tests bestanden, 88,82 % kombinierte Zeilen-/Zweigabdeckung** unter Python 3.14.7 / Home Assistant 2026.9.4. Mypy 2.4.0 prüft alle 21 Programmdateien ohne Befund; zehn Kernmodule verwenden strengere Prüfoptionen. Ruff-Formatierung, Ruff-Prüfung, Python-Kompilierung, JSON/YAML, Dateiheader, relative Dokumentationslinks und Git-Whitespace-Prüfung sind erfolgreich.
+
+Es entstehen keine neuen Entitäten. Mähzeitfenster und Tau-/Trocknungsregeln sind konservative Empfehlungen auf Basis vorhandener Wetterdaten, keine gemessene Bestätigung trockener Grasoberflächen. Ein vorhandener frischer Blattnässe-Eingang verbessert die aktuelle Einschätzung, ersetzt jedoch keine künftige Prognose. Das Bodenmodell wurde durch diese Änderung nicht neu kalibriert oder im Feld validiert. Zweites Ventil, bestehende Pflege-/Verbrauchsdaten und reguläre OWM-Abfragehäufigkeit bleiben unverändert. Die dokumentierten Hardware- und Versionsmatrix-Grenzen gelten weiter; vollständige Fehlerfreiheit wird nicht behauptet.

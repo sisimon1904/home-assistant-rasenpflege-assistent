@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.11.0 · [Changelog](CHANGELOG.md)
+Version 3.12.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -294,6 +294,31 @@ Irrigation diagnostics expose `cycle_plan`: active minutes, cycle count, interme
 `live_robot_session` on mower-status attributes and `mowing_observation` in downloaded diagnostics show active/inactive minutes, interruptions, minimum duration, observation reason and the last persisted observation. Pauses and returns do not count as active mowing; late events are ignored. Docking after sufficient activity remains an estimate: `coverage_confirmed` is always `false`. The assistant sends no mower commands.
 
 The [care-plan card](docs/dashboard/care-plan.en.yaml) and [diagnostics card](docs/dashboard/diagnostics.en.yaml) show these hints from existing data, without extra regular OWM API requests.
+
+## Suitable mowing start and dew risk
+
+Existing **mower status** and **care plan** entities expose `mowing_window`. **Data quality** contains `mowing_window_quality`; downloaded diagnostics expose `mowing_window`. No new entities are created. Existing `next_mowing_at` remains the earliest interval/wet-hold due time; `mowing_window.start` is the separate weather recommendation.
+
+| Attribute | Meaning |
+| --- | --- |
+| `start`, `end` | Estimated suitable window within 48 actual hours, including local timezone; `null` when evidence is insufficient. |
+| `current_dew`, `window_dew` | Current and recommended-start dew estimates, dew point in °C, temperature spread and source. |
+| `reason_text`, `blockers_text` | Explanation of the recommendation or excluded times. |
+| `missing_inputs`, `missing_inputs_text` | Missing temperature, precipitation, wind or dew evidence. |
+| `leaf_wetness` | Existing optional binary observation: `wet`, `dry`, `unknown` or `not_configured`. |
+| `estimated`, `surface_dry_confirmed` | Weather suitability remains estimated; dry grass is never claimed as confirmed. |
+
+Under **Options → Mowing**, configure the daily allowed window, default **09:00–20:00 local time**. Equal times allow all day; an earlier end permits an overnight window. These settings guide recommendations and never command a mower.
+
+Planning uses fresh HA observations and the existing hourly forecast cache. It respects interval due times, rain/watering wet holds, ongoing irrigation, frost, heat at 28 °C, wind above 8 m/s, predicted rain and rain probabilities of at least 50%. Each forecast slot covers at most one hour; gaps are not invented as dry evidence. Current weather supports only the next hour, never tomorrow's humidity.
+
+A supplied dew point is preferred; otherwise temperature/humidity estimate it using the [Bolton inversion](https://unidata.github.io/MetPy/latest/api/generated/metpy.calc.dewpoint.html). Air/dew-point spreads up to 2 °C are high risk and up to 4 °C elevated risk. These are heuristics, not validated grass temperatures. After dew, fog or frost risk, require one continuous low-risk dry forecast hour before recommending a start. A fresh dry leaf observation overrides only current dew evidence, not rain, frost, future dew or ongoing watering. Invalid or future stored wet-grass timestamps cannot create a valid hold; without a fresh dry leaf observation the mowing window then remains unknown. Missing humidity and dew point remain unknown; daily forecasts do not become invented hourly values. Available fields depend on the weather provider ([HA forecast fields](https://www.home-assistant.io/actions/weather.get_forecasts/)).
+
+**Check actual grass wetness before mowing.** Air and grass temperatures can differ, so low estimated dew risk cannot confirm a dry surface ([NWS dew development](https://www.weather.gov/source/zhu/ZHU_Training_Page/fog_stuff/Dew_Frost/Dew_Frost.htm)). No mower commands or extra regular OWM requests are added.
+
+`prioritized_steps` adds localized availability (`now`, `later`, `blocked`, `not_needed`) and blocker explanations. Mowing uses the weather window as `not_before`; expired wet holds do not add another wait. Weekly `changes` compare rain, ET and recorded consumption, retaining unknown totals when evidence is incomplete. Cycle estimates account for remaining active segments, current soak pauses and the remaining manual standard-watering minimum. A pause with no known end leaves total duration unknown.
+
+Conflicting forecast rows for one absolute instant become an unknown evidence slot rather than added rain or a dry hour. Conflicts affecting relevant watering forecasts lower confidence and block automatic starts; data quality reports `forecast_conflict`.
 
 ## Extended model diagnostics
 

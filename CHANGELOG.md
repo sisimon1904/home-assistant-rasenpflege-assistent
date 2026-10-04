@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.12.0
+
+### Added
+- Recommend the next suitable mowing window using existing hourly forecasts, conservative dew-risk estimates, drying holds, mowing intervals and configurable allowed local times. Expose advice through existing entities; do not command the mower.
+- Explain current/later/blocked care availability, remaining irrigation cycle/soak duration and observed weekly changes.
+- Extend German/English dashboards, documentation and diagnostic attributes without additional regular weather polling.
+
+### Fixed
+- Reject naive forecast timestamps and Boolean weather values. Deduplicate equivalent forecast instants; conflicting entries remain explicitly unknown and cannot authorize automatic irrigation.
+- Ignore expired wet-lawn care holds and handle malformed or future saved wet-event timestamps without crashing or claiming a dry lawn.
+- Account for current irrigation segments, manual minimum durations and unknown pause end times in read-only cycle guidance.
+
+### Validation
+- Reproduce eight failing regression cases before correction; add 79 cases covering input errors, dew estimates, weather gaps, local/DST schedules, configuration, diagnostics, cycle phases and actual HA dashboard rendering.
+- All 685 tests pass with 88.82% combined line/branch coverage. Mypy checks all 21 program modules, with stronger checks for ten core modules.
+- Ruff, compilation, JSON/YAML, file headers, documentation links and whitespace checks pass. The second valve remains read-only.
+- Mowing weather windows remain estimates; grass-surface dryness and soil-model accuracy require field validation.
+
 ## 3.11.0
 
 ### Added

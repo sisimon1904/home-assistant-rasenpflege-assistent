@@ -46,6 +46,7 @@ async def async_get_config_entry_diagnostics(
         "soil_model": coordinator.model_diagnostics(),
         "model_insights": coordinator.insight_diagnostics(include_history=True),
         "care_priorities": coordinator.care_priority_details(),
+        "mowing_window": coordinator.mowing_plan_details(),
         "mowing_observation": coordinator.mowing_observer.diagnostic_attributes()
         if coordinator.mowing_observer
         else None,

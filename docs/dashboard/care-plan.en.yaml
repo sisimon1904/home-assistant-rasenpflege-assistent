@@ -52,12 +52,26 @@ cards:
   entity: sensor.lawn_care_plan
   primary: Care priorities
   secondary: '{% for step in state_attr(entity, ''prioritized_steps'') or [] %}{{ loop.index }}. {{ step.get(''action_text'')
-    }}{% if step.get(''not_before'') %} · {{ step.get(''not_before'') }}{% endif %}
+    }} · {{ step.get(''availability_text'') or '''' }}{% if step.get(''not_before'') %} · {{ as_local(as_datetime(step.get(''not_before''))).strftime(''%d.%m.
+    %H:%M'') }}{% endif %}
 
-    {{ step.get(''reason_text'') }}
+    {{ step.get(''blocker_text'') or step.get(''reason_text'') }}
 
     {% endfor %}'
   multiline_secondary: true
   icon: mdi:format-list-numbered
+  tap_action:
+    action: more-info
+- type: custom:mushroom-template-card
+  entity: sensor.lawn_care_plan
+  primary: Mowing start and dew review
+  secondary: '{% set p = state_attr(entity, ''mowing_window'') or {} %}{% if p.get(''start'') %}{{ as_local(as_datetime(p.get(''start''))).strftime(''%d.%m.
+    %H:%M'') }}{% else %}—{% endif %}
+
+    {{ p.get(''current_dew_risk_text'') or '''' }}
+
+    {{ p.get(''reason_text'') or '''' }}'
+  multiline_secondary: true
+  icon: mdi:grass
   tap_action:
     action: more-info

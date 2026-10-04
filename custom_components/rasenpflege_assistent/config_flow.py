@@ -181,6 +181,8 @@ MOWING_FIELDS = (
     CONF_MOWING_ACTIVE_STATE,
     CONF_MOWING_DONE_STATE,
     CONF_MOWING_MIN_MINUTES,
+    "mowing_start_time",
+    "mowing_end_time",
 )
 
 
@@ -443,6 +445,8 @@ def _schema(
         vol.Optional(CONF_LAST_WATERING): selector.DateSelector(),
         vol.Optional(CONF_LAST_FERTILIZING): selector.DateSelector(),
         vol.Optional(CONF_LAST_MOWING): selector.DateSelector(),
+        vol.Required("mowing_start_time", default="09:00:00"): selector.TimeSelector(),
+        vol.Required("mowing_end_time", default="20:00:00"): selector.TimeSelector(),
         vol.Required(CONF_MOWING_MODE, default=DEFAULT_MOWING_MODE): _select(
             "mowing_mode", ["manual", "robot"]
         ),
@@ -829,6 +833,15 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
         elif step_id == "model":
             errors.update(_validate_calibration(merged))
         elif step_id == "mowing":
+            for key in ("mowing_start_time", "mowing_end_time"):
+                raw_time = merged.get(
+                    key, "09:00:00" if key == "mowing_start_time" else "20:00:00"
+                )
+                parsed_time = (
+                    dt_util.parse_time(raw_time) if isinstance(raw_time, str) else None
+                )
+                if parsed_time is None or parsed_time.tzinfo is not None:
+                    errors[key] = "mowing_time_invalid"
             active = merged[CONF_MOWING_ACTIVE_STATE].strip()
             done = merged[CONF_MOWING_DONE_STATE].strip()
             if not active or active.casefold() in {

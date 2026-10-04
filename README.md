@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.11.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.12.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -308,6 +308,31 @@ Die Bewässerungsdiagnose enthält `cycle_plan`: aktive Minuten, Zykluszahl, daz
 `live_robot_session` an der Mähstatusentität und `mowing_observation` im Diagnoseexport zeigen aktive/inaktive Minuten, Unterbrechungen, Mindestdauer, Beobachtungsgrund und letzte gespeicherte Beobachtung. Pausen und Rückfahrten zählen nicht als aktive Mähzeit; verspätete Ereignisse werden verworfen. Eine Stationserkennung nach ausreichender Aktivität bleibt eine Schätzung: `coverage_confirmed` ist immer `false`. Der Assistent sendet keine Mäherbefehle.
 
 Die [Pflegeplankarte](docs/dashboard/care-plan.de.yaml) und [Diagnosekarte](docs/dashboard/diagnostics.de.yaml) zeigen diese Hinweise aus vorhandenen Daten. Es erfolgen keine zusätzlichen regelmäßigen OWM-Abfragen.
+
+## Geeigneter Mähbeginn und Taurisiko
+
+Die vorhandenen Entitäten **Mähstatus** und **Pflegeplan** zeigen `mowing_window`. **Datenqualität** enthält `mowing_window_quality`; der Diagnoseexport enthält dieselben Informationen unter `mowing_window`. Es werden keine neuen Entitäten angelegt. Der bisherige `next_mowing_at` bleibt die früheste Fälligkeit aus Mähintervall und Nassrasenpause; `mowing_window.start` ist davon getrennt der nächste ausreichend belegte Wettertermin.
+
+| Attribut | Bedeutung |
+| --- | --- |
+| `start`, `end` | Geschätztes geeignetes Mähfenster innerhalb der nächsten 48 echten Stunden, mit lokaler Zeitzone; ohne ausreichende Daten `null`. |
+| `current_dew`, `window_dew` | Aktuelles bzw. zum empfohlenen Beginn geschätztes Taurisiko, Taupunkt in °C, Abstand zur Lufttemperatur und Quelle. |
+| `reason_text`, `blockers_text` | Erklärung des empfohlenen Fensters oder der ausgeschlossenen Zeitpunkte. |
+| `missing_inputs`, `missing_inputs_text` | Fehlende Temperatur-, Niederschlags-, Wind- oder Tauinformationen. |
+| `leaf_wetness` | Vorhandener optionaler Blattnässe-Sensor: `wet`, `dry`, `unknown` oder `not_configured`. |
+| `estimated`, `surface_dry_confirmed` | Die Wetterempfehlung bleibt eine Schätzung; trockener Rasen wird nicht als bestätigt behauptet. |
+
+Unter **Optionen → Mähen** lassen sich Beginn und Ende des täglichen Mähzeitfensters einstellen, standardmäßig **09:00–20:00 Uhr**. Gleiche Uhrzeiten erlauben den ganzen Tag; ein früheres Ende erlaubt ein Fenster über Mitternacht. Diese Zeiten dienen ausschließlich Empfehlungen und steuern keinen Mäher.
+
+Die Planung verwendet vorhandene, frische HA-Wetterdaten und den vorhandenen Stundenprognosecache. Sie berücksichtigt Intervallfälligkeit, Nassrasenpausen nach Regen/Bewässerung, laufende Bewässerung, Frost, Hitze ab 28 °C, Wind über 8 m/s sowie prognostizierten Regen oder Regenwahrscheinlichkeit ab 50 %. Jede Prognose deckt höchstens eine Stunde ab; Lücken werden nicht als trocken ausgefüllt. Aktuelle Wetterdaten werden höchstens für die nächste Stunde verwendet, niemals als Luftfeuchte für morgen.
+
+Ein mitgelieferter Taupunkt wird bevorzugt; andernfalls wird er aus Temperatur und relativer Luftfeuchte nach der [Bolton-Umkehrformel](https://unidata.github.io/MetPy/latest/api/generated/metpy.calc.dewpoint.html) geschätzt. Ein Temperaturabstand bis 2 °C gilt als hohes, bis 4 °C als erhöhtes Taurisiko. Diese Grenzen sind Heuristiken, keine validierten Rasentemperaturen. Nach erkanntem Tau-, Nebel- oder Frostrisiko wird zunächst eine zusammenhängende trockene Prognosestunde mit geringem Risiko abgewartet. Ein frischer trockener Blattnässewert überschreibt nur die aktuelle Tau-Einschätzung, nicht Regen, Frost, künftige Tauwerte oder eine laufende Bewässerung. Ungültige oder zukünftige gespeicherte Nassrasen-Zeitstempel werden nicht als gültige Pause verwendet; ohne frischen trockenen Blattnässewert bleibt das Mähfenster dann unbekannt. Bei fehlender Luftfeuchte und fehlendem Taupunkt bleibt das Risiko unbekannt; Tagesprognosen werden nicht in erfundene Stundenwerte umgerechnet. Welche Prognosefelder verfügbar sind, hängt vom HA-Wetteranbieter ab ([HA-Prognosefelder](https://www.home-assistant.io/actions/weather.get_forecasts/)).
+
+**Rasen vor dem Mähen vor Ort auf Nässe prüfen.** Die Lufttemperatur entspricht nicht zwingend der Grastemperatur; geringes Taurisiko bestätigt keine trockene Oberfläche ([NWS: Tauentwicklung](https://www.weather.gov/source/zhu/ZHU_Training_Page/fog_stuff/Dew_Frost/Dew_Frost.htm)). Automatische Mäherbefehle und zusätzliche regelmäßige OWM-Abfragen erfolgen nicht.
+
+`prioritized_steps` enthält zusätzlich `availability`/`availability_text` (`now`, `later`, `blocked`, `not_needed`) und einen lesbaren Blockierungsgrund. Die Mähaktion verwendet den Wettertermin als `not_before`; abgelaufene Nassrasenzeiten erzeugen keine neue Warteempfehlung. Der Wochenvergleich enthält unter `changes` nachvollziehbare Regen-/Verdunstungs-/Verbrauchsdifferenzen; unvollständige Vergleichswerte bleiben unbekannt. Zyklusschätzungen berücksichtigen den Rest der aktuellen Zyklusphase, laufende Sickerpausen und die verbleibende Mindestlaufzeit einer manuellen Standardbewässerung. Bei einer Pause ohne bekanntes Ende bleibt die Gesamtdauer unbekannt.
+
+Widersprüchliche Prognoseeinträge für denselben absoluten Zeitpunkt werden als unbekannter Datensatz erhalten. Sie werden weder addiert noch als trockene Stunde ausgewählt. Ist die relevante Bewässerungsprognose betroffen, wird deren Vertrauen auf niedrig gesetzt und der automatische Start gesperrt; die Datenqualität zeigt `forecast_conflict`.
 
 ## Erweiterte Modelldiagnose
 
