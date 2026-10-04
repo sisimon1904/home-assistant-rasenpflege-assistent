@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.9.0 · [Changelog](CHANGELOG.md)
+Version 3.10.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -259,6 +259,27 @@ the OpenWeatherMap API directly.
 Diagnostic entities expose data quality, confidence, sources, forecast age,
 evapotranspiration method, and other model values. Some are disabled by default
 and can be enabled in Home Assistant.
+
+## History, calibration advice and amount explanations
+
+The existing soil-moisture entity exposes `model_insights`. History retains **at most 168 hourly snapshots for seven days**; entity attributes show the latest 24 snapshots, while downloaded diagnostics contain the full bounded history. Rain and ET terms are accumulated within each hour. Changing the soil sensor, dry/wet references, soil profile or root depth resets comparison evidence, preserving care history and water consumption.
+
+| Diagnostic | Meaning |
+| --- | --- |
+| `model_insights.calibration` | Independent reports, observation span, median pre-correction disagreement, references and readable review suggestions. |
+| `model_insights.watering_response` | Measured liters from the last controlled session and observed moisture change; incomplete amounts, rain and history gaps make attribution uncertain. |
+| `model_insights.initialization` | Known model creation time, diagnostic recording start, missing historical temperature days and retention limits. |
+| Data quality: `model_initialization`, `data_gaps` | Separate unknown observed rainfall, stale current weather, stale forecasts and unintegrated model hours. |
+| Watering recommendation / next action: `watering_explanation` | Current water, 80% model target, deficit, expected ET, forecast rain, area, efficiency, gross applied mm/liters and estimated root-zone credit. |
+| Irrigation diagnostics: `next_check` | Local safety rechecks normally within 15 seconds, estimated model refresh on the 30-minute interval and upcoming hold/cooldown/forecast boundaries. State events may check earlier; this does not promise a start. |
+
+Calibration advice requires **six distinct sensor reports spanning at least 24 hours**. A median difference of at least 20 percentage points or readings remaining at reference limits produce review suggestions. Reusing one unchanged report does not create independent evidence. Review rainfall input, dry/wet references, measurement range, sensor location and soil profile first. **No parameters are changed automatically.**
+
+Response review requires a sensor report within six hours before a fully measured controlled watering session and another between 30 minutes and 24 hours after it ends. Missing moisture increase does not prove a device fault. No measured efficiency or automatic dose correction is inferred; efficiency remains your setting.
+
+Existing dosing policy is preserved: recommended mm and liters are **gross applied water**, and estimated root-zone credit is mm × efficiency. Forecast, ET, rounding and dose bounds influence the recommendation, so it is not simply deficit ÷ efficiency. Consumption and safety limits can further cap an automatic session target.
+
+Older installations retain an unknown model creation time when that date was never recorded. Diagnostic recording starts at upgrade; earlier observations are not invented. A model time gap does not establish that HA was offline; its cause remains explicitly unknown. The [diagnostics card](docs/dashboard/diagnostics.en.yaml) displays advice and amount explanations. These features require no new mandatory sensors or extra regular OWM API requests.
 
 ## Extended model diagnostics
 

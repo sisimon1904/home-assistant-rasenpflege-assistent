@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.9.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.10.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -273,6 +273,27 @@ liest vorhandene Entitäten und ruft Vorhersagen über Home Assistants
 Diagnose-Entitäten zeigen Datenqualität, Modellvertrauen, Quellen,
 Vorhersagealter, Verdunstungsverfahren und weitere Modellwerte. Einige sind
 standardmäßig deaktiviert und können in Home Assistant aktiviert werden.
+
+## Verlauf, Kalibrierungshilfe und Mengen-Erklärung
+
+Die bestehende Bodenfeuchteentität enthält `model_insights`. Der Verlauf speichert höchstens **168 stündliche Momentaufnahmen für sieben Tage**; Sensorattribute enthalten die letzten 24 Aufnahmen, der Diagnoseexport den gesamten begrenzten Verlauf. Innerhalb einer Stunde werden Regen und Verdunstung zusammengefasst. Wechsel von Bodensensor, Trocken-/Nassreferenzen, Bodenprofil oder Wurzeltiefe starten die Vergleichsdaten neu. Pflegehistorie und Verbrauch bleiben erhalten.
+
+| Diagnose | Bedeutung |
+| --- | --- |
+| `model_insights.calibration` | Unabhängige Sensorberichte, Beobachtungsdauer, mediane Abweichung vor der Sensorkorrektur, Referenzen und lesbare Prüfhilfen. |
+| `model_insights.watering_response` | Gemessene Liter der letzten gesteuerten Sitzung und beobachtete Feuchteänderung; unvollständige Mengen, Regen und Verlaufszeitlücken verhindern eine sichere Zuordnung. |
+| `model_insights.initialization` | Bekannter Modellbeginn, Beginn der Diagnoseaufzeichnung, fehlende historische Temperaturtage und Aufbewahrungsgrenzen. |
+| Datenqualität: `model_initialization`, `data_gaps` | Getrennte Hinweise auf unbekannten gemessenen Regen, veraltetes Wetter, veraltete Prognose und nicht integrierte Modellstunden. |
+| Bewässerungsempfehlung / nächste Aktion: `watering_explanation` | Wasservorrat, 80-%-Modellziel, Fehlmenge, erwartete Verdunstung, Regenprognose, Fläche, Wirkungsgrad, auszubringende mm/Liter und geschätzter wirksamer Bodenbeitrag. |
+| Bewässerungsdiagnose: `next_check` | Lokale Sicherheitsprüfung normalerweise spätestens nach 15 Sekunden, geschätzte Modellaktualisierung im 30-Minuten-Rhythmus und bevorstehende Sperr-/Prognosegrenzen. Zustandsereignisse können früher prüfen; dies ist keine Startzusage. |
+
+Die Kalibrierungshilfe benötigt **mindestens sechs unterschiedliche Sensorberichte über mindestens 24 Stunden**. Eine mediane Abweichung ab 20 Prozentpunkten oder dauerhaft an den Referenzgrenzen liegende Werte führen zu Prüfhilfen. Derselbe wiederholt verwendete Bericht zählt einmal. Das ist eine Heuristik; überprüfe zunächst Niederschlagsquelle, Trocken-/Nassreferenzen, Messbereich, Sensorposition und Bodenprofil. Es werden **keine Parameter automatisch geändert**.
+
+Für die Reaktionsprüfung werden Sensorberichte höchstens sechs Stunden vor dem Beginn und zwischen 30 Minuten und 24 Stunden nach dem Ende einer vollständig gemessenen gesteuerten Bewässerung benötigt. Ein fehlender Feuchteanstieg beweist keinen Gerätefehler. Das Programm leitet weder einen gemessenen Wirkungsgrad noch eine automatische Dosiskorrektur daraus ab. Der Wirkungsgrad bleibt deine Einstellung.
+
+Die vorhandene Dosierungsregel bleibt erhalten: empfohlene mm und Liter sind **auszubringendes Wasser**; geschätzter wirksamer Bodenbeitrag ist mm × Wirkungsgrad. Die Empfehlung berücksichtigt Prognose, Verdunstung, Rundung und Mengengrenzen und ist deshalb nicht einfach Fehlmenge ÷ Wirkungsgrad. Verbrauchs-/Sicherheitsgrenzen können die automatische Sitzungszielmenge zusätzlich begrenzen.
+
+Bei einem Update aus älteren Versionen bleibt der tatsächliche Modellbeginn unbekannt, wenn er nie gespeichert wurde. Die Diagnoseaufzeichnung beginnt beim Update; frühere Beobachtungen werden nicht erfunden. Eine Modellzeitlücke beweist allein keinen HA-Ausfall, deshalb bleibt die Ursache ausdrücklich unbekannt. Die [Diagnosekarte](docs/dashboard/diagnostics.de.yaml) zeigt die neuen Prüfhilfen und die Mengen-Erklärung. Neue Pflichtsensoren oder zusätzliche regelmäßige OWM-Abfragen sind dafür nicht erforderlich.
 
 ## Erweiterte Modelldiagnose
 

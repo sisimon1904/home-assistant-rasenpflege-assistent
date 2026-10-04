@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
+from .insights import ModelObservation
+
 
 @dataclass(slots=True)
 class LawnData:
@@ -30,6 +32,7 @@ class LawnData:
     watering_status: str = "not_due"
     watering_mm: float = 0.0
     watering_liters: float = 0.0
+    watering_explanation: dict[str, Any] = field(default_factory=dict)
     watering_reasons: list[str] = field(default_factory=list)
     forecast_rain_mm: float | None = None
     forecast_rain_24h_mm: float | None = None
@@ -162,6 +165,9 @@ class RuntimeState:
     daily_rain_unknown: bool = True
     local_day_model: bool = True
     soil_water_mm: float | None = None
+    model_initialized_at: str | None = None
+    diagnostic_recording_since: str | None = None
+    model_observations: list[ModelObservation] = field(default_factory=list)
     current_day_evapotranspiration_mm: float = 0.0
     daily_temperature_history: list[float] = field(default_factory=list)
     mower_started_year: int | None = None
@@ -219,6 +225,9 @@ class RuntimeState:
         callers take deep snapshots before awaits to isolate a durable write.
         """
         return {
+            "model_initialized_at": self.model_initialized_at,
+            "diagnostic_recording_since": self.diagnostic_recording_since,
+            "model_observations": self.model_observations,
             "irrigation_suspended_until": self.irrigation_suspended_until,
             "irrigation_last_session": self.irrigation_last_session,
             "water_usage": self.water_usage,

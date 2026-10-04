@@ -40,3 +40,38 @@ cards:
   - sensor.lawn_water_consumption_today
   - sensor.rasen_erfasste_bewasserung_diese_woche
   - sensor.rasen_erfasste_bewasserung_diesen_monat
+- type: custom:mushroom-template-card
+  entity: sensor.rasen_modellierte_bodenfeuchte
+  primary: Soil model & calibration
+  secondary: '{% set model = state_attr(entity, ''model_insights'') or {} %}{% set calibration = model.get(''calibration'',
+    {}) %}
+
+    Median difference: {{ calibration.get(''median_deviation_percentage_points'') if calibration.get(''median_deviation_percentage_points'')
+    is not none else ''—'' }} percentage points
+
+    {{ (calibration.get(''reasons_text'') or []) | join(''
+
+    '') }}
+
+    {{ (model.get(''watering_response'', {}).get(''reasons_text'') or []) | join(''
+
+    '') }}'
+  icon: mdi:chart-timeline-variant
+  multiline_secondary: true
+  tap_action:
+    action: more-info
+- type: custom:mushroom-template-card
+  entity: sensor.rasen_bewasserungsempfehlung
+  primary: Watering amount explained
+  secondary: '{% set dose = state_attr(entity, ''watering_explanation'') or {} %}
+
+    Deficit to model target: {{ dose.get(''deficit_to_target_mm'', ''—'') }} mm
+
+    To apply: {{ dose.get(''recommended_gross_mm'', ''—'') }} mm · {{ dose.get(''recommended_liters'', ''—'') }}
+    L
+
+    Estimated root-zone credit: {{ dose.get(''estimated_root_zone_credit_mm'', ''—'') }} mm'
+  icon: mdi:water-plus
+  multiline_secondary: true
+  tap_action:
+    action: more-info

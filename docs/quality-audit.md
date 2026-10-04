@@ -1,4 +1,4 @@
-# Qualitätsaudit – 3.9.0
+# Qualitätsaudit – 3.10.0
 
 Geprüft am 2. Oktober 2026 gegen die [Home Assistant Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/). Dies ist eine Selbstauskunft für eine HACS-Integration, keine offizielle Einstufung. Fehlerfreiheit und vollständige Erfüllung sämtlicher Quality-Scale-Stufen werden nicht behauptet.
 
@@ -121,3 +121,15 @@ Modellvertrauen berücksichtigt Datenlücken und die Sensorabweichung vor der Ko
 Mypy 2.4.0 prüft alle 17 Programmdateien ohne Befund. Strengere Prüfoptionen gelten für Berechnungen, Diagnoseverträge, Modelle, Zeitplanung und Speicherung. Die vollständige Strict-Typisierung sowie über 95 % Abdeckung jedes Moduls bleiben offene Anforderungen. Ruff, Python-Kompilierung, JSON/YAML, relative Dokumentationslinks und Git-Whitespace-Prüfung sind Bestandteil der Abschlussprüfung. CI enthält nun ebenfalls Mypy.
 
 Zusätzliche Exportprüfung: NaN und positive/negative Unendlichkeit in Wetter-Rohattributen werden als Text ausgegeben. Drei Regressionen reproduzierten den JSON-Fehler vor der Korrektur und bestehen danach. Der abschließende Stand umfasst die oben genannten 491 Tests.
+
+## Prüfung für 3.10.0
+
+**554 Tests bestanden, 87,53 % kombinierte Zeilen-/Zweigabdeckung** unter Python 3.14.7 / Home Assistant 2026.9.4. Die 63 neuen Regressionen sichern die zwei Fehlerkorrekturen und neue Verlaufs-/Kalibrierungs-/Reaktionsdiagnosen ab. Historie: maximal 168 Stundenaufnahmen in sieben Tagen, höchstens 24 Aufnahmen in Sensorattributen. Wiederverwendete Sensorberichte gelten nicht als unabhängige Messungen. Konfigurationswechsel trennen die Vergleichsevidenz.
+
+Die Eingangsdiagnose und alle Durchfluss-Sicherheitsprüfungen verwenden dieselbe Normalisierung/Frischeregel einschließlich der konfigurierten Startwartezeit. Wiederhergestellte Sitzungen mit fehlenden oder fehlerhaften Pflichtzeitstempeln werden geschlossen und mit sichtbarer Messlücke abgeschlossen. Die Testdoubles bestätigen Schließbefehle und Abschlusszustand, keine Hardwaregarantie.
+
+Upgrade-Tests erhalten Einstellungen, Pflegehistorie, Verbrauch und bestehende Speicherfelder; die neuen optionalen Felder sind additiv und erfordern keine Konfigurationsversionserhöhung. Ungültige optionale Verlaufsdaten verhindern das Laden vorhandener Pflege-/Verbrauchsdaten nicht. Modellbeginn älterer Installationen wird nicht erfunden.
+
+Kalibrierung und Reaktionsprüfung geben nachvollziehbare Hinweise, keine automatischen Parameteränderungen oder Wirkungsgradschätzungen. Regen, unvollständige Mengen und Verlaufszeitlücken begrenzen die Zuordnung. Zusätzliche Trockenheits-/Wiederbefeuchtungsreferenzen prüfen Wassererhaltung und Kapazitätsbegrenzung bei drei Bodenarten. Das Modell bleibt ohne lokale Feldvalidierung.
+
+Mypy 2.4.0: alle 19 Programmdateien ohne Befund, strengere Optionen für sieben Kernmodule. Die neuen Verlaufshilfen erreichen rund 97 % kombinierte Abdeckung. Vollständige Strict-Typisierung, durchgehend über 95 % Abdeckung und echte Hardware-/Versionsmatrixprüfungen bleiben offen. Abschlussprüfungen umfassen Ruff, Kompilierung, JSON/YAML, tatsächliches HA-Rendern aller Dashboard-Vorlagen, Dokumentationslinks und Git-Whitespace.

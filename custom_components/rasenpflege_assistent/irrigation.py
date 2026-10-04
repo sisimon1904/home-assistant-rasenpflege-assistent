@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import (
@@ -73,6 +73,8 @@ if TYPE_CHECKING:
     from .coordinator import LawnCoordinator
 
 from .explanations import reason_text
+from .inputs import MeterObservation, meter_observation
+from .inputs import meter_reading as _meter_reading
 from .planning import (
     allocate_volume,
     consumption_summary,
@@ -90,42 +92,10 @@ def _session_timestamp(raw: str) -> datetime:
     repaired only for restart closure by async_initialize; they never authorize
     resuming a persisted session. This contract avoids optional-date arithmetic.
     """
-    parsed = dt_util.parse_datetime(raw)
+    parsed = dt_util.parse_datetime(raw) if isinstance(raw, str) else None
     if parsed is None or parsed.tzinfo is None:
         raise HomeAssistantError("Invalid irrigation session timestamp")
     return parsed
-
-
-def _meter_reading(state: Any) -> tuple[str, float] | None:
-    """Normalize supported flow and volume sensors to L/min or L.
-
-    Return a normalized (kind, value) pair: cumulative volume in liters
-    or instantaneous rate in liters/minute. Invalid state, unsupported units,
-    non-finite values and negative quantities are unusable observations.
-    """
-    if state is None or state.state in ("unknown", "unavailable"):
-        return None
-    try:
-        raw = float(state.state)
-    except (TypeError, ValueError):
-        return None
-    if not 0 <= raw < 1e9:
-        return None
-    unit = str(state.attributes.get("unit_of_measurement", "")).strip()
-    rates = {
-        "L/min": 1.0,
-        "L/h": 1 / 60,
-        "L/s": 60.0,
-        "m³/h": 1000 / 60,
-        "m³/min": 1000.0,
-        "m³/s": 60000.0,
-    }
-    volumes = {"L": 1.0, "m³": 1000.0, "gal": 3.785411784}
-    if unit in rates:
-        return "rate", raw * rates[unit]
-    if unit in volumes:
-        return "volume", raw * volumes[unit]
-    return None
 
 
 class IrrigationController:
@@ -170,6 +140,20 @@ class IrrigationController:
         accounting or permission for a second start.
         """
         return self.state.irrigation_session is not None or self._finishing
+
+    def _meter_observation(
+        self, state: State | None, now: datetime | None = None
+    ) -> MeterObservation:
+        """Share rate age acceptance with input diagnostics and running checks."""
+        return meter_observation(
+            state,
+            now or dt_util.now(),
+            int(
+                self.coordinator.settings.get(
+                    CONF_FLOW_START_GRACE, DEFAULT_FLOW_START_GRACE
+                )
+            ),
+        )
 
     def _mower_is_docked(self) -> bool:
         """Trust only the configured explicit dock state.
@@ -427,6 +411,47 @@ class IrrigationController:
             {"weather_pending": {"rain_detected": old, "wind_too_strong": old}}
         )
 
+    def next_check_details(self) -> dict[str, Any]:
+        """Describe local safety rechecks and slower model refresh separately.
+
+        Boundaries are reasons to re-evaluate, not promises that watering starts.
+        State events may trigger earlier checks; reads do not schedule work.
+        """
+        now = dt_util.now()
+        boundaries = []
+        for reason, raw in (
+            ("automation_suspended", self.state.irrigation_suspended_until),
+            ("retry_cooldown", self.state.irrigation_retry_after),
+            (
+                "waiting_for_window",
+                self.coordinator.data.watering_window_start
+                if self.coordinator.data
+                else None,
+            ),
+        ):
+            at = dt_util.parse_datetime(raw or "")
+            if at and at.tzinfo is not None and at > now:
+                boundaries.append({"at": at.isoformat(), "reason": reason})
+        boundaries.sort(key=lambda item: dt_util.parse_datetime(item["at"]) or now)
+        from .const import UPDATE_INTERVAL
+        from .insights import aware_time
+
+        last_update = aware_time(
+            self.coordinator.update_diagnostics()["last_success_at"]
+        )
+        model_at = max(now, last_update + UPDATE_INTERVAL) if last_update else None
+        return {
+            "estimated": True,
+            "local_check_within_seconds": IRRIGATION_WATCHDOG_INTERVAL.total_seconds()
+            if self.configured and not self._shutting_down
+            else None,
+            "model_refresh_at": model_at.isoformat() if model_at else None,
+            "model_interval_minutes": UPDATE_INTERVAL.total_seconds() / 60,
+            "waiting_reason": self.automatic_blocker(),
+            "boundaries": boundaries,
+            "earlier_state_events_possible": True,
+        }
+
     def next_start_details(self) -> dict:
         """Intersect the cached forecast window with schedule, hold and cooldown.
 
@@ -679,18 +704,7 @@ class IrrigationController:
             reading = _meter_reading(meter)
             if meter is None or reading is None:
                 return "meter_unavailable"
-            if reading[0] == "rate" and dt_util.now() - (
-                getattr(meter, "last_reported", None) or meter.last_updated
-            ) > timedelta(
-                seconds=max(
-                    120,
-                    int(
-                        self.coordinator.settings.get(
-                            CONF_FLOW_START_GRACE, DEFAULT_FLOW_START_GRACE
-                        )
-                    ),
-                )
-            ):
+            if self._meter_observation(meter).reason == "stale":
                 return "meter_stale"
         return None
 
@@ -885,24 +899,7 @@ class IrrigationController:
         meter_id = self.coordinator.settings.get(CONF_IRRIGATION_FLOW)
         meter = self.hass.states.get(meter_id) if meter_id else None
         reading = _meter_reading(meter)
-        meter_fresh = (
-            meter is not None
-            and reading is not None
-            and (
-                reading[0] == "volume"
-                or now - (getattr(meter, "last_reported", None) or meter.last_updated)
-                <= timedelta(
-                    seconds=max(
-                        120,
-                        int(
-                            self.coordinator.settings.get(
-                                CONF_FLOW_START_GRACE, DEFAULT_FLOW_START_GRACE
-                            )
-                        ),
-                    )
-                )
-            )
-        )
+        meter_fresh = self._meter_observation(meter).reason == "accepted"
         suspended = dt_util.parse_datetime(self.state.irrigation_suspended_until or "")
         start = (
             dt_util.parse_datetime(data.watering_window_start or "") if data else None
@@ -1087,6 +1084,10 @@ class IrrigationController:
         reading = _meter_reading(meter)
         return {
             "automatic_blocker": self.automatic_blocker(),
+            "next_check": self.next_check_details(),
+            "watering_explanation": dict(self.coordinator.data.watering_explanation)
+            if self.coordinator.data
+            else {},
             "next_automatic_start": self.next_start_details()["at"],
             "next_start_plan": self.next_start_details(),
             "water_budget": self.budget_details(session),
@@ -1346,6 +1347,7 @@ class IrrigationController:
         if self.active:
             session = self.state.irrigation_session
             if session is not None:
+                repaired = []
                 for key in (
                     "started_at",
                     "segment_started_at",
@@ -1356,15 +1358,27 @@ class IrrigationController:
                     "last_volume_change_at",
                 ):
                     value = session.get(key)
-                    if value is not None:
-                        parsed = (
-                            dt_util.parse_datetime(value)
-                            if isinstance(value, str)
-                            else None
-                        )
-                        if parsed is None or parsed.tzinfo is None:
-                            session[key] = dt_util.utcnow().isoformat()
-                            session["measurement_gap"] = True
+                    required = key in {"started_at", "last_meter_at"}
+                    if value is None and not required:
+                        # An absent closed edge must be established by physical closure.
+                        if key == "closed_at":
+                            session.pop(key, None)
+                        continue
+                    parsed = (
+                        dt_util.parse_datetime(value)
+                        if isinstance(value, str)
+                        else None
+                    )
+                    if (
+                        parsed is None
+                        or parsed.tzinfo is None
+                        or parsed > dt_util.utcnow()
+                    ):
+                        session[key] = dt_util.utcnow().isoformat()
+                        repaired.append(key)
+                if repaired:
+                    session["timing_repaired"] = repaired
+                    session["measurement_gap"] = True
             # A restart cannot prove how long the valve was open or how much
             # water was delivered. Close it instead of resuming an old timer.
             self.state.irrigation_session["measurement_gap"] = True
@@ -2185,15 +2199,7 @@ class IrrigationController:
         if entity is None or reading is None or reading[0] != session["meter_kind"]:
             return "meter_unavailable"
         reported_at = getattr(entity, "last_reported", None) or entity.last_updated
-        maximum_age = max(
-            120,
-            int(
-                self.coordinator.settings.get(
-                    CONF_FLOW_START_GRACE, DEFAULT_FLOW_START_GRACE
-                )
-            ),
-        )
-        if reading[0] == "rate" and now - reported_at > timedelta(seconds=maximum_age):
+        if self._meter_observation(entity, now).reason == "stale":
             return "meter_stale"
         kind, value = reading
         previous = _session_timestamp(session["last_meter_at"])
@@ -2655,6 +2661,7 @@ class IrrigationController:
             ]
         area = float(self.coordinator.settings.get(CONF_AREA, DEFAULT_AREA))
         self.state.irrigation_last_session = {
+            "timing_repaired": session.get("timing_repaired", []),
             "session_id": session.get("session_id"),
             "target_liters": session["target_liters"],
             "allocations": session.get("allocations", []),

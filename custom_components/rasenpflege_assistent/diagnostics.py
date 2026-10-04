@@ -44,6 +44,7 @@ async def async_get_config_entry_diagnostics(
         "last_update_success": coordinator.last_update_success,
         "inputs": coordinator.input_diagnostics(),
         "soil_model": coordinator.model_diagnostics(),
+        "model_insights": coordinator.insight_diagnostics(include_history=True),
         "storage": coordinator._store.diagnostic_status(),
         "updates": coordinator.update_diagnostics(),
         "irrigation": (

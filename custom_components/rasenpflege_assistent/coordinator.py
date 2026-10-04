@@ -67,6 +67,7 @@ from .const import (
     CONF_AREA,
     CONF_COMPACTION,
     CONF_DEFAULT_WATERING_AMOUNT,
+    CONF_FLOW_START_GRACE,
     CONF_INITIAL_GTS,
     CONF_INITIAL_SOIL_MOISTURE,
     CONF_IRRIGATION_EFFICIENCY,
@@ -95,6 +96,7 @@ from .const import (
     CURRENT_WEATHER_STALE_AFTER,
     DEFAULT_AREA,
     DEFAULT_COMPACTION,
+    DEFAULT_FLOW_START_GRACE,
     DEFAULT_INITIAL_GTS,
     DEFAULT_INITIAL_SOIL_MOISTURE,
     DEFAULT_IRRIGATION_EFFICIENCY,
@@ -121,6 +123,17 @@ from .const import (
     UPDATE_INTERVAL,
 )
 from .diagnostic_types import ModelConfidence, SoilTrace, SoilUpdate
+from .explanations import reason_text
+from .inputs import meter_observation
+from .insights import (
+    ModelObservation,
+    append_observation,
+    aware_time,
+    calibration_advice,
+    restore_history,
+    watering_explanation,
+    watering_response,
+)
 from .models import LawnData, RuntimeState
 from .storage import VerifiedStore as Store
 
@@ -386,6 +399,28 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                     (today - date(today.year, 1, 1)).days if initial_gts == 0 else 0
                 ),
             )
+
+        # Older entries do not contain a trustworthy model creation timestamp.
+        # Record the new diagnostic baseline without inventing their historical age.
+        initial_at = (
+            aware_time(stored.get("model_initialized_at")) if stored else dt_util.now()
+        )
+        self.state.model_initialized_at = (
+            initial_at.isoformat()
+            if initial_at and initial_at <= dt_util.now()
+            else None
+        )
+        recording_at = (
+            aware_time(stored.get("diagnostic_recording_since")) if stored else None
+        )
+        self.state.diagnostic_recording_since = (
+            recording_at
+            if recording_at and recording_at <= dt_util.now()
+            else dt_util.now()
+        ).isoformat()
+        self.state.model_observations = restore_history(
+            stored.get("model_observations") if stored else None, dt_util.now()
+        )
 
         if self.state.configured_soil_type is None:
             self.state.configured_soil_type = soil_type
@@ -1009,9 +1044,16 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                         "accepted" if normalized is not None else "invalid_or_stale"
                     )
                 elif key == "irrigation_flow":
-                    from .irrigation import _meter_reading
-
-                    reading = _meter_reading(state)
+                    observation = meter_observation(
+                        state,
+                        now,
+                        int(
+                            self.settings.get(
+                                CONF_FLOW_START_GRACE, DEFAULT_FLOW_START_GRACE
+                            )
+                        ),
+                    )
+                    reading = observation.reading
                     normalized = reading[1] if reading else None
                     normalized_unit = (
                         "L"
@@ -1020,7 +1062,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                         if reading
                         else None
                     )
-                    reason = "accepted" if reading else "invalid"
+                    reason = observation.reason
                 elif key == CONF_PRECIPITATION_ENTITY:
                     try:
                         value = float(state.state)
@@ -1096,6 +1138,64 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 "estimated_solar_radiation",
                 "estimated_day_night_distribution",
             ],
+        }
+
+    def insight_diagnostics(self, include_history: bool = False) -> dict[str, Any]:
+        """Return bounded evidence and advice; attribute reads never add samples."""
+        now = dt_util.now()
+        history = restore_history(self.state.model_observations, now)
+        advice = calibration_advice(history)
+        response = watering_response(history, self.state.irrigation_last_session)
+        language = self.hass.config.language
+        weather = self._read_weather_conditions(now)
+        gaps = []
+        if self.state.daily_rain_unknown:
+            gaps.append("observed_rain_unknown")
+        if weather.get("stale", True):
+            gaps.append("weather_stale")
+        if self.data and self.data.forecast_stale:
+            gaps.append("forecast_stale")
+        if self.state.last_soil_model_gap_hours > 0:
+            gaps.append("model_interval_gap")
+        return {
+            "initialization": {
+                "model_initialized_at": self.state.model_initialized_at,
+                "creation_time_known": self.state.model_initialized_at is not None,
+                "diagnostic_recording_since": self.state.diagnostic_recording_since,
+                "missing_historical_temperature_days": self.state.missing_temperature_days,
+                "history_retention_days": 7,
+                "history_limit": 168,
+            },
+            "data_gaps": {
+                "reasons": gaps,
+                "reasons_text": [reason_text(code, language) for code in gaps],
+                "last_model_gap_at": self.state.last_soil_model_gap_at,
+                "unintegrated_hours": self.state.last_soil_model_gap_hours,
+                "interval_gap_cause": "not_recorded"
+                if self.state.last_soil_model_gap_hours
+                else None,
+            },
+            "calibration": {
+                **advice,
+                "soil_sensor_entity": self.settings.get(CONF_SOIL_MOISTURE_ENTITY),
+                "dry_reference": self.settings.get(
+                    CONF_SOIL_SENSOR_DRY, DEFAULT_SOIL_SENSOR_DRY
+                ),
+                "wet_reference": self.settings.get(
+                    CONF_SOIL_SENSOR_WET, DEFAULT_SOIL_SENSOR_WET
+                ),
+                "reasons_text": [
+                    reason_text(code, language) for code in advice["reasons"]
+                ],
+            },
+            "watering_response": {
+                **response,
+                "reasons_text": [
+                    reason_text(code, language) for code in response["reasons"]
+                ],
+            },
+            "history": deepcopy(history if include_history else history[-24:]),
+            "stored_history_count": len(history),
         }
 
     def update_diagnostics(self) -> dict[str, Any]:
@@ -2202,6 +2302,45 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 else self.state.irrigation_last_liters
             ),
             irrigation_reason=self.state.irrigation_last_reason,
+        )
+        sensor_id = settings.get(CONF_SOIL_MOISTURE_ENTITY)
+        sensor_state = self.hass.states.get(sensor_id) if sensor_id else None
+        context = repr(
+            (
+                sensor_id,
+                settings.get(CONF_SOIL_SENSOR_DRY, DEFAULT_SOIL_SENSOR_DRY),
+                settings.get(CONF_SOIL_SENSOR_WET, DEFAULT_SOIL_SENSOR_WET),
+                settings.get(CONF_SOIL_TYPE, DEFAULT_SOIL_TYPE),
+                settings.get(CONF_ROOT_DEPTH, DEFAULT_ROOT_DEPTH),
+            )
+        )
+        observation: ModelObservation = {
+            "timestamp": now.isoformat(),
+            "context": context,
+            "modeled_percent": round(before_sensor / capacity * 100, 2),
+            "measured_percent": measured_soil_moisture,
+            "sensor_reported_at": self._reported_at(sensor_state).isoformat()
+            if sensor_state and measured_soil_moisture is not None
+            else None,
+            "deviation": confidence["sensor_deviation_percentage_points"],
+            "rain_mm": precipitation_increment,
+            "et_mm": soil_update["actual_et_mm"],
+            "rain_known": not self.state.daily_rain_unknown
+            and self.state.last_soil_model_gap_hours == 0,
+        }
+        self.state.model_observations = append_observation(
+            self.state.model_observations, observation
+        )
+        data.watering_explanation = watering_explanation(
+            capacity_mm=capacity,
+            water_mm=soil_water,
+            area_m2=area,
+            efficiency=float(
+                settings.get(CONF_IRRIGATION_EFFICIENCY, DEFAULT_IRRIGATION_EFFICIENCY)
+            ),
+            recommended_mm=data.watering_mm,
+            expected_et_mm=soil_update["expected_et_24h_mm"],
+            forecast_rain_mm=data.forecast_rain_24h_mm,
         )
         self.apply_live_irrigation_status(data)
         await self._store.async_save(self.state.as_dict())

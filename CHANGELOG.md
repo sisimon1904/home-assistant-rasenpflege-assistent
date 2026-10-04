@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.10.0
+
+### Added
+- Persist seven days of hourly model/sensor comparisons, bounded to 168 snapshots. Show recent evidence in existing sensor attributes and full history in downloaded diagnostics.
+- Add conservative calibration advice using independent sensor reports, observation span, median disagreement and reference-limit checks. Parameter changes remain manual.
+- Compare complete measured watering sessions with subsequent sensor observations, explicitly marking rain, incomplete metering and history gaps as uncertainty.
+- Explain gross watering doses, model target/deficit, area, configured efficiency and estimated root-zone water credit without changing the existing dosing policy.
+- Expose model initialization, missing historical data, distinct data gaps and estimated local/model recheck timing.
+- Extend German/English diagnostic dashboard templates and documentation.
+
+### Fixed
+- Share flow normalization/freshness rules between diagnostics, start conditions and running checks; stale rates no longer appear accepted in input diagnostics.
+- Safely close and finalize restored sessions with missing, null, invalid, naive or future timing fields; retain recovery and measurement-gap evidence.
+
+### Validation
+- Add 63 regression cases covering bounded history, conservative advice, live flow age, restart recovery, upgrade preservation, sensor attributes and drought/rewetting references.
+- All 554 tests pass with 87.53% combined line/branch coverage. Mypy checks all 19 program modules without findings, with stronger checks for seven core modules.
+- Existing care history, user settings and recorded consumption are preserved across upgrades.
+
 ## 3.9.0
 
 ### Diagnostics and model quality

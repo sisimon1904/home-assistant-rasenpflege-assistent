@@ -9,6 +9,8 @@ Alle Python-Dateien besitzen einen englischen Modulheader mit Dateipfad, Zweck u
 | `__init__.py` | HA-Einrichtung, Aktionen, Migrationen, Listener und sicheres Entladen. |
 | `config_flow.py` | Eingabeformulare, Optionsseiten und Validierung vorhandener Datenquellen. |
 | `const.py` | Stabile Konfigurationsschlüssel, Standardwerte, Intervalle und Versionskennungen. |
+| `inputs.py` | Gemeinsame Durchflussnormalisierung und Altersprüfung für Controller und Diagnose. |
+| `insights.py` | Begrenzter Diagnoseverlauf, validierte Wiederherstellung und konservative Kalibrierungs-/Reaktionshinweise. |
 | `diagnostic_types.py` | Typverträge für Wasserbilanz, Modellvertrauen und Speicherdiagnose. |
 | `models.py` | Berechnete `LawnData` und dauerhaft gespeicherte `RuntimeState`. |
 | `coordinator.py` | Messwertnormalisierung, Vorhersagecache, Bodenmodell und Pflege-Transaktionen. |
@@ -53,6 +55,8 @@ Bei reinen Kommentaränderungen lassen sich Python-Syntaxbäume ohne Docstrings 
 
 ## Typprüfung und Regressionen
 
-`python -m mypy` verwendet `mypy.ini` und prüft alle 17 Programmdateien einschließlich bisher untypisierter Funktionskörper. Berechnungen, Diagnoseverträge, Datenmodelle, Zeitplanung und Speicherung verwenden zusätzlich strenge Prüfoptionen. Dynamische HA-/Provider-Payloads und Teile des Controllers verwenden weiterhin `Any`; eine vollständige Strict-Typisierung des gesamten Pakets ist damit nicht behauptet. Die GitHub-Tests führen dieselbe Prüfung mit Mypy 2.4.0 aus.
+`python -m mypy` verwendet `mypy.ini` und prüft alle 19 Programmdateien einschließlich bisher untypisierter Funktionskörper. Berechnungen, Diagnoseverträge, Datenmodelle, Zeitplanung, Speicherung, Eingangsprüfung und Verlaufshilfen verwenden zusätzlich strenge Prüfoptionen. Dynamische HA-/Provider-Payloads und Teile des Controllers verwenden weiterhin `Any`; eine vollständige Strict-Typisierung des gesamten Pakets ist damit nicht behauptet. Die GitHub-Tests führen dieselbe Prüfung mit Mypy 2.4.0 aus.
 
 Die neuen Regressionen in `test_release_390_model.py`, `test_release_390_diagnostics.py` und `test_release_390_config.py` prüfen mehrtägige Wassererhaltung, Intervallvergleich, Modellvertrauen, Sensorabgleich, Speicherfehler, Diagnoseexport und unabhängige Optionsseiten. Sie ergänzen die bisherigen Geräte-/Lebenszyklustests.
+
+`test_release_3100.py` prüft die additive Speicherung des Diagnoseverlaufs, unveränderte Einstellungen/Pflege-/Verbrauchsdatensätze beim Update, getrennte Brutto-/Bodenwassermengen, gemeinsame Durchflussfrische und den sicheren Sitzungsabschluss bei fehlenden Startzeiten. Der optionale Verlauf verwendet typisierte Beobachtungen und wird beim Laden validiert; ungültige Zeilen werden verworfen. Sitzungs- und Provider-Payloads an bestehenden dynamischen Grenzen bleiben teilweise `Any`.

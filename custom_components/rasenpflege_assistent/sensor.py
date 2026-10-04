@@ -864,7 +864,12 @@ class LawnSensor(LawnEntity, SensorEntity):
             ]
             return details
         details = self.entity_description.attributes_fn(self.coordinator.data)
+        if key in {"watering_recommendation", "next_action"}:
+            details["watering_explanation"] = dict(
+                self.coordinator.data.watering_explanation
+            )
         if key == "soil_moisture":
+            details["model_insights"] = self.coordinator.insight_diagnostics()
             details["input_diagnostics"] = self.coordinator.input_diagnostics()
             details["model_diagnostics"] = self.coordinator.model_diagnostics()
             details["model_confidence_reasons"] = (
@@ -878,6 +883,9 @@ class LawnSensor(LawnEntity, SensorEntity):
                 self.coordinator.data.soil_sensor_deviation_percentage_points
             )
         if key == "data_quality":
+            insights = self.coordinator.insight_diagnostics()
+            details["model_initialization"] = insights["initialization"]
+            details["data_gaps"] = insights["data_gaps"]
             details["input_diagnostics"] = self.coordinator.input_diagnostics()
             details["storage_diagnostics"] = self.coordinator._store.diagnostic_status()
             details["update_diagnostics"] = self.coordinator.update_diagnostics()
