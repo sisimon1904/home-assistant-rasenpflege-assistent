@@ -2,7 +2,7 @@
 
 File: custom_components/rasenpflege_assistent/insights.py
 
-Pure helpers keep hourly snapshots for seven days, validate restored JSON
+Pure helpers keep hourly snapshots for fourteen days, validate restored JSON
 and deduplicate sensor reports. Percentages refer to calibrated sensor and
 model scales; disagreement is not proof that either source is correct.
 Advice never changes parameters or makes device/API calls.
@@ -12,13 +12,13 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from itertools import pairwise
 from statistics import median
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
-HISTORY_LIMIT = 168
-HISTORY_DAYS = 7
+HISTORY_LIMIT = 336
+HISTORY_DAYS = 14
 
 
 class ModelObservation(TypedDict):
@@ -30,6 +30,7 @@ class ModelObservation(TypedDict):
     measured_percent: float | None
     sensor_reported_at: str | None
     deviation: float | None
+    comparison_modeled_percent: NotRequired[float]
     rain_mm: float
     et_mm: float
     rain_known: bool
@@ -100,18 +101,29 @@ def restore_history(raw: object, now: datetime) -> list[ModelObservation]:
             or reported > at
         ):
             measured, reported = None, None
+        comparison = finite_number(item.get("comparison_modeled_percent"))
+        if comparison is None or not 0 <= comparison <= 100:
+            comparison = modeled
         row: ModelObservation = {
             "timestamp": at.isoformat(),
             "context": context,
             "modeled_percent": modeled,
             "measured_percent": measured,
             "sensor_reported_at": reported.isoformat() if reported else None,
-            "deviation": round(measured - modeled, 2) if measured is not None else None,
+            "deviation": round(measured - comparison, 2)
+            if measured is not None
+            else None,
             "rain_mm": rain,
             "et_mm": et,
             "rain_known": item["rain_known"],
         }
-        rows[at.replace(minute=0, second=0, microsecond=0).isoformat()] = row
+        if measured is not None and "comparison_modeled_percent" in item:
+            row["comparison_modeled_percent"] = comparison
+        rows[
+            at.astimezone(timezone.utc)
+            .replace(minute=0, second=0, microsecond=0)
+            .isoformat()
+        ] = row
     return sorted(rows.values(), key=lambda row: aware_time(row["timestamp"]) or now)[
         -HISTORY_LIMIT:
     ]
@@ -134,9 +146,19 @@ def append_observation(
         previous = aware_time(last["timestamp"])
         if previous == now:
             return retained
-        if previous and previous.replace(
+        measured = row["measured_percent"]
+        if (
+            measured is not None
+            and row["sensor_reported_at"] == last["sensor_reported_at"]
+        ):
+            # Preserve the first comparison of one report, even after blending.
+            row = row.copy()
+            comparison = last.get("comparison_modeled_percent", last["modeled_percent"])
+            row["comparison_modeled_percent"] = comparison
+            row["deviation"] = round(measured - comparison, 2)
+        if previous and previous.astimezone(timezone.utc).replace(
             minute=0, second=0, microsecond=0
-        ) == now.replace(minute=0, second=0, microsecond=0):
+        ) == now.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0):
             row = row.copy()
             row["rain_mm"] = round(row["rain_mm"] + last["rain_mm"], 4)
             row["et_mm"] = round(row["et_mm"] + last["et_mm"], 4)

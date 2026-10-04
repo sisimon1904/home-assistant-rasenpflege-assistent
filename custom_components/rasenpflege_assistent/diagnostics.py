@@ -45,6 +45,10 @@ async def async_get_config_entry_diagnostics(
         "inputs": coordinator.input_diagnostics(),
         "soil_model": coordinator.model_diagnostics(),
         "model_insights": coordinator.insight_diagnostics(include_history=True),
+        "care_priorities": coordinator.care_priority_details(),
+        "mowing_observation": coordinator.mowing_observer.diagnostic_attributes()
+        if coordinator.mowing_observer
+        else None,
         "storage": coordinator._store.diagnostic_status(),
         "updates": coordinator.update_diagnostics(),
         "irrigation": (

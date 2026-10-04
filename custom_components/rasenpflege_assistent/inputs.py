@@ -68,7 +68,9 @@ def meter_observation(
         if reading is None
         else "accepted"
     )
-    if (
+    if state and reading and (state.last_reported or state.last_updated) > now:
+        reason = "invalid_timestamp"
+    elif (
         state
         and reading
         and reading[0] == "rate"

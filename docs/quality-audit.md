@@ -1,4 +1,4 @@
-# Qualitätsaudit – 3.10.0
+# Qualitätsaudit – 3.11.0
 
 Geprüft am 2. Oktober 2026 gegen die [Home Assistant Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/). Dies ist eine Selbstauskunft für eine HACS-Integration, keine offizielle Einstufung. Fehlerfreiheit und vollständige Erfüllung sämtlicher Quality-Scale-Stufen werden nicht behauptet.
 
@@ -133,3 +133,14 @@ Upgrade-Tests erhalten Einstellungen, Pflegehistorie, Verbrauch und bestehende S
 Kalibrierung und Reaktionsprüfung geben nachvollziehbare Hinweise, keine automatischen Parameteränderungen oder Wirkungsgradschätzungen. Regen, unvollständige Mengen und Verlaufszeitlücken begrenzen die Zuordnung. Zusätzliche Trockenheits-/Wiederbefeuchtungsreferenzen prüfen Wassererhaltung und Kapazitätsbegrenzung bei drei Bodenarten. Das Modell bleibt ohne lokale Feldvalidierung.
 
 Mypy 2.4.0: alle 19 Programmdateien ohne Befund, strengere Optionen für sieben Kernmodule. Die neuen Verlaufshilfen erreichen rund 97 % kombinierte Abdeckung. Vollständige Strict-Typisierung, durchgehend über 95 % Abdeckung und echte Hardware-/Versionsmatrixprüfungen bleiben offen. Abschlussprüfungen umfassen Ruff, Kompilierung, JSON/YAML, tatsächliches HA-Rendern aller Dashboard-Vorlagen, Dokumentationslinks und Git-Whitespace.
+
+
+## Ergänzende Prüfung für 3.11.0
+
+Geprüft am 4. Oktober 2026. Sieben fehlschlagende Regressionen wurden vor der Korrektur reproduziert: zukünftige Durchflussmeldungen bei Start und Restlaufzeitanzeige, zukünftige Wetter-/Temperatur- und Regenmeldungen, verlorene ursprüngliche Modellabweichung bei wiederverwendeten Sensorberichten, doppelte Stunden durch verschiedene UTC-Offsets und zu viel aktive Mähzeit durch verspätete Ereignisse. Die Korrekturen sind durch `tests/test_release_3110_regressions.py` abgesichert. Prognosecache-Zeitstempel werden ebenfalls auf Zukunft geprüft.
+
+`tests/test_release_3110.py` prüft zusätzlich Pflegeprioritäten bei fehlenden Daten, Frost, Regen und laufender Bewässerung; getrennte Wochenperioden mit bekannten Referenzsummen, Zeitumstellungen und Aufzeichnungslücken; unbekannte/geschätzte Verbrauchseinträge; unabhängige Sensorberichte und wiederholte Ausfälle; Zykluszeiten mit Pausen, eigenen Summen-/Ratenzählern und Rest-Sicherheitslaufzeit; Mäherunterbrechungen, Undo und Speicherrücknahme; optionale beschädigte Mäherdaten sowie JSON-kompatible, lokalisierte und ausschließlich lesende Diagnoseattribute. Der bestehende Aufbewahrungstest wurde gezielt auf 336 Stundenaufnahmen in 14 Tagen angepasst.
+
+**606 Tests bestanden, 88,83 % kombinierte Zeilen-/Zweigabdeckung** unter Python 3.14.7 / Home Assistant 2026.9.4. Gegenüber 3.10.0 wurden 52 Tests ergänzt. Mypy 2.4.0 prüft alle 20 Programmdateien ohne Befund; neun Kernmodule verwenden strengere Prüfoptionen. Ruff-Formatierung, Ruff-Prüfung, Python-Kompilierung, JSON/YAML, tatsächliches HA-Rendern sämtlicher Dashboard-Vorlagen, Dateiheader, relative Dokumentationslinks und Git-Whitespace-Prüfung sind erfolgreich.
+
+Die neuen Pflege- und Zyklushinweise sind Heuristiken und ändern keine Einstellungen oder Geräte. Fehlende historische Daten werden nicht ergänzt. Wochen-Regenwerte erscheinen nur bei ausreichender Aufzeichnung und bekannter Regenquelle; die Zuordnung von Verbrauch anhand lokaler Tage bleibt geschätzt. Flache Messwerte sind kein bestätigter Defekt; Mährobotersitzungen bestätigen keine Flächenabdeckung. Das Bodenmodell bleibt ein nicht vor Ort validiertes Profilmodell. Vollständige Strict-Typisierung, über 95 % Abdeckung in jedem Modul sowie Hardware- und Versionsmatrixprüfungen bleiben offen.

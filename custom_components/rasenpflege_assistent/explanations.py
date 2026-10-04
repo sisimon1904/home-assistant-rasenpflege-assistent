@@ -462,6 +462,82 @@ for _code, _texts in _NEW_EXPLANATIONS.items():
     EXPLANATIONS["en"][_code] = _texts[1]
 
 
+# Read-only care and observation guidance introduced in 3.11.0.
+_EVERYDAY_EXPLANATIONS = {
+    "care_check_inputs": (
+        "Aktuelle Temperaturdaten prüfen, bevor Pflege geplant wird.",
+        "Check current temperature observations before planning care.",
+    ),
+    "care_wait_frost": ("Bei Frost Pflege aufschieben.", "Defer care during frost."),
+    "care_water_before_mowing": (
+        "Wasserbedarf zuerst berücksichtigen; Mähen erst im passenden Zeitfenster.",
+        "Consider water demand first; mow in the appropriate time window.",
+    ),
+    "care_wait_dry": (
+        "Nach Regen oder Bewässerung trockenen Rasen abwarten.",
+        "Wait for the lawn to dry after rain or watering.",
+    ),
+    "care_follow_mowing_schedule": (
+        "Mähintervall und verfügbares trockenes Zeitfenster berücksichtigen.",
+        "Follow the mowing interval and available dry window.",
+    ),
+    "care_follow_fertilizing_window": (
+        "Düngung im empfohlenen Zeitfenster einplanen.",
+        "Plan fertilizing within its recommended window.",
+    ),
+    "check_inputs": ("Eingangsdaten prüfen", "Check input observations"),
+    "wait_for_frost_free": (
+        "Frostfreie Bedingungen abwarten",
+        "Wait for frost-free conditions",
+    ),
+    "wait_for_irrigation": (
+        "Bewässerungsende abwarten",
+        "Wait for irrigation to finish",
+    ),
+    "prepare_watering": ("Bewässerung vorbereiten", "Prepare watering"),
+    "wait_until_dry": ("Trockenen Rasen abwarten", "Wait for the lawn to dry"),
+    "sensor_flat_review": (
+        "Unveränderte Feuchte trotz unabhängiger Meldungen und Modelländerung: Sensorposition und Meldungen prüfen. Kein bestätigter Gerätefehler.",
+        "Unchanged moisture despite independent reports and model changes: review sensor placement and reports. No confirmed device fault.",
+    ),
+    "sensor_repeated_outages": (
+        "Wiederholte Ausfälle gültiger Feuchtemessungen im Verlauf; Datenquelle prüfen.",
+        "Repeated losses of valid moisture observations in the history; review the input source.",
+    ),
+    "cycle_flow_unknown": (
+        "Ohne verwertbare eigene Durchflussmessung sind Laufzeit und Zykluszahl unbekannt.",
+        "Runtime and cycle count require usable flow measurements from owned irrigation.",
+    ),
+    "cycle_infiltration_review": (
+        "Ausbringrate über der geschätzten Bodenaufnahme: kurze Zyklen und Sickerpausen vor Ort prüfen. Einstellungen bleiben unverändert.",
+        "Application rate exceeds estimated soil infiltration: review short cycles and soak pauses on site. Settings remain unchanged.",
+    ),
+    "robot_old_event_ignored": (
+        "Verspätetes oder doppeltes Mäherereignis verworfen.",
+        "Ignored a late or duplicate mower event.",
+    ),
+    "robot_observation_expired": (
+        "Mäherbeobachtung nach zwölf Stunden verworfen.",
+        "Discarded the mower observation after twelve hours.",
+    ),
+    "robot_observation_discarded": (
+        "Unklare Mäherzustände: laufende Beobachtung verworfen.",
+        "Uncertain mower states: discarded the in-flight observation.",
+    ),
+    "robot_observing": (
+        "Aktive Mähzeit wird beobachtet; Flächenabdeckung ist nicht bestätigt.",
+        "Observing active mowing time; lawn coverage is not confirmed.",
+    ),
+    "robot_waiting_for_dock": (
+        "Pause oder Rückfahrt; auf Station warten.",
+        "Paused or returning; waiting for docking.",
+    ),
+}
+for _code, _texts in _EVERYDAY_EXPLANATIONS.items():
+    EXPLANATIONS["de"][_code] = _texts[0]
+    EXPLANATIONS["en"][_code] = _texts[1]
+
+
 def reason_text(code: str | None, language: str) -> str | None:
     """Return a localized explanation, preserving unknown codes for diagnosis."""
     if code is None:

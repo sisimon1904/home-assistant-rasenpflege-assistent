@@ -72,9 +72,12 @@ from .const import (
 if TYPE_CHECKING:
     from .coordinator import LawnCoordinator
 
+from .calculations import soil_profile
+from .everyday import cycle_guidance
 from .explanations import reason_text
 from .inputs import MeterObservation, meter_observation
 from .inputs import meter_reading as _meter_reading
+from .insights import aware_time, finite_number
 from .planning import (
     allocate_volume,
     consumption_summary,
@@ -533,21 +536,7 @@ class IrrigationController:
         meter_id = session.get("meter_entity_id")
         meter = self.hass.states.get(meter_id) if meter_id else None
         reading = _meter_reading(meter)
-        if (
-            reading
-            and reading[0] == "rate"
-            and dt_util.now() - self.coordinator._reported_at(meter)
-            > timedelta(
-                seconds=max(
-                    120,
-                    int(
-                        self.coordinator.settings.get(
-                            CONF_FLOW_START_GRACE, DEFAULT_FLOW_START_GRACE
-                        )
-                    ),
-                )
-            )
-        ):
+        if self._meter_observation(meter).reason in {"stale", "invalid_timestamp"}:
             result["session_eta_reason"] = "meter_stale"
             return result
         rate = (
@@ -704,7 +693,7 @@ class IrrigationController:
             reading = _meter_reading(meter)
             if meter is None or reading is None:
                 return "meter_unavailable"
-            if self._meter_observation(meter).reason == "stale":
+            if self._meter_observation(meter).reason in {"stale", "invalid_timestamp"}:
                 return "meter_stale"
         return None
 
@@ -1071,6 +1060,109 @@ class IrrigationController:
             else reason_text(blocker, language)
         )
 
+    def cycle_plan_details(self) -> dict[str, Any]:
+        """Use owned measured flow only; shared-meter traffic while closed is excluded."""
+        session = self.state.irrigation_session
+        rate = None
+        flow_source = "unknown"
+        if (
+            session
+            and not session.get("paused_at")
+            and not session.get("closing_reason")
+            and not session.get("measurement_gap")
+            and session.get("flow_seen")
+            and self._valve_state() == "on"
+            and self._other_valve_state() == "off"
+        ):
+            meter_id = session.get("meter_entity_id") or self.coordinator.settings.get(
+                CONF_IRRIGATION_FLOW
+            )
+            observation = self._meter_observation(
+                self.hass.states.get(meter_id) if meter_id else None
+            )
+            if observation.reason == "accepted":
+                rate = finite_number(
+                    session.get("measured_flow_l_min")
+                    or session.get("meter_rate_l_min")
+                )
+            if rate is not None and rate > 0:
+                flow_source = "owned_session"
+        last = self.state.irrigation_last_session
+        if (
+            (rate is None or rate <= 0)
+            and last
+            and not last.get("measurement_gap")
+            and not last.get("undone")
+        ):
+            finished = aware_time(last.get("finished_at"))
+            amount, seconds = (
+                finite_number(last.get("liters")),
+                finite_number(last.get("active_seconds")),
+            )
+            if (
+                finished
+                and timedelta(0) <= dt_util.now() - finished <= timedelta(days=7)
+                and amount is not None
+                and amount > 0
+                and seconds is not None
+                and seconds >= 60
+            ):
+                rate = amount / (seconds / 60)
+                flow_source = "recent_complete_session"
+        soil = self.coordinator.settings.get("soil_type", "loamy")
+        infiltration = soil_profile(soil)["infiltration_mm_per_hour"]
+        infiltration *= (
+            0.65 if self.coordinator.settings.get("compaction") == "compacted" else 1.0
+        )
+        infiltration *= {"flat": 1.0, "gentle": 0.85, "steep": 0.6}.get(
+            self.coordinator.settings.get("slope", "flat"), 1.0
+        )
+        liters = (
+            max(0.0, session["target_liters"] - session["liters"])
+            if session
+            else self.coordinator.data.watering_liters
+            if self.coordinator.data
+            else 0.0
+        )
+        maximum_minutes = float(
+            self.coordinator.settings.get(
+                CONF_MAX_IRRIGATION_MINUTES, DEFAULT_MAX_IRRIGATION_MINUTES
+            )
+        )
+        if session and (started := aware_time(session.get("started_at"))) is not None:
+            maximum_minutes = max(
+                0.0,
+                maximum_minutes
+                - max(0.0, (dt_util.now() - started).total_seconds()) / 60,
+            )
+        result = cycle_guidance(
+            liters=liters,
+            area_m2=float(self.coordinator.settings.get(CONF_AREA, DEFAULT_AREA)),
+            flow_l_min=rate,
+            infiltration_mm_h=infiltration,
+            cycle_minutes=float(
+                self.coordinator.settings.get("irrigation_cycle_minutes", 0)
+            ),
+            soak_minutes=float(
+                self.coordinator.settings.get("irrigation_soak_minutes", 0)
+            ),
+            maximum_minutes=maximum_minutes,
+        )
+        return {
+            **result,
+            "flow_l_min": rate,
+            "flow_source": flow_source,
+            "remaining_runtime_minutes": round(maximum_minutes, 1),
+            "amount_basis": "remaining_session_target"
+            if session
+            else "current_recommendation",
+            "cycle_phase_estimated": bool(session),
+            "reasons_text": [
+                reason_text(code, self.hass.config.language)
+                for code in result["review_reasons"]
+            ],
+        }
+
     def diagnostic_attributes(self) -> dict[str, Any]:
         """Expose live safety inputs without additional weather requests."""
         session = self.state.irrigation_session
@@ -1085,6 +1177,7 @@ class IrrigationController:
         return {
             "automatic_blocker": self.automatic_blocker(),
             "next_check": self.next_check_details(),
+            "cycle_plan": self.cycle_plan_details(),
             "watering_explanation": dict(self.coordinator.data.watering_explanation)
             if self.coordinator.data
             else {},
@@ -2199,7 +2292,10 @@ class IrrigationController:
         if entity is None or reading is None or reading[0] != session["meter_kind"]:
             return "meter_unavailable"
         reported_at = getattr(entity, "last_reported", None) or entity.last_updated
-        if self._meter_observation(entity, now).reason == "stale":
+        if self._meter_observation(entity, now).reason in {
+            "stale",
+            "invalid_timestamp",
+        }:
             return "meter_stale"
         kind, value = reading
         previous = _session_timestamp(session["last_meter_at"])

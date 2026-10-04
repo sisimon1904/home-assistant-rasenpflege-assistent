@@ -44,15 +44,15 @@ def _row(at=NOW, measured=70.0, modeled=40.0, **changes):
     }
 
 
-def test_seven_day_history_is_bounded_and_aggregates_hourly_water_terms():
+def test_bounded_history_aggregates_hourly_water_terms():
     history = []
-    for i in range(24 * 60 * 10 // 30):
-        at = NOW - timedelta(days=10) + timedelta(minutes=30 * i)
+    for i in range(24 * 60 * 21 // 30):
+        at = NOW - timedelta(days=21) + timedelta(minutes=30 * i)
         history = append_observation(history, _row(at, rain_mm=0.2))
-    assert len(history) == 168
+    assert len(history) == 336
     assert history[-1]["rain_mm"] == pytest.approx(0.4)
     assert history[-1]["et_mm"] == pytest.approx(0.2)
-    assert restore_history(history, NOW + timedelta(days=8)) == []
+    assert restore_history(history, NOW + timedelta(days=15)) == []
 
 
 @pytest.mark.parametrize("raw", [None, "broken", {}, [None], ["broken"]])

@@ -1,5 +1,28 @@
 # Changelog
 
+## 3.11.0
+
+### Added
+- Explain ordered care priorities and prerequisites in existing care-plan attributes.
+- Compare two rolling 168-hour periods using a bounded 14-day/336-snapshot history. Keep partial observations, uncertain consumption and manual estimates visible.
+- Add conservative hints for independently reported flat moisture and repeated losses of valid sensor observations.
+- Explain configured irrigation cycles, soak pauses and total duration using owned measured flow or a recent complete session. Suggest manual review when application exceeds profile-based infiltration.
+- Expose live/last robot observation interruptions and inactive time, without claiming confirmed coverage or commanding the mower.
+- Extend German/English explanations, README and dashboard templates.
+
+### Fixed
+- Reject future flow timestamps consistently in start/running checks, input diagnostics and completion estimates.
+- Reject future current-weather, temperature, rain and forecast-cache timestamps instead of treating them as fresh or clamping rain reports to now.
+- Preserve the original pre-correction comparison when a soil-sensor report is reused after model blending.
+- Normalize history buckets to UTC so equivalent hours with different offsets cannot duplicate evidence.
+- Ignore replayed/out-of-order mower transitions rather than inflating active mowing time.
+
+### Validation
+- Reproduce seven failing regression cases before correction; add 52 tests for chronology, care priorities, weekly totals/DST/gaps, sensor evidence, owned flow, robot persistence/rollback and read-only diagnostics.
+- All 606 tests pass with 88.83% combined line/branch coverage. Mypy checks all 20 program modules, with stronger checks for nine core modules.
+- Ruff, compilation, JSON/YAML, HA dashboard-template rendering, file headers, documentation links and whitespace checks pass.
+- Preserve existing settings, maintenance and consumption. The second valve remains read-only and no extra regular OWM polling is introduced.
+
 ## 3.10.0
 
 ### Added

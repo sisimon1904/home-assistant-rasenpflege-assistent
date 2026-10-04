@@ -123,9 +123,12 @@ from .const import (
     UPDATE_INTERVAL,
 )
 from .diagnostic_types import ModelConfidence, SoilTrace, SoilUpdate
+from .everyday import care_priorities, sensor_review, weekly_comparison
 from .explanations import reason_text
 from .inputs import meter_observation
 from .insights import (
+    HISTORY_DAYS,
+    HISTORY_LIMIT,
     ModelObservation,
     append_observation,
     aware_time,
@@ -272,6 +275,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 ),
                 last_robot_session_active_seconds=stored.get(
                     "last_robot_session_active_seconds"
+                ),
+                last_robot_session_interruptions=stored.get(
+                    "last_robot_session_interruptions"
                 ),
                 configured_last_fertilizing_revision=stored.get(
                     "configured_last_fertilizing_revision"
@@ -650,7 +656,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         if state is not None and state.state not in ("unknown", "unavailable"):
             try:
                 reported_at = self._reported_at(state)
-                if now - reported_at > CURRENT_WEATHER_STALE_AFTER:
+                if not timedelta(0) <= now - reported_at <= CURRENT_WEATHER_STALE_AFTER:
                     raise ValueError("selected temperature is stale")
                 value = float(state.state)
                 if not math.isfinite(value):
@@ -671,7 +677,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         if weather is not None and weather.state not in ("unknown", "unavailable"):
             try:
                 reported_at = self._reported_at(weather)
-                if now - reported_at > CURRENT_WEATHER_STALE_AFTER:
+                if not timedelta(0) <= now - reported_at <= CURRENT_WEATHER_STALE_AFTER:
                     return None, "unavailable", self._age_minutes(now, reported_at)
                 value = float(weather.attributes["temperature"])
                 if not math.isfinite(value):
@@ -763,7 +769,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         return {
             "reported_at": reported_at.isoformat(),
             "age_minutes": age_minutes,
-            "stale": now - reported_at > CURRENT_WEATHER_STALE_AFTER,
+            "stale": not timedelta(0)
+            <= now - reported_at
+            <= CURRENT_WEATHER_STALE_AFTER,
             "unavailable": False,
             "humidity": humidity,
             "wind_speed_m_s": wind,
@@ -1075,7 +1083,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                             raise ValueError("Invalid rain input")
                         normalized = value * 25.4 if unit.startswith("in") else value
                         normalized_unit = "mm/h" if unit.endswith("/h") else "mm"
-                        if (
+                        if self._reported_at(state) > now or (
                             unit.endswith("/h")
                             and now - self._reported_at(state)
                             > PRECIPITATION_RATE_STALE_AFTER
@@ -1147,6 +1155,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         advice = calibration_advice(history)
         response = watering_response(history, self.state.irrigation_last_session)
         language = self.hass.config.language
+        review = sensor_review(
+            history, bool(self.settings.get(CONF_SOIL_MOISTURE_ENTITY))
+        )
         weather = self._read_weather_conditions(now)
         gaps = []
         if self.state.daily_rain_unknown:
@@ -1158,13 +1169,22 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         if self.state.last_soil_model_gap_hours > 0:
             gaps.append("model_interval_gap")
         return {
+            "weekly_comparison": weekly_comparison(
+                history, self.state.water_usage, now
+            ),
+            "sensor_review": {
+                **review,
+                "reasons_text": [
+                    reason_text(code, language) for code in review["reasons"]
+                ],
+            },
             "initialization": {
                 "model_initialized_at": self.state.model_initialized_at,
                 "creation_time_known": self.state.model_initialized_at is not None,
                 "diagnostic_recording_since": self.state.diagnostic_recording_since,
                 "missing_historical_temperature_days": self.state.missing_temperature_days,
-                "history_retention_days": 7,
-                "history_limit": 168,
+                "history_retention_days": HISTORY_DAYS,
+                "history_limit": HISTORY_LIMIT,
             },
             "data_gaps": {
                 "reasons": gaps,
@@ -1197,6 +1217,37 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             "history": deepcopy(history if include_history else history[-24:]),
             "stored_history_count": len(history),
         }
+
+    def care_priority_details(self) -> list[dict[str, Any]]:
+        """Explain the order of existing care recommendations; never execute them."""
+        data = self.data
+        if data is None:
+            return []
+        current, _, _ = self._read_temperature(dt_util.now())
+        steps = care_priorities(
+            watering_status=data.watering_status,
+            mower_status=data.mower_status,
+            fertilizing=data.fertilizing_recommended,
+            irrigation_active=self.state.irrigation_session is not None,
+            wet_until=data.mower_wet_until,
+            temperature_available=current is not None,
+            frost=(current is not None and current <= 0)
+            or (data.soil_temperature is not None and data.soil_temperature <= 0),
+        )
+        return [
+            {
+                **step,
+                "action_text": reason_text(step["action"], self.hass.config.language),
+                "reason_text": reason_text(step["reason"], self.hass.config.language),
+                "not_before": data.next_mowing_at
+                if step["action"] == "mow_lawn"
+                else data.mower_wet_until
+                if step["action"] == "wait_until_dry"
+                else None,
+                "estimated": True,
+            }
+            for step in steps
+        ]
 
     def update_diagnostics(self) -> dict[str, Any]:
         """Expose process-local refresh outcomes without retaining error text."""
@@ -1440,7 +1491,11 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         last_sample = dt_util.parse_datetime(
             self.state.precipitation_last_sample_at or ""
         )
-        reported_at = min(now, self._reported_at(state))
+        reported_at = self._reported_at(state)
+        if reported_at > now:
+            self.state.daily_rain_unknown = True
+            self._reset_precipitation_sample(source=entity_id, mode=mode)
+            return "unavailable", 0.0, mode, 0.0
         if now - reported_at > PRECIPITATION_RATE_STALE_AFTER:
             self.state.daily_rain_unknown = True
             self._reset_precipitation_sample(source=entity_id, mode=mode)
@@ -1949,10 +2004,12 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         daily_updated_at = _effective_forecast_update(self._forecast_updated_at)
         hourly_updated_at = _effective_forecast_update(self._hourly_forecast_updated_at)
         daily_stale = bool(forecast) and (
-            daily_updated_at is None or now - daily_updated_at > FORECAST_STALE_AFTER
+            daily_updated_at is None
+            or not timedelta(0) <= now - daily_updated_at <= FORECAST_STALE_AFTER
         )
         hourly_stale = bool(hourly_forecast) and (
-            hourly_updated_at is None or now - hourly_updated_at > FORECAST_STALE_AFTER
+            hourly_updated_at is None
+            or not timedelta(0) <= now - hourly_updated_at <= FORECAST_STALE_AFTER
         )
         usable_forecast = [] if daily_stale else forecast
         usable_hourly_forecast = [] if hourly_stale else hourly_forecast
@@ -2498,6 +2555,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             "last_robot_session_started_at",
             "last_robot_session_finished_at",
             "last_robot_session_active_seconds",
+            "last_robot_session_interruptions",
         )
         async with self._state_lock:
             previous = {key: deepcopy(getattr(self._state, key)) for key in keys}
@@ -2563,6 +2621,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         source: str = "manual",
         active_seconds: float | None = None,
         session_started_at: datetime | None = None,
+        interruptions: int | None = None,
     ) -> None:
         """Commit mowing atomically with other maintenance actions."""
         await self._async_maintenance_transaction(
@@ -2573,6 +2632,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 source=source,
                 active_seconds=active_seconds,
                 session_started_at=session_started_at,
+                interruptions=interruptions,
             )
         )
         await self.async_request_refresh()
@@ -2712,6 +2772,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         source: str = "manual",
         active_seconds: float | None = None,
         session_started_at: datetime | None = None,
+        interruptions: int | None = None,
     ) -> None:
         """Record mowing and acknowledge the mowing season for this year.
 
@@ -2742,6 +2803,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 "last_robot_session_started_at": self.state.last_robot_session_started_at,
                 "last_robot_session_finished_at": self.state.last_robot_session_finished_at,
                 "last_robot_session_active_seconds": self.state.last_robot_session_active_seconds,
+                "last_robot_session_interruptions": self.state.last_robot_session_interruptions,
             }
             if previous_at is None or now >= previous_at:
                 self.state.last_mowing = dt_util.as_local(now).date().isoformat()
@@ -2752,6 +2814,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                     )
                     self.state.last_robot_session_finished_at = now.isoformat()
                     self.state.last_robot_session_active_seconds = active_seconds
+                    self.state.last_robot_session_interruptions = interruptions
                 self.state.last_mowing_source = source
                 self.state.last_mowing_event_id = event_id
                 self.state.mower_started_year = dt_util.as_local(now).year

@@ -157,6 +157,7 @@ class RuntimeState:
     last_robot_session_started_at: str | None = None
     last_robot_session_finished_at: str | None = None
     last_robot_session_active_seconds: float | None = None
+    last_robot_session_interruptions: int | None = None
     configured_last_fertilizing_revision: str | None = None
     configured_last_fertilizing: str | None = None
     temperature_min: float | None = None
@@ -251,6 +252,7 @@ class RuntimeState:
             "last_robot_session_started_at": self.last_robot_session_started_at,
             "last_robot_session_finished_at": self.last_robot_session_finished_at,
             "last_robot_session_active_seconds": self.last_robot_session_active_seconds,
+            "last_robot_session_interruptions": self.last_robot_session_interruptions,
             "configured_last_fertilizing_revision": self.configured_last_fertilizing_revision,
             "configured_last_fertilizing": self.configured_last_fertilizing,
             "temperature_min": self.temperature_min,

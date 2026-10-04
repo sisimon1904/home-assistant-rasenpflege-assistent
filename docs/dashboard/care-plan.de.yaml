@@ -48,3 +48,16 @@ cards:
   icon: mdi:flower
   tap_action:
     action: more-info
+- type: custom:mushroom-template-card
+  entity: sensor.lawn_care_plan
+  primary: Pflegereihenfolge
+  secondary: '{% for step in state_attr(entity, ''prioritized_steps'') or [] %}{{ loop.index }}. {{ step.get(''action_text'')
+    }}{% if step.get(''not_before'') %} · {{ step.get(''not_before'') }}{% endif %}
+
+    {{ step.get(''reason_text'') }}
+
+    {% endfor %}'
+  multiline_secondary: true
+  icon: mdi:format-list-numbered
+  tap_action:
+    action: more-info

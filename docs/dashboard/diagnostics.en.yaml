@@ -75,3 +75,39 @@ cards:
   multiline_secondary: true
   tap_action:
     action: more-info
+- type: custom:mushroom-template-card
+  entity: sensor.rasen_modellierte_bodenfeuchte
+  primary: Weekly comparison
+  secondary: '{% set model = state_attr(entity, ''model_insights'') or {} %}{% set w = model.get(''weekly_comparison'',
+    {}) %}{% set c = w.get(''current'', {}) %}{% set p = w.get(''previous'', {}) %}
+
+    Hours current/previous: {{ c.get(''hourly_snapshots'', 0) }}/{{ p.get(''hourly_snapshots'', 0) }}
+
+    Rain current/previous: {{ c.get(''observed_rain_mm'') if c.get(''observed_rain_mm'') is not none else ''—''
+    }}/{{ p.get(''observed_rain_mm'') if p.get(''observed_rain_mm'') is not none else ''—'' }} mm
+
+    Moisture change: {{ w.get(''moisture_change_percentage_points'') if w.get(''moisture_change_percentage_points'')
+    is not none else ''—'' }} pp
+
+    {{ (model.get(''sensor_review'', {}).get(''reasons_text'') or []) | join(''
+
+    '') }}'
+  multiline_secondary: true
+  icon: mdi:chart-box
+  tap_action:
+    action: more-info
+- type: custom:mushroom-template-card
+  entity: sensor.rasen_bewasserung_diagnose
+  primary: Cycles and soak pauses
+  secondary: '{% set p = state_attr(entity, ''cycle_plan'') or {} %}Active / pauses / total: {{ p.get(''active_minutes'')
+    if p.get(''active_minutes'') is not none else ''—'' }} / {{ p.get(''pause_minutes'') if p.get(''pause_minutes'')
+    is not none else ''—'' }} / {{ p.get(''total_minutes'') if p.get(''total_minutes'') is not none else ''—'' }}
+    min
+
+    {{ (p.get(''reasons_text'') or []) | join(''
+
+    '') }}'
+  multiline_secondary: true
+  icon: mdi:water-sync
+  tap_action:
+    action: more-info

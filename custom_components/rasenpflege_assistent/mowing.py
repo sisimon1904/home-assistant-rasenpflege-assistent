@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, EventStateChangedData, callback
 from homeassistant.helpers.event import (
     async_track_state_change_event,
@@ -32,6 +34,11 @@ from .const import (
     CONF_MOWING_MODE,
     DEFAULT_MOWING_MIN_MINUTES,
 )
+from .explanations import reason_text
+from .insights import aware_time, finite_number
+
+if TYPE_CHECKING:
+    from .coordinator import LawnCoordinator
 
 
 class MowingObserver:
@@ -42,12 +49,13 @@ class MowingObserver:
     observations are deliberately discarded across restart/reconfiguration.
     """
 
-    def __init__(self, coordinator) -> None:
+    def __init__(self, coordinator: LawnCoordinator) -> None:
         self.coordinator = coordinator
         self._lock = asyncio.Lock()
+        self.last_event_at: datetime | None = None
         self._reset()
 
-    def _reset(self) -> None:
+    def _reset(self, reason: str = "idle") -> None:
         """Reset uncommitted mowing observation.
 
         Discard in-flight evidence, leaving previously committed maintenance
@@ -57,15 +65,72 @@ class MowingObserver:
         self.started_at: datetime | None = None
         self.active_since: datetime | None = None
         self.active_seconds = 0.0
+        self.interruptions = 0
+        self.observation_reason = reason
 
-    def diagnostic_attributes(self) -> dict:
+    def diagnostic_attributes(self) -> dict[str, Any]:
         """Expose an in-flight estimate; it never claims completed lawn coverage."""
         active_seconds = self.active_seconds + (
             max(0, (dt_util.now() - self.active_since).total_seconds())
             if self.active_since
             else 0
         )
+        now = dt_util.now()
+        elapsed = (
+            max(0.0, (now - self.started_at).total_seconds())
+            if self.started_at
+            else 0.0
+        )
+        last_start = aware_time(self.coordinator.state.last_robot_session_started_at)
+        last_end = aware_time(self.coordinator.state.last_robot_session_finished_at)
+        last_active = finite_number(
+            self.coordinator.state.last_robot_session_active_seconds
+        )
+        if last_active is not None and last_active < 0:
+            last_active = None
+        last_interruptions = finite_number(
+            self.coordinator.state.last_robot_session_interruptions
+        )
+        if (
+            last_interruptions is None
+            or last_interruptions < 0
+            or not last_interruptions.is_integer()
+        ):
+            last_interruptions = None
+        last_elapsed = (
+            max(0.0, (last_end - last_start).total_seconds())
+            if last_start and last_end
+            else None
+        )
         return {
+            "elapsed_minutes": round(elapsed / 60, 1),
+            "inactive_minutes": round(max(0.0, elapsed - active_seconds) / 60, 1),
+            "interruptions": self.interruptions,
+            "minimum_active_minutes": float(
+                self.coordinator.settings.get(
+                    CONF_MOWING_MIN_MINUTES, DEFAULT_MOWING_MIN_MINUTES
+                )
+            ),
+            "reason": self.observation_reason,
+            "reason_text": reason_text(
+                self.observation_reason, self.coordinator.hass.config.language
+            ),
+            "coverage_confirmed": False,
+            "completion_basis": "observed_active_time_and_dock",
+            "last_observation": {
+                "started_at": last_start.isoformat() if last_start else None,
+                "finished_at": last_end.isoformat() if last_end else None,
+                "active_minutes": round(last_active / 60, 1)
+                if last_active is not None
+                else None,
+                "inactive_minutes": round(max(0.0, last_elapsed - last_active) / 60, 1)
+                if last_elapsed is not None and last_active is not None
+                else None,
+                "interruptions": int(last_interruptions)
+                if last_interruptions is not None
+                else None,
+                "coverage_confirmed": False,
+            },
             "status": "mowing"
             if self.active_since
             else "waiting_for_dock"
@@ -77,17 +142,15 @@ class MowingObserver:
         }
 
     @callback
-    def _tick(self, _now) -> None:
+    def _tick(self, _now: datetime) -> None:
         """Update live minutes locally without requesting weather."""
         if self.started_at:
             if _now - self.started_at > timedelta(hours=12):
-                self._reset()
+                self._reset("robot_observation_expired")
             self.coordinator.async_update_listeners()
 
-    def subscribe(self, entry) -> None:
+    def subscribe(self, entry: ConfigEntry) -> None:
         """Observe a robot source only when robot mode is selected and no explicit
-
-        Observe a robot source only when robot mode is selected and no explicit
         completion input is configured. Register both event and timer cleanup
         with the config entry so reload cannot leave duplicate observers.
         """
@@ -121,6 +184,12 @@ class MowingObserver:
         The event timestamp preserves physical ordering in maintenance history.
         """
         async with self._lock:
+            now = event.time_fired
+            if self.last_event_at is not None and now <= self.last_event_at:
+                self.observation_reason = "robot_old_event_ignored"
+                self.coordinator.async_update_listeners()
+                return
+            self.last_event_at = now
             old = event.data.get("old_state")
             new = event.data.get("new_state")
             if new is None or old is None:
@@ -129,7 +198,6 @@ class MowingObserver:
                 return
             if old.state == new.state:
                 return
-            now = event.time_fired
             settings = self.coordinator.settings
             active = settings.get(CONF_MOWING_ACTIVE_STATE, "mowing").casefold()
             done = settings.get(CONF_MOWING_DONE_STATE, "docked").casefold()
@@ -140,15 +208,20 @@ class MowingObserver:
                 self.active_since = None
             state = new.state.casefold()
             if state in {"unknown", "unavailable", "error", "idle"}:
-                self._reset()
+                self._reset("robot_observation_discarded")
                 self.coordinator.async_update_listeners()
                 return
             if state == active:
                 if self.started_at is None:
                     self.started_at = now
                 self.active_since = now
+                self.observation_reason = "robot_observing"
             elif state == done:
-                started_at, seconds = self.started_at, self.active_seconds
+                started_at, seconds, interruptions = (
+                    self.started_at,
+                    self.active_seconds,
+                    self.interruptions,
+                )
                 self._reset()
                 minimum = (
                     float(
@@ -166,7 +239,12 @@ class MowingObserver:
                         source="robot_estimate",
                         active_seconds=seconds,
                         session_started_at=started_at,
+                        interruptions=interruptions,
                     )
-            elif state not in {"paused", "returning"}:
-                self._reset()
+            elif state in {"paused", "returning"}:
+                if old.state.casefold() == active:
+                    self.interruptions += 1
+                self.observation_reason = "robot_waiting_for_dock"
+            else:
+                self._reset("robot_observation_discarded")
             self.coordinator.async_update_listeners()

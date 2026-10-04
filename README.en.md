@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.10.0 · [Changelog](CHANGELOG.md)
+Version 3.11.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -262,7 +262,7 @@ and can be enabled in Home Assistant.
 
 ## History, calibration advice and amount explanations
 
-The existing soil-moisture entity exposes `model_insights`. History retains **at most 168 hourly snapshots for seven days**; entity attributes show the latest 24 snapshots, while downloaded diagnostics contain the full bounded history. Rain and ET terms are accumulated within each hour. Changing the soil sensor, dry/wet references, soil profile or root depth resets comparison evidence, preserving care history and water consumption.
+The existing soil-moisture entity exposes `model_insights`. History retains **at most 336 hourly snapshots for 14 days**; entity attributes show the latest 24 snapshots, while downloaded diagnostics contain the full bounded history. Rain and ET terms are accumulated within each hour. Changing the soil sensor, dry/wet references, soil profile or root depth resets comparison evidence, preserving care history and water consumption.
 
 | Diagnostic | Meaning |
 | --- | --- |
@@ -280,6 +280,20 @@ Response review requires a sensor report within six hours before a fully measure
 Existing dosing policy is preserved: recommended mm and liters are **gross applied water**, and estimated root-zone credit is mm × efficiency. Forecast, ET, rounding and dose bounds influence the recommendation, so it is not simply deficit ÷ efficiency. Consumption and safety limits can further cap an automatic session target.
 
 Older installations retain an unknown model creation time when that date was never recorded. Diagnostic recording starts at upgrade; earlier observations are not invented. A model time gap does not establish that HA was offline; its cause remains explicitly unknown. The [diagnostics card](docs/dashboard/diagnostics.en.yaml) displays advice and amount explanations. These features require no new mandatory sensors or extra regular OWM API requests.
+
+## Care priorities, weekly comparison and cycle guidance
+
+`care_plan.prioritized_steps` explains the order of existing recommendations: check missing temperatures or frost first, water when needed, wait for dry grass, mow within the recommended window and fertilize when due. Each step includes `action`, `after`, readable text and optional `not_before`. These are advisory steps, not automatically executed actions.
+
+`model_insights.weekly_comparison` compares two consecutive periods of 168 actual hours, including across DST: recorded rain, estimated actual ET, mean modeled moisture and recorded liters. `recording_sufficient` requires at least 160 distinct hours without larger gaps; a total observed-rain value requires sufficient recording and known rain throughout. Incomplete recordings remain `partial_history`. Consumption uses local calendar dates, so allocation at window boundaries is estimated. `unknown_volume_records` and `estimated_volume_records` retain gaps and manual estimates. Pre-upgrade evidence is not invented.
+
+`sensor_review` in model and data-quality attributes highlights repeated losses of valid observations or unusually flat moisture. A constant reading requires six independent reports spanning at least 24 hours and at least ten percentage points of modeled change before producing a hint. Reusing one report counts once. This is a review suggestion, not a confirmed device fault.
+
+Irrigation diagnostics expose `cycle_plan`: active minutes, cycle count, intermediate soak pauses and total duration using existing settings. Flow comes from usable measurements in an owned active session or a fully measured session within seven days. Other users of a shared meter cannot supply a runtime estimate. Missing evidence leaves times unknown. Active sessions use the remaining target and remaining safety runtime; the current cycle phase remains estimated. If application exceeds profile-based infiltration, short cycles and soak pauses are suggested for manual review. These heuristics do not change settings or valves and require checking actual water distribution on site.
+
+`live_robot_session` on mower-status attributes and `mowing_observation` in downloaded diagnostics show active/inactive minutes, interruptions, minimum duration, observation reason and the last persisted observation. Pauses and returns do not count as active mowing; late events are ignored. Docking after sufficient activity remains an estimate: `coverage_confirmed` is always `false`. The assistant sends no mower commands.
+
+The [care-plan card](docs/dashboard/care-plan.en.yaml) and [diagnostics card](docs/dashboard/diagnostics.en.yaml) show these hints from existing data, without extra regular OWM API requests.
 
 ## Extended model diagnostics
 

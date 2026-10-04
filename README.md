@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.10.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.11.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -276,7 +276,7 @@ standardmäßig deaktiviert und können in Home Assistant aktiviert werden.
 
 ## Verlauf, Kalibrierungshilfe und Mengen-Erklärung
 
-Die bestehende Bodenfeuchteentität enthält `model_insights`. Der Verlauf speichert höchstens **168 stündliche Momentaufnahmen für sieben Tage**; Sensorattribute enthalten die letzten 24 Aufnahmen, der Diagnoseexport den gesamten begrenzten Verlauf. Innerhalb einer Stunde werden Regen und Verdunstung zusammengefasst. Wechsel von Bodensensor, Trocken-/Nassreferenzen, Bodenprofil oder Wurzeltiefe starten die Vergleichsdaten neu. Pflegehistorie und Verbrauch bleiben erhalten.
+Die bestehende Bodenfeuchteentität enthält `model_insights`. Der Verlauf speichert höchstens **336 stündliche Momentaufnahmen für 14 Tage**; Sensorattribute enthalten die letzten 24 Aufnahmen, der Diagnoseexport den gesamten begrenzten Verlauf. Innerhalb einer Stunde werden Regen und Verdunstung zusammengefasst. Wechsel von Bodensensor, Trocken-/Nassreferenzen, Bodenprofil oder Wurzeltiefe starten die Vergleichsdaten neu. Pflegehistorie und Verbrauch bleiben erhalten.
 
 | Diagnose | Bedeutung |
 | --- | --- |
@@ -294,6 +294,20 @@ Für die Reaktionsprüfung werden Sensorberichte höchstens sechs Stunden vor de
 Die vorhandene Dosierungsregel bleibt erhalten: empfohlene mm und Liter sind **auszubringendes Wasser**; geschätzter wirksamer Bodenbeitrag ist mm × Wirkungsgrad. Die Empfehlung berücksichtigt Prognose, Verdunstung, Rundung und Mengengrenzen und ist deshalb nicht einfach Fehlmenge ÷ Wirkungsgrad. Verbrauchs-/Sicherheitsgrenzen können die automatische Sitzungszielmenge zusätzlich begrenzen.
 
 Bei einem Update aus älteren Versionen bleibt der tatsächliche Modellbeginn unbekannt, wenn er nie gespeichert wurde. Die Diagnoseaufzeichnung beginnt beim Update; frühere Beobachtungen werden nicht erfunden. Eine Modellzeitlücke beweist allein keinen HA-Ausfall, deshalb bleibt die Ursache ausdrücklich unbekannt. Die [Diagnosekarte](docs/dashboard/diagnostics.de.yaml) zeigt die neuen Prüfhilfen und die Mengen-Erklärung. Neue Pflichtsensoren oder zusätzliche regelmäßige OWM-Abfragen sind dafür nicht erforderlich.
+
+## Pflegeprioritäten, Wochenvergleich und Zyklushinweise
+
+`care_plan.prioritized_steps` erläutert die Reihenfolge bestehender Empfehlungen: fehlende Temperaturdaten oder Frost zuerst prüfen, gegebenenfalls bewässern, trockenen Rasen abwarten, im empfohlenen Fenster mähen und bei Bedarf düngen. Jeder Schritt enthält `action`, `after`, lesbare Texte und gegebenenfalls `not_before`. Das sind Planungshinweise, keine automatisch ausgeführten Aktionen.
+
+`model_insights.weekly_comparison` vergleicht zwei aufeinanderfolgende Zeiträume von jeweils 168 echten Stunden, auch über Zeitumstellungen: aufgezeichneten Regen, geschätzte tatsächliche Verdunstung, mittlere Modellfeuchte und eingetragene Liter. `recording_sufficient` verlangt mindestens 160 unterschiedliche Stunden ohne größere Lücken; ein Regen-Gesamtwert erscheint nur bei ausreichender Aufzeichnung und durchgehend bekannter Regenquelle. Teilaufzeichnungen bleiben als `partial_history` erkennbar. Verbrauch wird anhand lokaler Kalendertage zugeordnet; diese Randzuordnung ist geschätzt. `unknown_volume_records` und `estimated_volume_records` halten Messlücken und manuelle Schätzungen sichtbar. Historische Daten vor dem Update werden nicht ergänzt.
+
+`sensor_review` in Modell- und Datenqualitätsattributen weist auf wiederholte Ausfälle oder auffällig gleichbleibende Feuchte hin. Ein konstanter Wert wird erst nach sechs unabhängigen Meldungen über mindestens 24 Stunden und mindestens zehn Prozentpunkten Modelländerung auffällig. Derselbe wiederverwendete Bericht zählt einmal. Das ist ein Prüfhinweis, kein bestätigter Sensordefekt.
+
+Die Bewässerungsdiagnose enthält `cycle_plan`: aktive Minuten, Zykluszahl, dazwischenliegende Sickerpausen und Gesamtdauer aus den vorhandenen Einstellungen. Grundlage ist verwertbarer Durchfluss einer eigenen laufenden Sitzung oder eine vollständig gemessene Sitzung der letzten sieben Tage. Fremder Verbrauch am gemeinsamen Zähler liefert keine Laufzeitschätzung. Ohne Grundlage bleiben die Zeiten unbekannt. Bei laufenden Sitzungen gelten Restzielmenge und verbleibende Sicherheitslaufzeit; die aktuelle Zyklusphase bleibt geschätzt. Liegt die Ausbringrate über der Bodenprofil-Aufnahme, werden kurze Zyklen und Sickerpausen zur manuellen Prüfung vorgeschlagen. Diese Faustwerte ändern weder Einstellungen noch Ventile und ersetzen keine Prüfung der Wasserverteilung vor Ort.
+
+`live_robot_session` an der Mähstatusentität und `mowing_observation` im Diagnoseexport zeigen aktive/inaktive Minuten, Unterbrechungen, Mindestdauer, Beobachtungsgrund und letzte gespeicherte Beobachtung. Pausen und Rückfahrten zählen nicht als aktive Mähzeit; verspätete Ereignisse werden verworfen. Eine Stationserkennung nach ausreichender Aktivität bleibt eine Schätzung: `coverage_confirmed` ist immer `false`. Der Assistent sendet keine Mäherbefehle.
+
+Die [Pflegeplankarte](docs/dashboard/care-plan.de.yaml) und [Diagnosekarte](docs/dashboard/diagnostics.de.yaml) zeigen diese Hinweise aus vorhandenen Daten. Es erfolgen keine zusätzlichen regelmäßigen OWM-Abfragen.
 
 ## Erweiterte Modelldiagnose
 

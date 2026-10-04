@@ -832,6 +832,7 @@ class LawnSensor(LawnEntity, SensorEntity):
                     ],
                 },
                 "forecast_estimated": True,
+                "prioritized_steps": self.coordinator.care_priority_details(),
             }
         if key in {
             "water_consumption_day",
@@ -886,6 +887,7 @@ class LawnSensor(LawnEntity, SensorEntity):
             insights = self.coordinator.insight_diagnostics()
             details["model_initialization"] = insights["initialization"]
             details["data_gaps"] = insights["data_gaps"]
+            details["sensor_review"] = insights["sensor_review"]
             details["input_diagnostics"] = self.coordinator.input_diagnostics()
             details["storage_diagnostics"] = self.coordinator._store.diagnostic_status()
             details["update_diagnostics"] = self.coordinator.update_diagnostics()
