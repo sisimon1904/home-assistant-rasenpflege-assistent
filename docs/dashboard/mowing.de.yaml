@@ -33,7 +33,22 @@ secondary: '{{ state_translated(entity) }}
 
   {{ p.get(''reason_text'') or '''' }}
 
-  {{ (p.get(''missing_inputs_text'') or []) | join('' · '') }}'
+  {{ (p.get(''missing_inputs_text'') or []) | join('' · '') }}
+
+
+  {% set p = state_attr(entity, ''mowing_window'') or {} %}
+
+  Dauer: {{ p.get(''required_minutes'', 0) }} min · Verfügbar: {{ p.get(''available_minutes'') if p.get(''available_minutes'')
+  is not none else ''—'' }} min
+
+  {% set alt = p.get(''alternative'') or {} %}
+
+  Ausweichtermin: {% if alt.get(''start'') %}{{ as_local(as_datetime(alt.get(''start''))).strftime(''%d.%m. %H:%M'')
+  }}–{{ as_local(as_datetime(alt.get(''end''))).strftime(''%d.%m. %H:%M'') }}{% else %}—{% endif %}
+
+  {{ p.get(''quality_text'') or '''' }}
+
+  {{ (p.get(''quality_reasons_text'') or []) | join('' · '') }}'
 icon: mdi:robot-mower
 icon_color: '{{ state_attr(entity, ''icon_color'') or ''grey'' }}'
 multiline_secondary: true

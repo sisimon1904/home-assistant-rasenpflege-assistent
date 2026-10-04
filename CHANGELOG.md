@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.13.0
+
+### Added
+- Configure the required mowing duration (0–1440 minutes, default 0) and recommend only continuous weather windows long enough for a complete pass.
+- Expose the next separate suitable window as an alternative, including available minutes; keep all guidance on existing entities without device commands or additional regular weather polling.
+- Explain estimated versus insufficient mowing-window quality with localized reasons. Missing evidence outside the recommended window is reported separately.
+- Update German/English mowing and care-plan dashboards, settings descriptions and documentation.
+
+### Fixed
+- Preserve conflicting forecast evidence when fresh current observations share the same instant. Conflicting duplicate hours remain unknown regardless of input order.
+- Clear alternatives, available duration and quality when saved wet-event history makes mowing advice uncertain.
+
+### Validation
+- Reproduce three conflict regression cases against the previous planner before correcting them.
+- Add 27 tests for required durations, alternative windows, forecast gaps, current-only evidence, schedule ends, DST, invalid configuration, read-only diagnostics and rendered German/English dashboards.
+- All 712 tests pass with 88.94% combined line/branch coverage. Ruff and Mypy pass; Mypy checks all 21 program modules.
+- Existing restart, sensor failure and irrigation safety regressions pass. The second valve remains read-only.
+- Mowing suitability and grass dryness remain estimates requiring field checks.
+
 ## 3.12.0
 
 ### Added

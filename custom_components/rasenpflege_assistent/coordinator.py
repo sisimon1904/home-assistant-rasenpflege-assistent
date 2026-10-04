@@ -1337,6 +1337,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             leaf_wetness=leaf_state,
             start_time=self.settings.get("mowing_start_time", "09:00:00"),
             end_time=self.settings.get("mowing_end_time", "20:00:00"),
+            duration_minutes=self.settings.get("mowing_duration_minutes", 0),
         )
         if wet_history_uncertain and leaf_state != "dry":
             plan.update(
@@ -1345,12 +1346,23 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                     "start": None,
                     "end": None,
                     "reason": "mowing_wet_history_unknown",
+                    "alternative": None,
+                    "available_minutes": None,
+                    "quality": "insufficient",
+                    "quality_reasons": ["mowing_wet_history_unknown"],
                 }
             )
             plan["missing_inputs"].append("mowing_wet_history_unknown")
         return {
             **plan,
             "wet_history_uncertain": bool(wet_history_uncertain),
+            "quality_text": reason_text(
+                "mowing_quality_" + plan["quality"], self.hass.config.language
+            ),
+            "quality_reasons_text": [
+                reason_text(code, self.hass.config.language)
+                for code in plan["quality_reasons"]
+            ],
             "reason_text": reason_text(plan["reason"], self.hass.config.language),
             "blockers_text": [
                 reason_text(code, self.hass.config.language)

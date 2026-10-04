@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.12.0 · [Changelog](CHANGELOG.md)
+Version 3.13.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -319,6 +319,12 @@ A supplied dew point is preferred; otherwise temperature/humidity estimate it us
 `prioritized_steps` adds localized availability (`now`, `later`, `blocked`, `not_needed`) and blocker explanations. Mowing uses the weather window as `not_before`; expired wet holds do not add another wait. Weekly `changes` compare rain, ET and recorded consumption, retaining unknown totals when evidence is incomplete. Cycle estimates account for remaining active segments, current soak pauses and the remaining manual standard-watering minimum. A pause with no known end leaves total duration unknown.
 
 Conflicting forecast rows for one absolute instant become an unknown evidence slot rather than added rain or a dry hour. Conflicts affecting relevant watering forecasts lower confidence and block automatic starts; data quality reports `forecast_conflict`.
+
+Under **Options → Mowing → Required mowing duration**, configure the time needed for a complete mowing pass (0–1440 minutes). The default **0** preserves planning without a minimum duration. For example, **120 minutes** requires a continuous supported window of at least two actual hours. Forecast gaps, unsuitable weather and the allowed schedule end split windows; daylight saving changes do not change the required real running time.
+
+`required_minutes` reports the configured duration; `available_minutes` reports the recommended window length. `alternative` contains the next separate sufficiently long window with `start`, `end` and `available_minutes`, or `null` when no second window is available. It is a fallback window, not a second start inside the same window.
+
+`quality` is `estimated` for a supported recommendation and `insufficient` when no sufficient window exists. `quality_text` and `quality_reasons_text` explain this in the HA language. `missing_inputs_text` describes missing information across the reviewed horizon; missing values outside the recommended window do not automatically reduce that window's quality. Dry grass is still not confirmed. Updated mowing and care-plan cards show duration and alternative windows.
 
 ## Extended model diagnostics
 

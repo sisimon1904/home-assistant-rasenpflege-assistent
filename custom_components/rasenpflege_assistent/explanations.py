@@ -593,6 +593,18 @@ _MOWING_PLAN_EXPLANATIONS = {
         "Erhöhtes Taurisiko: Abtrocknen abwarten und Rasen vor dem Mähen prüfen.",
         "Elevated dew risk: allow drying and check the grass before mowing.",
     ),
+    "mowing_window_too_short": (
+        "Die belegten Mähfenster sind kürzer als die eingestellte Mähdauer.",
+        "Supported mowing windows are shorter than the configured mowing duration.",
+    ),
+    "mowing_quality_estimated": (
+        "Wetterdaten decken das empfohlene Fenster ab; Rasennässe bleibt geschätzt.",
+        "Weather evidence covers the recommended window; grass wetness remains estimated.",
+    ),
+    "mowing_quality_insufficient": (
+        "Kein ausreichend belegtes und langes Mähfenster verfügbar.",
+        "No sufficiently supported mowing window of the required duration is available.",
+    ),
     "mowing_no_window": (
         "Kein ausreichend belegtes Mähfenster innerhalb von 48 Stunden gefunden.",
         "No sufficiently supported mowing window found within 48 hours.",

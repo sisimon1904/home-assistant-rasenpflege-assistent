@@ -70,7 +70,22 @@ cards:
 
     {{ p.get(''current_dew_risk_text'') or '''' }}
 
-    {{ p.get(''reason_text'') or '''' }}'
+    {{ p.get(''reason_text'') or '''' }}
+
+
+    {% set p = state_attr(entity, ''mowing_window'') or {} %}
+
+    Dauer: {{ p.get(''required_minutes'', 0) }} min · Verfügbar: {{ p.get(''available_minutes'') if p.get(''available_minutes'')
+    is not none else ''—'' }} min
+
+    {% set alt = p.get(''alternative'') or {} %}
+
+    Ausweichtermin: {% if alt.get(''start'') %}{{ as_local(as_datetime(alt.get(''start''))).strftime(''%d.%m. %H:%M'')
+    }}–{{ as_local(as_datetime(alt.get(''end''))).strftime(''%d.%m. %H:%M'') }}{% else %}—{% endif %}
+
+    {{ p.get(''quality_text'') or '''' }}
+
+    {{ (p.get(''quality_reasons_text'') or []) | join('' · '') }}'
   multiline_secondary: true
   icon: mdi:grass
   tap_action:

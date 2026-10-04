@@ -7,6 +7,8 @@ mower. Bolton's vapor-pressure inversion estimates dew point from humidity:
 https://unidata.github.io/MetPy/latest/api/generated/metpy.calc.dewpoint.html
 Air dew-point spread is only a heuristic: grass surface temperature is unknown.
 Risk thresholds and one dry hour after dew are advisory, not field validation.
+Collect separate continuous windows, require the configured real mowing
+duration, and expose the next sufficient interval as a read-only alternative.
 """
 
 from __future__ import annotations
@@ -68,6 +70,14 @@ def dew_risk(temperature: object, humidity: object, dew_point: object) -> DewEst
     }
 
 
+class WindowOption(TypedDict):
+    """A continuous interval with enough real minutes for a complete pass."""
+
+    start: str
+    end: str
+    available_minutes: float
+
+
 class MowingWindow(TypedDict):
     """A weather window is a recommendation, with explicit missing evidence."""
 
@@ -83,6 +93,11 @@ class MowingWindow(TypedDict):
     surface_dry_confirmed: bool
     weather_slots_reviewed: int
     leaf_wetness: str
+    required_minutes: float
+    available_minutes: float | None
+    alternative: WindowOption | None
+    quality: str
+    quality_reasons: list[str]
 
 
 _RAIN_STATES = {
@@ -160,6 +175,7 @@ def mowing_window(
     leaf_wetness: str,
     start_time: str = "09:00:00",
     end_time: str = "20:00:00",
+    duration_minutes: object = 0,
 ) -> MowingWindow:
     """Select the earliest suitable hourly window within 48 actual hours.
 
@@ -167,7 +183,12 @@ def mowing_window(
     time. Do not extend one forecast slot through gaps. Known dew requires a
     preceding low-risk dry hour, forecast rain a twelve-hour/next-day hold.
     Current weather can support only the next hour, never tomorrow's humidity.
+    Zero required minutes preserves existing installations; a positive value
+    excludes short intervals without combining evidence across weather gaps.
     """
+    required = finite_number(duration_minutes)
+    if required is None or not 0 <= required <= 1440:
+        required = 0.0
     utc_now = now.astimezone(timezone.utc)
     estimate = dew_risk(
         current.get("temperature"), current.get("humidity"), current.get("dew_point")
@@ -187,6 +208,11 @@ def mowing_window(
         "surface_dry_confirmed": False,
         "weather_slots_reviewed": 0,
         "leaf_wetness": leaf_wetness,
+        "required_minutes": required,
+        "available_minutes": None,
+        "alternative": None,
+        "quality": "insufficient",
+        "quality_reasons": [],
     }
     if not eligible or irrigation_active or soil_frost:
         result["status"] = "blocked"
@@ -197,6 +223,7 @@ def mowing_window(
             if soil_frost
             else "mowing_not_due"
         )
+        result["quality_reasons"] = [result["reason"]]
         return result
     earliest = max(
         utc_now,
@@ -210,7 +237,12 @@ def mowing_window(
         if at is not None:
             at = at.astimezone(timezone.utc)
             if utc_now <= at < utc_now + timedelta(hours=48):
-                rows[at] = row
+                # Identical retries are harmless; conflicting absolute hours
+                # cannot become suitable merely through provider ordering.
+                if at in rows and rows[at] != row:
+                    rows[at] = {"forecast_conflict": True}
+                else:
+                    rows[at] = row
     # An actual current observation supports this hour only. Do not assert
     # zero rain from a missing/unknown weather condition.
     if not current.get("stale", True):
@@ -231,7 +263,8 @@ def mowing_window(
             # A fresh dry binary observation replaces only current dew evidence.
             current_row["dew_point"] = None
             current_row["humidity"] = None
-        rows[utc_now] = current_row
+        if not rows.get(utc_now, {}).get("forecast_conflict"):
+            rows[utc_now] = current_row
     blockers: set[str] = set()
     missing: set[str] = set()
     drying_needed = leaf_wetness == "wet" or (
@@ -239,8 +272,7 @@ def mowing_window(
     )
     dry_since: datetime | None = None
     previous: datetime | None = None
-    chosen: datetime | None = None
-    chosen_end: datetime | None = None
+    windows: list[tuple[datetime, datetime, DewEstimate]] = []
     rain_hold = earliest
     ordered = sorted(rows.items())
     for index, (at, row) in enumerate(ordered):
@@ -328,15 +360,13 @@ def mowing_window(
             and candidate < end
             and at >= utc_now - timedelta(hours=1)
         ):
-            if chosen is None:
-                chosen, chosen_end = candidate, end
-                result["window_dew"] = dew
-            elif chosen_end is not None and candidate <= chosen_end:
-                chosen_end = max(chosen_end, end)
+            # Merge only touching evidence; a gap, blocked hour or daily
+            # schedule boundary must split windows even when both sides are dry.
+            if windows and candidate <= windows[-1][1]:
+                beginning, ending, initial_dew = windows[-1]
+                windows[-1] = (beginning, max(ending, end), initial_dew)
             else:
-                break
-        elif chosen is not None:
-            break
+                windows.append((candidate, end, dew))
         elif not allowed:
             blockers.add("mowing_outside_schedule")
         elif reason is None and not dry_ready:
@@ -344,15 +374,39 @@ def mowing_window(
         previous = at
     result["blockers"] = sorted(blockers)
     result["missing_inputs"] = sorted(missing)
-    if chosen is not None and chosen_end is not None:
+    suitable = []
+    for beginning, ending, initial_dew in windows:
+        minutes = (ending - beginning).total_seconds() / 60
+        if minutes >= required:
+            suitable.append((beginning, ending, initial_dew, minutes))
+        else:
+            blockers.add("mowing_window_too_short")
+    result["blockers"] = sorted(blockers)
+    if suitable:
+        beginning, ending, initial_dew, minutes = suitable[0]
         result.update(
             {
                 "status": "recommended",
-                "start": chosen.astimezone(now.tzinfo).isoformat(),
-                "end": chosen_end.astimezone(now.tzinfo).isoformat(),
+                "start": beginning.astimezone(now.tzinfo).isoformat(),
+                "end": ending.astimezone(now.tzinfo).isoformat(),
                 "reason": "mowing_window_estimated",
+                "window_dew": initial_dew,
+                "available_minutes": round(minutes, 2),
+                "quality": "estimated",
+                "quality_reasons": ["mowing_quality_estimated"],
             }
         )
+        if len(suitable) > 1:
+            beginning, ending, _, minutes = suitable[1]
+            result["alternative"] = {
+                "start": beginning.astimezone(now.tzinfo).isoformat(),
+                "end": ending.astimezone(now.tzinfo).isoformat(),
+                "available_minutes": round(minutes, 2),
+            }
     elif not rows:
         result["reason"] = "mowing_hourly_unavailable"
+    elif windows:
+        result["reason"] = "mowing_window_too_short"
+    if not suitable:
+        result["quality_reasons"] = sorted(missing) or [result["reason"]]
     return result

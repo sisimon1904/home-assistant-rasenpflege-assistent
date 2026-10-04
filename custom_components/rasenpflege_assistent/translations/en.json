@@ -278,7 +278,8 @@
           "mowing_done_state": "State after returning to dock",
           "mowing_min_minutes": "Minimum mowing time for detection (minutes)",
           "mowing_start_time": "Allowed mowing window start",
-          "mowing_end_time": "Allowed mowing window end"
+          "mowing_end_time": "Allowed mowing window end",
+          "mowing_duration_minutes": "Required mowing duration (minutes)"
         },
         "data_description": {
           "mowing_mode": "Manual mower: 4/7/10 days; robot: 1/3/5 days for active/slow/autumn growth. Wet, frost and drought pauses take precedence. No mower commands are sent.",
@@ -288,7 +289,8 @@
           "mowing_done_state": "Exact internal state, normally docked. Returning for charging may also count. Use the completion binary input for reliable job completion.",
           "mowing_min_minutes": "Only active mowing counts; pauses and return travel do not. Short starts, errors, unknown states and restarts do not confirm a session.",
           "mowing_start_time": "Local time for recommendations; default 09:00. The assistant does not command the mower.",
-          "mowing_end_time": "Local time; default 20:00. Equal times allow all day; an earlier end means an overnight window."
+          "mowing_end_time": "Local time; default 20:00. Equal times allow all day; an earlier end means an overnight window.",
+          "mowing_duration_minutes": "Recommend only continuous weather windows of at least this duration. 0 disables the minimum duration. Does not control the mower."
         }
       },
       "schedule": {
@@ -325,7 +327,8 @@
       "irrigation_active": "Stop irrigation before changing settings.",
       "mowing_states_invalid": "Enter distinct valid mowing and docking states; error and paused states are not allowed.",
       "invalid_number": "Enter a finite number.",
-      "mowing_time_invalid": "Enter a valid local time without a timezone."
+      "mowing_time_invalid": "Enter a valid local time without a timezone.",
+      "mowing_duration_invalid": "Enter a duration between 0 and 1440 minutes."
     }
   },
   "selector": {

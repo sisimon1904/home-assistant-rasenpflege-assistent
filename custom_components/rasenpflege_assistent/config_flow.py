@@ -183,6 +183,7 @@ MOWING_FIELDS = (
     CONF_MOWING_MIN_MINUTES,
     "mowing_start_time",
     "mowing_end_time",
+    "mowing_duration_minutes",
 )
 
 
@@ -447,6 +448,15 @@ def _schema(
         vol.Optional(CONF_LAST_MOWING): selector.DateSelector(),
         vol.Required("mowing_start_time", default="09:00:00"): selector.TimeSelector(),
         vol.Required("mowing_end_time", default="20:00:00"): selector.TimeSelector(),
+        vol.Required("mowing_duration_minutes", default=0): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0,
+                max=1440,
+                step=1,
+                unit_of_measurement="min",
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
         vol.Required(CONF_MOWING_MODE, default=DEFAULT_MOWING_MODE): _select(
             "mowing_mode", ["manual", "robot"]
         ),
@@ -833,6 +843,13 @@ class LawnCareOptionsFlow(OptionsFlowWithReload):
         elif step_id == "model":
             errors.update(_validate_calibration(merged))
         elif step_id == "mowing":
+            duration = merged.get("mowing_duration_minutes", 0)
+            if (
+                isinstance(duration, bool)
+                or not isinstance(duration, (int, float))
+                or not 0 <= duration <= 1440
+            ):
+                errors["mowing_duration_minutes"] = "mowing_duration_invalid"
             for key in ("mowing_start_time", "mowing_end_time"):
                 raw_time = merged.get(
                     key, "09:00:00" if key == "mowing_start_time" else "20:00:00"

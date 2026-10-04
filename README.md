@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.12.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.13.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -333,6 +333,12 @@ Ein mitgelieferter Taupunkt wird bevorzugt; andernfalls wird er aus Temperatur u
 `prioritized_steps` enthält zusätzlich `availability`/`availability_text` (`now`, `later`, `blocked`, `not_needed`) und einen lesbaren Blockierungsgrund. Die Mähaktion verwendet den Wettertermin als `not_before`; abgelaufene Nassrasenzeiten erzeugen keine neue Warteempfehlung. Der Wochenvergleich enthält unter `changes` nachvollziehbare Regen-/Verdunstungs-/Verbrauchsdifferenzen; unvollständige Vergleichswerte bleiben unbekannt. Zyklusschätzungen berücksichtigen den Rest der aktuellen Zyklusphase, laufende Sickerpausen und die verbleibende Mindestlaufzeit einer manuellen Standardbewässerung. Bei einer Pause ohne bekanntes Ende bleibt die Gesamtdauer unbekannt.
 
 Widersprüchliche Prognoseeinträge für denselben absoluten Zeitpunkt werden als unbekannter Datensatz erhalten. Sie werden weder addiert noch als trockene Stunde ausgewählt. Ist die relevante Bewässerungsprognose betroffen, wird deren Vertrauen auf niedrig gesetzt und der automatische Start gesperrt; die Datenqualität zeigt `forecast_conflict`.
+
+Unter **Optionen → Mähen → Benötigte Mähdauer** lässt sich die erforderliche Dauer eines vollständigen Mähdurchgangs einstellen (0–1440 Minuten). Der Standardwert **0** behält die bisherige Planung ohne Mindestdauer bei. Mit beispielsweise **120 Minuten** werden nur zusammenhängende belegte Fenster von mindestens zwei echten Stunden empfohlen. Prognoselücken, Wetterhindernisse und das Ende des erlaubten Mähzeitfensters teilen die Fenster; Zeitumstellungen ändern nicht die benötigte echte Laufzeit.
+
+`required_minutes` enthält die eingestellte Dauer, `available_minutes` die verfügbare Länge des empfohlenen Fensters. `alternative` zeigt das nächste getrennte ausreichend lange Fenster mit `start`, `end` und `available_minutes`; ohne zweiten geeigneten Termin bleibt es `null`. Es handelt sich um einen Ausweichtermin, nicht um einen zweiten Start innerhalb desselben Fensters.
+
+`quality` ist `estimated` bei einer belegten Empfehlung und `insufficient` ohne ausreichendes Fenster. `quality_text` und `quality_reasons_text` erklären dies in der HA-Sprache. `missing_inputs_text` beschreibt fehlende Informationen im untersuchten Zeitraum; fehlende Werte außerhalb des empfohlenen Fensters machen dessen Qualität nicht automatisch unzureichend. Die Empfehlung bestätigt weiterhin keine trockene Rasenoberfläche. Mähdauer und Ausweichtermin erscheinen in den aktualisierten Mäh- und Pflegeplankarten.
 
 ## Erweiterte Modelldiagnose
 
