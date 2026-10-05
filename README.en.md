@@ -18,6 +18,10 @@ Use **Settings → Devices & services → Lawn Care Assistant → Menu → Recon
 See the [quality audit](docs/quality-audit.md) for checks and remaining Quality Scale requirements.
 The [source code overview](docs/source-code.md) documents file responsibilities and development rules (in German).
 
+## Integrated web dashboard
+
+Starting with **v3.17.0**, the integration serves a dedicated web interface at **`/rasenpflege-assistent`** on your Home Assistant web server. It appears as **Lawn care** in the sidebar, uses your existing HA login and discovers entity IDs automatically. Five responsive areas cover overview, care planning, mowing, irrigation and diagnostics. No YAML import or additional container is required. [Access and setup guide](docs/web-dashboard.en.md).
+
 ## Weather stops and consumption budgets
 
 Configure these options under **Configure → Irrigation safety**. Weather stops default to enabled: rain at 0.5 mm/h for rate sensors or 0.5 mm measured since session start for amount/cumulative sensors, wind at 8 m/s, and 120 seconds of confirmation. Short rate/wind spikes reset the timer when they subside. Currently reported rain or strong wind blocks automatic starts immediately. Without a valid rain sensor, current weather conditions provide the fallback. Missing weather is not treated as measured rainfall. Inputs use existing HA entities; there is no additional regular OWM API polling.

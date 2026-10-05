@@ -18,6 +18,10 @@ Die Wetterquelle lässt sich über **Einstellungen → Geräte & Dienste → Ras
 Prüfumfang und offene Quality-Scale-Anforderungen stehen im [Qualitätsaudit](docs/quality-audit.md).
 Die [Quellcode-Übersicht](docs/source-code.md) erläutert Dateizuständigkeiten und Regeln für die Weiterentwicklung.
 
+## Integriertes Webdashboard
+
+Die Integration stellt ab **3.17.0** eine eigene Weboberfläche unter **`/rasenpflege-assistent`** auf deinem Home-Assistant-Webserver bereit. Sie erscheint als **Rasenpflege** in der Seitenleiste, nutzt die bestehende HA-Anmeldung und ermittelt Entitäten automatisch. Desktop und Smartphone zeigen Übersicht, Pflegeplan, Mähen, Bewässerung und Diagnose. Du brauchst keinen YAML-Import und keinen zusätzlichen Container. [URL, Einrichtung und Bedienung](docs/web-dashboard.de.md).
+
 ## Wetterstopps und Verbrauchslimits
 
 Unter **Konfigurieren → Bewässerung – Sicherheit** stehen diese Einstellungen. Der Wetterstopp ist standardmäßig aktiv: Regen ab 0,5 mm/h bei Ratensensoren beziehungsweise 0,5 mm seit Sitzungsbeginn bei Mengen-/Zählersensoren, Wind ab 8 m/s, Bestätigungsdauer 120 Sekunden. Kurzzeitige Rate-/Windausschläge setzen die Bestätigungszeit zurück, sobald sie abklingen. Bereits gemeldeter Regen oder starker Wind sperrt einen automatischen Start sofort. Ohne gültigen Regensensor verwendet die Integration den aktuellen Wetterzustand. Fehlende Wetterinformationen werden nicht als gemessener Regen interpretiert. Alle Eingaben stammen aus vorhandenen HA-Entitäten; es gibt keine zusätzlichen regelmäßigen OWM-API-Abfragen.

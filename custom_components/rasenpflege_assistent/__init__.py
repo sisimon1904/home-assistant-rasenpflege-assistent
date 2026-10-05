@@ -57,6 +57,7 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import LawnCoordinator
+from .dashboard import async_setup_dashboard, async_unload_dashboard
 from .irrigation import IrrigationController
 from .mowing import MowingObserver
 
@@ -258,6 +259,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.services.async_register(
         DOMAIN, "undo_last_action", _undo, schema=vol.Schema(entry_schema)
     )
+    await async_setup_dashboard(hass)
     return True
 
 
@@ -356,6 +358,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
                 async_track_state_change_event(hass, [leaf_id], _leaf_changed)
             )
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        await async_setup_dashboard(hass)
         return True
     except BaseException:
         if await coordinator.irrigation_controller.async_shutdown():
@@ -385,6 +388,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> boo
         raise
     if unloaded:
         entry.runtime_data.irrigation_controller.detach()
+        async_unload_dashboard(hass, entry.entry_id)
     else:
         entry.runtime_data.irrigation_controller._shutting_down = False
     return unloaded

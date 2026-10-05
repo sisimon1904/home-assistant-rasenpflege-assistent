@@ -3,6 +3,8 @@
 ## 3.17.0
 
 ### Added
+- Serve an authenticated, responsive web dashboard at `/rasenpflege-assistent` through Home Assistant, with automatic multi-lawn entity discovery and live state updates. No separate container, port, token or YAML import is required.
+- Add an administrator-only, entry-scoped WebSocket action gateway using existing irrigation safety and maintenance service validation. Read access follows HA entity permissions.
 - Provide complete German and English Home Assistant dashboards with five views: overview, care plan, mowing, irrigation and diagnostics. Use native cards without Mushroom or card-mod.
 - Display care priorities, the conditional 48-hour outlook, dew-aware mowing windows, soil moisture history, fertilizer dosing, irrigation progress and comparative diagnostics using existing entities.
 - Include supervised irrigation start/stop controls, automatic irrigation permission and temporary suspension. Hide optional irrigation controls and diagnostics when their entities are absent.
@@ -10,7 +12,8 @@
 
 ### Validation
 - Extend dashboard regression checks to standalone configurations, native-card dependencies and entry-scoped irrigation actions.
-- All 945 tests pass with 89.67% combined line/branch coverage. Ruff formatting/lint and Mypy checks pass. Templates render with actual Home Assistant helpers and populated coordinator diagnostics; live frontend and device behavior still require local checks.
+- All 958 tests pass with 89.96% combined line/branch coverage. Ruff formatting/lint and Mypy checks pass. Templates render with actual Home Assistant helpers and populated coordinator diagnostics.
+- Browser checks cover all five areas on desktop/mobile, scoped start/stop and manual recording, invalid quantities, read-only controls, disconnect/reconnect, English labels and safe text rendering. Visual review confirms responsive layout; physical device behavior still requires local checks.
 - Keep irrigation safety, the second valve read-only behavior and existing weather polling unchanged.
 
 ## 3.16.1
