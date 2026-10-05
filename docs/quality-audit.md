@@ -1,4 +1,4 @@
-# Qualitätsaudit – 3.12.0
+# Qualitätsaudit – 3.16.1
 
 Geprüft am 4. Oktober 2026 gegen die [Home Assistant Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/). Dies ist eine Selbstauskunft für eine HACS-Integration, keine offizielle Einstufung. Fehlerfreiheit und vollständige Erfüllung sämtlicher Quality-Scale-Stufen werden nicht behauptet.
 
@@ -180,3 +180,13 @@ Die Modellprüfung verwendet unabhängige analytische Referenzen für 30 Tage Tr
 Ruff, Mypy 2.4.0 für alle 24 Programmdateien, Python-Syntax/Kompilierung, JSON/YAML, Dateiheader, relative Dokumentationslinks und Git-Whitespace sind erfolgreich. Das neue `outlook.py` verwendet die strengen Typoptionen. Der Pflegeausblick ist keine Reservierung oder Simulation künftiger Bodenfeuchte; offene Vorgänger lassen den ausführbaren Termin unbekannt. Bewässerungsmengenvergleiche beschreiben Abweichungen ab 5 % beziehungsweise 1 Liter und verändern weder Sollmengen noch Sicherheitseinstellungen. Alte Verbrauchsdaten bleiben erhalten; fehlende Vergleichsmetadaten werden nicht erfunden. Überlappende Mähfenster können Wetterpunkte teilen und liefern keine Genauigkeitsquote oder bestätigte Rasentrockenheit.
 
 Bestehende Neustart-, Einweichpausen-, Speicherkonkurrenz- und Sicherheitsregressionen bestehen. Es entstehen keine zusätzlichen Entitäten, regelmäßigen Wetterabfragen oder Mäherbefehle. Das zweite Ventil bleibt lesend. Die bisherigen Hardware-, Feldvalidierungs-, Versionsmatrix- und Quality-Scale-Grenzen gelten weiterhin.
+
+## Ergänzende Prüfung für 3.16.1
+
+Geprüft am 5. Oktober 2026: **939 Tests bestanden, 90,41 % kombinierte Zeilen-/Zweigabdeckung** unter Python 3.14.7 / Home Assistant 2026.9.4. Die 34 neuen Fälle laden die Entitätsübersetzungen mit Home Assistants tatsächlicher Übersetzungsschnittstelle in Deutsch und Englisch. Alle ausgegebenen obersten Sensorattribute einschließlich des bedingten Mähroboter-Schätzhinweises und sämtlicher Sensor-Enumwerte besitzen Beschriftungen. Beide Sprachdateien haben identische Schlüssel; die englische Datei stimmt mit `strings.json` überein.
+
+Die Prüfung bestätigt feste übersetzte Ventilzustände, Sitzungsquellen und Abschaltgründe, acht saisonale Düngestatus sowie den kontextabhängigen Status `not_due`. Beim Düngen bedeutet dieser „Keine Düngung fällig“; der Bewässerungsstatus behält seine Bodenfeuchte-Erklärung. Verschachtelte Pflegepläne erhalten lesbare `status_text`-Felder. Der Bewässerungsstatus stellt wie die anderen Bewässerungsdiagnosen die Sperrgründe zusätzlich als Textliste bereit. Regionale Sprachkennungen werden in Erläuterungen und Handlungshinweisen konsistent aufgelöst. Unbekannte Codes und englischer Rückfall bleiben erhalten.
+
+Ruff-Formatierung, Ruff-Prüfung, Mypy für alle 24 Programmdateien, Python-Syntax, JSON/YAML, relative Dokumentationslinks und Git-Whitespace sind erfolgreich. Lesende Attribute erhalten Rohcodes und gespeicherte Daten; die Tests bestätigen ausbleibende Service-/Prognoseaufrufe. Bestehende Sicherheits-, Speicher-, Neustart-, Entlade- und Modellregressionen bestehen ebenfalls. Keine neuen Entitäten, regelmäßigen Wetterabfragen oder Mäherbefehle; das zweite Ventil bleibt lesend.
+
+Der Nachweis betrifft die tatsächliche HA-Übersetzungsladung und Python-/Template-Verträge, keinen visuellen Test sämtlicher Frontendkarten. Rohattribute in Entwicklerwerkzeugen/JSON bleiben technisch stabil; innere Objektschlüssel werden nicht rekursiv übersetzt. Gemeinsame Erklärungstexte folgen der allgemeinen HA-Sprache, während unterstützte Frontendbeschriftungen der jeweiligen Benutzersprache folgen. Die Hardware-, Feldvalidierungs-, Versionsmatrix- und Quality-Scale-Grenzen gelten weiter.

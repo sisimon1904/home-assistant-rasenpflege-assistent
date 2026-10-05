@@ -803,6 +803,7 @@ class LawnSensor(LawnEntity, SensorEntity):
             return {
                 "mowing": {
                     "status": data.mower_status,
+                    "status_text": reason_text(data.mower_status, language),
                     "next_at": data.next_mowing_at,
                     "wet_until": data.mower_wet_until,
                     "reason": data.mowing_reason,
@@ -810,6 +811,7 @@ class LawnSensor(LawnEntity, SensorEntity):
                 },
                 "watering": {
                     "status": data.watering_status,
+                    "status_text": reason_text(data.watering_status, language),
                     "recommended_liters": data.watering_liters,
                     "next_start": irrigation.next_start_details()
                     if irrigation
@@ -826,6 +828,12 @@ class LawnSensor(LawnEntity, SensorEntity):
                 },
                 "fertilizing": {
                     "status": data.fertilizing_status,
+                    "status_text": reason_text(
+                        "fertilizing_not_due"
+                        if data.fertilizing_status == "not_due"
+                        else data.fertilizing_status,
+                        language,
+                    ),
                     "window": data.next_fertilizing_window,
                     "recommended_kg": data.fertilizer_total_kg,
                     "reasons_text": [
@@ -955,6 +963,9 @@ class LawnSensor(LawnEntity, SensorEntity):
             details["action_hint"] = self.coordinator.irrigation_controller.action_hint(
                 language
             )
+            details["automatic_blockers_text"] = [
+                reason_text(code, language) for code in details["automatic_blockers"]
+            ]
             if details.get("last_session"):
                 details["last_session"] = {
                     **details["last_session"],

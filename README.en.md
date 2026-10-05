@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.16.0 · [Changelog](CHANGELOG.md)
+Version 3.16.1 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -79,6 +79,10 @@ Under **Configure → Input sensors**, an optional leaf wetness binary sensor us
 The `record_mowing`, `record_fertilizing` and `record_watering` actions accept optional `recorded_at`, a past ISO timestamp with timezone. Backdated watering requires explicit `amount_mm`. Historical water enters history and consumption without changing today's soil reservoir: past rain and evaporation are not replayed. Older events cannot replace a newer last-maintenance date. Without a timestamp, the existing immediate recording behavior applies.
 
 Consumption sensors summarize known recorded quantities in the local calendar week (Monday to today) and current calendar month. Attributes distinguish valve measurements, user-recorded quantities, manual estimates, unmetered sessions and measurement gaps. Unknown volumes are never invented; totals with gaps are incomplete. Consumption starts with 3.7.0 and is not reconstructed from older bounded history. The usage ledger retains about one year; maintenance history retains the last 20 events. Undo removes erroneous manual usage entries. Measured irrigation consumption is retained; undo is blocked during controlled irrigation.
+
+## Attribute language
+
+Attribute labels and fixed values are provided in German and English. Technical keys remain stable for automations; nested explanations use the general Home Assistant language. Details and examples: [Attribute translations](docs/attributes.en.md).
 
 ## Diagnostic attributes and dashboard templates
 

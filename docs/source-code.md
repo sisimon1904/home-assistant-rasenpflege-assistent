@@ -28,7 +28,7 @@ Alle Python-Dateien besitzen einen englischen Modulheader mit Dateipfad, Zweck u
 | `sensor.py` | Zustände, Einheiten, Attribute und lesbare Diagnoseinformationen. |
 | `button.py` | Delegation von Bedienaktionen an Modell oder Bewässerungscontroller. |
 | `switch.py` | Gespeicherter Automatikschalter mit Sicherheitsbehandlung im Controller. |
-| `explanations.py` | Deutsche/englische Erläuterungen stabiler maschinenlesbarer Grundcodes. |
+| `explanations.py` | Deutsche/englische Erläuterungen stabiler maschinenlesbarer Grundcodes und regionale Sprachrückfälle. |
 | `diagnostics.py` | JSON-kompatible Diagnose für genau einen Konfigurationseintrag. |
 
 Die Python-Tests tragen ebenfalls Dateiheader. YAML-Header erläutern die Aktionsdefinitionen, Dashboard-Vorlagen und GitHub-Workflows. Die vorhandenen Beispielentitäten müssen weiterhin an die eigene HA-Installation angepasst werden.

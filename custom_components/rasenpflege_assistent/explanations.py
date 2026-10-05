@@ -877,8 +877,40 @@ for _code, _texts in _RELEASE_316_EXPLANATIONS.items():
     EXPLANATIONS["en"][_code] = _texts[1]
 
 
+_FERTILIZING_STATUS_EXPLANATIONS = {
+    "fertilizing_not_due": ("Keine Düngung fällig", "No fertilizing due"),
+    "wait_for_growth": ("Auf Wachstumsbeginn warten", "Wait for growth to begin"),
+    "spring_fertilizing_recommended": (
+        "Frühjahrsdüngung empfohlen",
+        "Spring fertilizing recommended",
+    ),
+    "spring_fertilizing_recorded": (
+        "Frühjahrsdüngung bereits erfasst",
+        "Spring fertilizing already recorded",
+    ),
+    "summer_fertilizing_recommended": (
+        "Sommerdüngung empfohlen",
+        "Summer fertilizing recommended",
+    ),
+    "fertilizing_not_due_yet": ("Düngung noch nicht fällig", "Fertilizing not due yet"),
+    "fertilize_only_if_needed": ("Nur bei Bedarf düngen", "Fertilize only if needed"),
+    "autumn_fertilizing_recommended": (
+        "Herbstdüngung empfohlen",
+        "Autumn fertilizing recommended",
+    ),
+    "autumn_fertilizing_recorded": (
+        "Herbstdüngung bereits erfasst",
+        "Autumn fertilizing already recorded",
+    ),
+}
+for _code, _texts in _FERTILIZING_STATUS_EXPLANATIONS.items():
+    EXPLANATIONS["de"][_code] = _texts[0]
+    EXPLANATIONS["en"][_code] = _texts[1]
+
+
 def reason_text(code: str | None, language: str) -> str | None:
     """Return a localized explanation, preserving unknown codes for diagnosis."""
     if code is None:
         return None
+    language = language.lower().replace("_", "-").split("-", 1)[0]
     return EXPLANATIONS.get(language, EXPLANATIONS["en"]).get(code, code)

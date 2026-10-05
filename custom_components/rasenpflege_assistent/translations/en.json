@@ -421,6 +421,365 @@
           "storage_error": "Storage error",
           "homeassistant_stopping": "Home Assistant is stopping",
           "frost": "Frost interlock"
+        },
+        "state_attributes": {
+          "action_hint": {
+            "name": "Action hint"
+          },
+          "automatic_blocker": {
+            "name": "Automatic blocker",
+            "state": {
+              "already_watered_today": "Lawn already watered today",
+              "automation_disabled": "Automatic irrigation is off",
+              "automation_enabled": "Automation disabled.",
+              "automation_suspended": "Automatic irrigation is temporarily suspended.",
+              "budget_uncertain": "Consumption incomplete; automation blocked",
+              "completed": "Completed",
+              "confidence_sufficient": "Data confidence is too low.",
+              "configured": "No valve configured.",
+              "current_weather_safe": "Wait for current rain or strong wind to subside",
+              "cycle_resume_unknown": "Pause end is unknown; total duration cannot be reliably estimated.",
+              "estimated_completion": "Estimated completion including soak pauses",
+              "excessive_flow": "Water flow exceeds the limit.",
+              "forecast_window_active": "No suitable forecast window is active.",
+              "frost": "Irrigation blocked because of frost.",
+              "frost_free": "Frost or unknown temperature.",
+              "homeassistant_running": "Home Assistant is stopping.",
+              "homeassistant_stopping": "Home Assistant is stopping",
+              "integration_unloaded": "Integration is unloading.",
+              "interrupted_by_restart": "Irrigation interrupted by restart; missing water measurements are not estimated.",
+              "irrigation": "Valve measurement",
+              "low": "Low",
+              "low_confidence": "Weather or soil model confidence is too low",
+              "maximum_runtime": "Maximum irrigation duration reached.",
+              "maximum_runtime_before_target": "Target likely exceeds the safety runtime",
+              "maximum_volume": "Maximum water volume reached.",
+              "meter_available": "Water meter is missing or invalid.",
+              "meter_fresh": "Water meter is missing or stale.",
+              "meter_required": "Water meter required for automatic watering",
+              "meter_reset": "Water meter reset during irrigation.",
+              "meter_stale": "Flow reading too old",
+              "meter_unavailable": "Water meter unavailable",
+              "meter_unit_changed": "Water meter unit changed.",
+              "mower_docked": "Mower is not docked.",
+              "mower_left_dock": "Mower left its safe position.",
+              "mower_not_docked": "Mower is not confirmed docked",
+              "no_active_session": "No active irrigation session",
+              "no_flow": "Insufficient water flow detected.",
+              "no_schedule_overlap": "Schedule and forecast window do not overlap",
+              "no_suitable_window": "No suitable watering window",
+              "not_configured": "No valve configured",
+              "not_suspended": "Automatic irrigation is temporarily suspended.",
+              "not_watered_today": "Already watered today.",
+              "other_valve_closed": "Second valve is open or unknown.",
+              "other_valve_open": "Other valve is open",
+              "other_valve_unavailable": "Other valve status unavailable",
+              "outside_schedule": "Outside the allowed irrigation schedule.",
+              "paused": "Paused – other valve open",
+              "planned_start": "Estimated start in an allowed weather window",
+              "rain_available": "Observed rain is missing.",
+              "rain_detected": "Watering stopped for rain",
+              "rain_unavailable": "Observed rain is unavailable",
+              "ready": "Ready to start",
+              "retry_allowed": "Waiting before another start.",
+              "retry_cooldown": "Waiting before retry after an unsuccessful start",
+              "running": "Watering",
+              "schedule_allowed": "Outside the allowed irrigation schedule.",
+              "schedule_ends_before_target": "Allowed schedule likely ends before the target is reached",
+              "session_active": "Watering session in progress",
+              "soak_pause": "Soaking pause between irrigation cycles.",
+              "stopped": "Stopped",
+              "stopped_manually": "Irrigation stopped manually.",
+              "stopping": "Closing valve",
+              "storage_available": "Storage is unavailable.",
+              "storage_error": "Storage error",
+              "target_reached": "Irrigation target reached.",
+              "unavailable": "Unavailable",
+              "valve_closed": "Owned valve is not closed.",
+              "valve_closed_externally": "Valve was closed outside the integration.",
+              "valve_did_not_open": "Valve did not confirm opening.",
+              "valve_not_closed": "Lawn valve is not closed",
+              "valve_open_failed": "Opening the valve failed; closure is being enforced.",
+              "valve_unavailable": "Valve state is unavailable.",
+              "waiting_for_flow": "Remaining time requires measurable flow",
+              "waiting_for_weather": "Waiting for weather data",
+              "waiting_for_window": "Waiting for the watering window",
+              "water_budget_available": "Check the consumption budget or measurement quality",
+              "water_budget_exhausted": "Water budget exhausted",
+              "water_now": "Water now",
+              "watering": "Lawn is still wet after watering.",
+              "watering_due": "Watering is not due.",
+              "watering_not_due": "Watering is not due",
+              "weather_available": "Weather data is missing or stale.",
+              "weather_unavailable": "Weather or forecast is unavailable",
+              "wind_too_strong": "Watering stopped for strong wind",
+              "window_expired": "Watering window has ended"
+            }
+          },
+          "automatic_blockers": {
+            "name": "Automatic blocker codes"
+          },
+          "automatic_blockers_text": {
+            "name": "Automatic blockers"
+          },
+          "automatic_conditions": {
+            "name": "Automatic conditions"
+          },
+          "automation_suspended_until": {
+            "name": "Automation suspended until"
+          },
+          "cycle_plan": {
+            "name": "Irrigation cycle plan"
+          },
+          "last_active_seconds": {
+            "name": "Last session active time (seconds)"
+          },
+          "last_measurement_gap": {
+            "name": "Last session measurement gap"
+          },
+          "last_paused_seconds": {
+            "name": "Last session paused time (seconds)"
+          },
+          "last_session": {
+            "name": "Last irrigation session"
+          },
+          "last_session_liters": {
+            "name": "Last session recorded quantity (L)"
+          },
+          "last_stop_reason": {
+            "name": "Last shutdown reason",
+            "state": {
+              "already_watered_today": "Lawn already watered today",
+              "automation_disabled": "Automatic irrigation is off",
+              "automation_enabled": "Automation disabled.",
+              "automation_suspended": "Automatic irrigation is temporarily suspended.",
+              "budget_uncertain": "Consumption incomplete; automation blocked",
+              "completed": "Completed",
+              "confidence_sufficient": "Data confidence is too low.",
+              "configured": "No valve configured.",
+              "current_weather_safe": "Wait for current rain or strong wind to subside",
+              "cycle_resume_unknown": "Pause end is unknown; total duration cannot be reliably estimated.",
+              "estimated_completion": "Estimated completion including soak pauses",
+              "excessive_flow": "Water flow exceeds the limit.",
+              "forecast_window_active": "No suitable forecast window is active.",
+              "frost": "Irrigation blocked because of frost.",
+              "frost_free": "Frost or unknown temperature.",
+              "homeassistant_running": "Home Assistant is stopping.",
+              "homeassistant_stopping": "Home Assistant is stopping",
+              "integration_unloaded": "Integration is unloading.",
+              "interrupted_by_restart": "Irrigation interrupted by restart; missing water measurements are not estimated.",
+              "irrigation": "Valve measurement",
+              "low": "Low",
+              "low_confidence": "Weather or soil model confidence is too low",
+              "maximum_runtime": "Maximum irrigation duration reached.",
+              "maximum_runtime_before_target": "Target likely exceeds the safety runtime",
+              "maximum_volume": "Maximum water volume reached.",
+              "meter_available": "Water meter is missing or invalid.",
+              "meter_fresh": "Water meter is missing or stale.",
+              "meter_required": "Water meter required for automatic watering",
+              "meter_reset": "Water meter reset during irrigation.",
+              "meter_stale": "Flow reading too old",
+              "meter_unavailable": "Water meter unavailable",
+              "meter_unit_changed": "Water meter unit changed.",
+              "mower_docked": "Mower is not docked.",
+              "mower_left_dock": "Mower left its safe position.",
+              "mower_not_docked": "Mower is not confirmed docked",
+              "no_active_session": "No active irrigation session",
+              "no_flow": "Insufficient water flow detected.",
+              "no_schedule_overlap": "Schedule and forecast window do not overlap",
+              "no_suitable_window": "No suitable watering window",
+              "not_configured": "No valve configured",
+              "not_suspended": "Automatic irrigation is temporarily suspended.",
+              "not_watered_today": "Already watered today.",
+              "other_valve_closed": "Second valve is open or unknown.",
+              "other_valve_open": "Other valve is open",
+              "other_valve_unavailable": "Other valve status unavailable",
+              "outside_schedule": "Outside the allowed irrigation schedule.",
+              "paused": "Paused – other valve open",
+              "planned_start": "Estimated start in an allowed weather window",
+              "rain_available": "Observed rain is missing.",
+              "rain_detected": "Watering stopped for rain",
+              "rain_unavailable": "Observed rain is unavailable",
+              "ready": "Ready to start",
+              "retry_allowed": "Waiting before another start.",
+              "retry_cooldown": "Waiting before retry after an unsuccessful start",
+              "running": "Watering",
+              "schedule_allowed": "Outside the allowed irrigation schedule.",
+              "schedule_ends_before_target": "Allowed schedule likely ends before the target is reached",
+              "session_active": "Watering session in progress",
+              "soak_pause": "Soaking pause between irrigation cycles.",
+              "stopped": "Stopped",
+              "stopped_manually": "Irrigation stopped manually.",
+              "stopping": "Closing valve",
+              "storage_available": "Storage is unavailable.",
+              "storage_error": "Storage error",
+              "target_reached": "Irrigation target reached.",
+              "unavailable": "Unavailable",
+              "valve_closed": "Owned valve is not closed.",
+              "valve_closed_externally": "Valve was closed outside the integration.",
+              "valve_did_not_open": "Valve did not confirm opening.",
+              "valve_not_closed": "Lawn valve is not closed",
+              "valve_open_failed": "Opening the valve failed; closure is being enforced.",
+              "valve_unavailable": "Valve state is unavailable.",
+              "waiting_for_flow": "Remaining time requires measurable flow",
+              "waiting_for_weather": "Waiting for weather data",
+              "waiting_for_window": "Waiting for the watering window",
+              "water_budget_available": "Check the consumption budget or measurement quality",
+              "water_budget_exhausted": "Water budget exhausted",
+              "water_now": "Water now",
+              "watering": "Lawn is still wet after watering.",
+              "watering_due": "Watering is not due.",
+              "watering_not_due": "Watering is not due",
+              "weather_available": "Weather data is missing or stale.",
+              "weather_unavailable": "Weather or forecast is unavailable",
+              "wind_too_strong": "Watering stopped for strong wind",
+              "window_expired": "Watering window has ended"
+            }
+          },
+          "meter_age_seconds": {
+            "name": "Meter reading age (seconds)"
+          },
+          "meter_attribution": {
+            "name": "Flow attribution",
+            "state": {
+              "all_flow_while_lawn_valve_open": "All flow while the lawn valve is open"
+            }
+          },
+          "meter_reading": {
+            "name": "Meter reading"
+          },
+          "meter_unit": {
+            "name": "Meter unit"
+          },
+          "mower_docked": {
+            "name": "Mower docked"
+          },
+          "next_automatic_start": {
+            "name": "Next possible automatic start"
+          },
+          "next_check": {
+            "name": "Next check"
+          },
+          "next_start_plan": {
+            "name": "Next start plan"
+          },
+          "other_valve_state": {
+            "name": "Other valve state",
+            "state": {
+              "on": "Open",
+              "off": "Closed",
+              "unknown": "Unknown",
+              "unavailable": "Unavailable",
+              "not_configured": "Not configured"
+            }
+          },
+          "quantity_comparison": {
+            "name": "Target versus recorded quantity"
+          },
+          "reason_text": {
+            "name": "Explanation"
+          },
+          "recent_sessions": {
+            "name": "Recent irrigation sessions"
+          },
+          "session_active_seconds": {
+            "name": "Session active time (seconds)"
+          },
+          "session_cycle_number": {
+            "name": "Current irrigation cycle"
+          },
+          "session_delivered_mm": {
+            "name": "Recorded water (mm)"
+          },
+          "session_elapsed_seconds": {
+            "name": "Elapsed session time (seconds)"
+          },
+          "session_estimated_end": {
+            "name": "Estimated session end"
+          },
+          "session_eta_estimated": {
+            "name": "Remaining time estimated"
+          },
+          "session_eta_reason": {
+            "name": "Remaining time estimate reason",
+            "state": {
+              "estimated_completion": "Estimated completion including soak pauses",
+              "maximum_runtime_before_target": "Target likely exceeds the safety runtime",
+              "meter_stale": "Flow reading too old",
+              "no_active_session": "No active irrigation session",
+              "other_valve_open": "Other valve is open",
+              "schedule_ends_before_target": "Allowed schedule likely ends before the target is reached",
+              "soak_pause": "Soaking pause between irrigation cycles.",
+              "stopping": "Closing valve",
+              "waiting_for_flow": "Remaining time requires measurable flow"
+            }
+          },
+          "session_flow_l_min": {
+            "name": "Session flow (L/min)"
+          },
+          "session_liters": {
+            "name": "Recorded session quantity (L)"
+          },
+          "session_measurement_gap": {
+            "name": "Session measurement gap"
+          },
+          "session_pause_reason": {
+            "name": "Pause reason",
+            "state": {
+              "other_valve_open": "Other valve is open",
+              "soak_pause": "Soaking pause between irrigation cycles."
+            }
+          },
+          "session_paused_seconds": {
+            "name": "Session paused time (seconds)"
+          },
+          "session_progress_percent": {
+            "name": "Quantity progress (%)"
+          },
+          "session_remaining_active_minutes": {
+            "name": "Remaining active time (minutes)"
+          },
+          "session_remaining_liters": {
+            "name": "Remaining water (L)"
+          },
+          "session_remaining_seconds": {
+            "name": "Remaining safety runtime (seconds)"
+          },
+          "session_resume_after": {
+            "name": "Resume no earlier than"
+          },
+          "session_source": {
+            "name": "Session start source",
+            "state": {
+              "auto": "Automatic",
+              "manual": "Manual"
+            }
+          },
+          "session_target_liters": {
+            "name": "Session target (L)"
+          },
+          "storage_error": {
+            "name": "Storage error"
+          },
+          "valve_state": {
+            "name": "Lawn valve state",
+            "state": {
+              "on": "Open",
+              "off": "Closed",
+              "unknown": "Unknown",
+              "unavailable": "Unavailable",
+              "not_configured": "Not configured"
+            }
+          },
+          "water_balance": {
+            "name": "Last session water balance"
+          },
+          "water_budget": {
+            "name": "Water budgets"
+          },
+          "watering_explanation": {
+            "name": "Watering explanation"
+          }
         }
       },
       "irrigation_status": {
@@ -437,8 +796,455 @@
           "reason": {
             "name": "Shutdown reason",
             "state": {
-              "meter_unit_changed": "Meter unit changed"
+              "meter_unit_changed": "Water meter unit changed.",
+              "already_watered_today": "Lawn already watered today",
+              "automation_disabled": "Automatic irrigation is off",
+              "automation_enabled": "Automation disabled.",
+              "automation_suspended": "Automatic irrigation is temporarily suspended.",
+              "budget_uncertain": "Consumption incomplete; automation blocked",
+              "completed": "Completed",
+              "confidence_sufficient": "Data confidence is too low.",
+              "configured": "No valve configured.",
+              "current_weather_safe": "Wait for current rain or strong wind to subside",
+              "cycle_resume_unknown": "Pause end is unknown; total duration cannot be reliably estimated.",
+              "estimated_completion": "Estimated completion including soak pauses",
+              "excessive_flow": "Water flow exceeds the limit.",
+              "forecast_window_active": "No suitable forecast window is active.",
+              "frost": "Irrigation blocked because of frost.",
+              "frost_free": "Frost or unknown temperature.",
+              "homeassistant_running": "Home Assistant is stopping.",
+              "homeassistant_stopping": "Home Assistant is stopping",
+              "integration_unloaded": "Integration is unloading.",
+              "interrupted_by_restart": "Irrigation interrupted by restart; missing water measurements are not estimated.",
+              "irrigation": "Valve measurement",
+              "low": "Low",
+              "low_confidence": "Weather or soil model confidence is too low",
+              "maximum_runtime": "Maximum irrigation duration reached.",
+              "maximum_runtime_before_target": "Target likely exceeds the safety runtime",
+              "maximum_volume": "Maximum water volume reached.",
+              "meter_available": "Water meter is missing or invalid.",
+              "meter_fresh": "Water meter is missing or stale.",
+              "meter_required": "Water meter required for automatic watering",
+              "meter_reset": "Water meter reset during irrigation.",
+              "meter_stale": "Flow reading too old",
+              "meter_unavailable": "Water meter unavailable",
+              "mower_docked": "Mower is not docked.",
+              "mower_left_dock": "Mower left its safe position.",
+              "mower_not_docked": "Mower is not confirmed docked",
+              "no_active_session": "No active irrigation session",
+              "no_flow": "Insufficient water flow detected.",
+              "no_schedule_overlap": "Schedule and forecast window do not overlap",
+              "no_suitable_window": "No suitable watering window",
+              "not_configured": "No valve configured",
+              "not_suspended": "Automatic irrigation is temporarily suspended.",
+              "not_watered_today": "Already watered today.",
+              "other_valve_closed": "Second valve is open or unknown.",
+              "other_valve_open": "Other valve is open",
+              "other_valve_unavailable": "Other valve status unavailable",
+              "outside_schedule": "Outside the allowed irrigation schedule.",
+              "paused": "Paused – other valve open",
+              "planned_start": "Estimated start in an allowed weather window",
+              "rain_available": "Observed rain is missing.",
+              "rain_detected": "Watering stopped for rain",
+              "rain_unavailable": "Observed rain is unavailable",
+              "ready": "Ready to start",
+              "retry_allowed": "Waiting before another start.",
+              "retry_cooldown": "Waiting before retry after an unsuccessful start",
+              "running": "Watering",
+              "schedule_allowed": "Outside the allowed irrigation schedule.",
+              "schedule_ends_before_target": "Allowed schedule likely ends before the target is reached",
+              "session_active": "Watering session in progress",
+              "soak_pause": "Soaking pause between irrigation cycles.",
+              "stopped": "Stopped",
+              "stopped_manually": "Irrigation stopped manually.",
+              "stopping": "Closing valve",
+              "storage_available": "Storage is unavailable.",
+              "storage_error": "Storage error",
+              "target_reached": "Irrigation target reached.",
+              "unavailable": "Unavailable",
+              "valve_closed": "Owned valve is not closed.",
+              "valve_closed_externally": "Valve was closed outside the integration.",
+              "valve_did_not_open": "Valve did not confirm opening.",
+              "valve_not_closed": "Lawn valve is not closed",
+              "valve_open_failed": "Opening the valve failed; closure is being enforced.",
+              "valve_unavailable": "Valve state is unavailable.",
+              "waiting_for_flow": "Remaining time requires measurable flow",
+              "waiting_for_weather": "Waiting for weather data",
+              "waiting_for_window": "Waiting for the watering window",
+              "water_budget_available": "Check the consumption budget or measurement quality",
+              "water_budget_exhausted": "Water budget exhausted",
+              "water_now": "Water now",
+              "watering": "Lawn is still wet after watering.",
+              "watering_due": "Watering is not due.",
+              "watering_not_due": "Watering is not due",
+              "weather_available": "Weather data is missing or stale.",
+              "weather_unavailable": "Weather or forecast is unavailable",
+              "wind_too_strong": "Watering stopped for strong wind",
+              "window_expired": "Watering window has ended"
             }
+          },
+          "action_hint": {
+            "name": "Action hint"
+          },
+          "automatic_blocker": {
+            "name": "Automatic blocker",
+            "state": {
+              "already_watered_today": "Lawn already watered today",
+              "automation_disabled": "Automatic irrigation is off",
+              "automation_enabled": "Automation disabled.",
+              "automation_suspended": "Automatic irrigation is temporarily suspended.",
+              "budget_uncertain": "Consumption incomplete; automation blocked",
+              "completed": "Completed",
+              "confidence_sufficient": "Data confidence is too low.",
+              "configured": "No valve configured.",
+              "current_weather_safe": "Wait for current rain or strong wind to subside",
+              "cycle_resume_unknown": "Pause end is unknown; total duration cannot be reliably estimated.",
+              "estimated_completion": "Estimated completion including soak pauses",
+              "excessive_flow": "Water flow exceeds the limit.",
+              "forecast_window_active": "No suitable forecast window is active.",
+              "frost": "Irrigation blocked because of frost.",
+              "frost_free": "Frost or unknown temperature.",
+              "homeassistant_running": "Home Assistant is stopping.",
+              "homeassistant_stopping": "Home Assistant is stopping",
+              "integration_unloaded": "Integration is unloading.",
+              "interrupted_by_restart": "Irrigation interrupted by restart; missing water measurements are not estimated.",
+              "irrigation": "Valve measurement",
+              "low": "Low",
+              "low_confidence": "Weather or soil model confidence is too low",
+              "maximum_runtime": "Maximum irrigation duration reached.",
+              "maximum_runtime_before_target": "Target likely exceeds the safety runtime",
+              "maximum_volume": "Maximum water volume reached.",
+              "meter_available": "Water meter is missing or invalid.",
+              "meter_fresh": "Water meter is missing or stale.",
+              "meter_required": "Water meter required for automatic watering",
+              "meter_reset": "Water meter reset during irrigation.",
+              "meter_stale": "Flow reading too old",
+              "meter_unavailable": "Water meter unavailable",
+              "meter_unit_changed": "Water meter unit changed.",
+              "mower_docked": "Mower is not docked.",
+              "mower_left_dock": "Mower left its safe position.",
+              "mower_not_docked": "Mower is not confirmed docked",
+              "no_active_session": "No active irrigation session",
+              "no_flow": "Insufficient water flow detected.",
+              "no_schedule_overlap": "Schedule and forecast window do not overlap",
+              "no_suitable_window": "No suitable watering window",
+              "not_configured": "No valve configured",
+              "not_suspended": "Automatic irrigation is temporarily suspended.",
+              "not_watered_today": "Already watered today.",
+              "other_valve_closed": "Second valve is open or unknown.",
+              "other_valve_open": "Other valve is open",
+              "other_valve_unavailable": "Other valve status unavailable",
+              "outside_schedule": "Outside the allowed irrigation schedule.",
+              "paused": "Paused – other valve open",
+              "planned_start": "Estimated start in an allowed weather window",
+              "rain_available": "Observed rain is missing.",
+              "rain_detected": "Watering stopped for rain",
+              "rain_unavailable": "Observed rain is unavailable",
+              "ready": "Ready to start",
+              "retry_allowed": "Waiting before another start.",
+              "retry_cooldown": "Waiting before retry after an unsuccessful start",
+              "running": "Watering",
+              "schedule_allowed": "Outside the allowed irrigation schedule.",
+              "schedule_ends_before_target": "Allowed schedule likely ends before the target is reached",
+              "session_active": "Watering session in progress",
+              "soak_pause": "Soaking pause between irrigation cycles.",
+              "stopped": "Stopped",
+              "stopped_manually": "Irrigation stopped manually.",
+              "stopping": "Closing valve",
+              "storage_available": "Storage is unavailable.",
+              "storage_error": "Storage error",
+              "target_reached": "Irrigation target reached.",
+              "unavailable": "Unavailable",
+              "valve_closed": "Owned valve is not closed.",
+              "valve_closed_externally": "Valve was closed outside the integration.",
+              "valve_did_not_open": "Valve did not confirm opening.",
+              "valve_not_closed": "Lawn valve is not closed",
+              "valve_open_failed": "Opening the valve failed; closure is being enforced.",
+              "valve_unavailable": "Valve state is unavailable.",
+              "waiting_for_flow": "Remaining time requires measurable flow",
+              "waiting_for_weather": "Waiting for weather data",
+              "waiting_for_window": "Waiting for the watering window",
+              "water_budget_available": "Check the consumption budget or measurement quality",
+              "water_budget_exhausted": "Water budget exhausted",
+              "water_now": "Water now",
+              "watering": "Lawn is still wet after watering.",
+              "watering_due": "Watering is not due.",
+              "watering_not_due": "Watering is not due",
+              "weather_available": "Weather data is missing or stale.",
+              "weather_unavailable": "Weather or forecast is unavailable",
+              "wind_too_strong": "Watering stopped for strong wind",
+              "window_expired": "Watering window has ended"
+            }
+          },
+          "automatic_blockers": {
+            "name": "Automatic blocker codes"
+          },
+          "automatic_blockers_text": {
+            "name": "Automatic blockers"
+          },
+          "automatic_conditions": {
+            "name": "Automatic conditions"
+          },
+          "automatic_irrigation_enabled": {
+            "name": "Automatic irrigation enabled"
+          },
+          "automation_suspended_until": {
+            "name": "Automation suspended until"
+          },
+          "cycle_plan": {
+            "name": "Irrigation cycle plan"
+          },
+          "last_active_seconds": {
+            "name": "Last session active time (seconds)"
+          },
+          "last_irrigation_liters": {
+            "name": "Last irrigation quantity (L)"
+          },
+          "last_measurement_gap": {
+            "name": "Last session measurement gap"
+          },
+          "last_paused_seconds": {
+            "name": "Last session paused time (seconds)"
+          },
+          "last_session": {
+            "name": "Last irrigation session"
+          },
+          "last_session_liters": {
+            "name": "Last session recorded quantity (L)"
+          },
+          "last_stop_reason": {
+            "name": "Last shutdown reason",
+            "state": {
+              "already_watered_today": "Lawn already watered today",
+              "automation_disabled": "Automatic irrigation is off",
+              "automation_enabled": "Automation disabled.",
+              "automation_suspended": "Automatic irrigation is temporarily suspended.",
+              "budget_uncertain": "Consumption incomplete; automation blocked",
+              "completed": "Completed",
+              "confidence_sufficient": "Data confidence is too low.",
+              "configured": "No valve configured.",
+              "current_weather_safe": "Wait for current rain or strong wind to subside",
+              "cycle_resume_unknown": "Pause end is unknown; total duration cannot be reliably estimated.",
+              "estimated_completion": "Estimated completion including soak pauses",
+              "excessive_flow": "Water flow exceeds the limit.",
+              "forecast_window_active": "No suitable forecast window is active.",
+              "frost": "Irrigation blocked because of frost.",
+              "frost_free": "Frost or unknown temperature.",
+              "homeassistant_running": "Home Assistant is stopping.",
+              "homeassistant_stopping": "Home Assistant is stopping",
+              "integration_unloaded": "Integration is unloading.",
+              "interrupted_by_restart": "Irrigation interrupted by restart; missing water measurements are not estimated.",
+              "irrigation": "Valve measurement",
+              "low": "Low",
+              "low_confidence": "Weather or soil model confidence is too low",
+              "maximum_runtime": "Maximum irrigation duration reached.",
+              "maximum_runtime_before_target": "Target likely exceeds the safety runtime",
+              "maximum_volume": "Maximum water volume reached.",
+              "meter_available": "Water meter is missing or invalid.",
+              "meter_fresh": "Water meter is missing or stale.",
+              "meter_required": "Water meter required for automatic watering",
+              "meter_reset": "Water meter reset during irrigation.",
+              "meter_stale": "Flow reading too old",
+              "meter_unavailable": "Water meter unavailable",
+              "meter_unit_changed": "Water meter unit changed.",
+              "mower_docked": "Mower is not docked.",
+              "mower_left_dock": "Mower left its safe position.",
+              "mower_not_docked": "Mower is not confirmed docked",
+              "no_active_session": "No active irrigation session",
+              "no_flow": "Insufficient water flow detected.",
+              "no_schedule_overlap": "Schedule and forecast window do not overlap",
+              "no_suitable_window": "No suitable watering window",
+              "not_configured": "No valve configured",
+              "not_suspended": "Automatic irrigation is temporarily suspended.",
+              "not_watered_today": "Already watered today.",
+              "other_valve_closed": "Second valve is open or unknown.",
+              "other_valve_open": "Other valve is open",
+              "other_valve_unavailable": "Other valve status unavailable",
+              "outside_schedule": "Outside the allowed irrigation schedule.",
+              "paused": "Paused – other valve open",
+              "planned_start": "Estimated start in an allowed weather window",
+              "rain_available": "Observed rain is missing.",
+              "rain_detected": "Watering stopped for rain",
+              "rain_unavailable": "Observed rain is unavailable",
+              "ready": "Ready to start",
+              "retry_allowed": "Waiting before another start.",
+              "retry_cooldown": "Waiting before retry after an unsuccessful start",
+              "running": "Watering",
+              "schedule_allowed": "Outside the allowed irrigation schedule.",
+              "schedule_ends_before_target": "Allowed schedule likely ends before the target is reached",
+              "session_active": "Watering session in progress",
+              "soak_pause": "Soaking pause between irrigation cycles.",
+              "stopped": "Stopped",
+              "stopped_manually": "Irrigation stopped manually.",
+              "stopping": "Closing valve",
+              "storage_available": "Storage is unavailable.",
+              "storage_error": "Storage error",
+              "target_reached": "Irrigation target reached.",
+              "unavailable": "Unavailable",
+              "valve_closed": "Owned valve is not closed.",
+              "valve_closed_externally": "Valve was closed outside the integration.",
+              "valve_did_not_open": "Valve did not confirm opening.",
+              "valve_not_closed": "Lawn valve is not closed",
+              "valve_open_failed": "Opening the valve failed; closure is being enforced.",
+              "valve_unavailable": "Valve state is unavailable.",
+              "waiting_for_flow": "Remaining time requires measurable flow",
+              "waiting_for_weather": "Waiting for weather data",
+              "waiting_for_window": "Waiting for the watering window",
+              "water_budget_available": "Check the consumption budget or measurement quality",
+              "water_budget_exhausted": "Water budget exhausted",
+              "water_now": "Water now",
+              "watering": "Lawn is still wet after watering.",
+              "watering_due": "Watering is not due.",
+              "watering_not_due": "Watering is not due",
+              "weather_available": "Weather data is missing or stale.",
+              "weather_unavailable": "Weather or forecast is unavailable",
+              "wind_too_strong": "Watering stopped for strong wind",
+              "window_expired": "Watering window has ended"
+            }
+          },
+          "meter_age_seconds": {
+            "name": "Meter reading age (seconds)"
+          },
+          "meter_attribution": {
+            "name": "Flow attribution",
+            "state": {
+              "all_flow_while_lawn_valve_open": "All flow while the lawn valve is open"
+            }
+          },
+          "meter_reading": {
+            "name": "Meter reading"
+          },
+          "meter_unit": {
+            "name": "Meter unit"
+          },
+          "mower_docked": {
+            "name": "Mower docked"
+          },
+          "next_automatic_start": {
+            "name": "Next possible automatic start"
+          },
+          "next_check": {
+            "name": "Next check"
+          },
+          "next_start_plan": {
+            "name": "Next start plan"
+          },
+          "other_valve_state": {
+            "name": "Other valve state",
+            "state": {
+              "on": "Open",
+              "off": "Closed",
+              "unknown": "Unknown",
+              "unavailable": "Unavailable",
+              "not_configured": "Not configured"
+            }
+          },
+          "quantity_comparison": {
+            "name": "Target versus recorded quantity"
+          },
+          "reason_text": {
+            "name": "Explanation"
+          },
+          "recent_sessions": {
+            "name": "Recent irrigation sessions"
+          },
+          "session_active_seconds": {
+            "name": "Session active time (seconds)"
+          },
+          "session_cycle_number": {
+            "name": "Current irrigation cycle"
+          },
+          "session_delivered_mm": {
+            "name": "Recorded water (mm)"
+          },
+          "session_elapsed_seconds": {
+            "name": "Elapsed session time (seconds)"
+          },
+          "session_estimated_end": {
+            "name": "Estimated session end"
+          },
+          "session_eta_estimated": {
+            "name": "Remaining time estimated"
+          },
+          "session_eta_reason": {
+            "name": "Remaining time estimate reason",
+            "state": {
+              "estimated_completion": "Estimated completion including soak pauses",
+              "maximum_runtime_before_target": "Target likely exceeds the safety runtime",
+              "meter_stale": "Flow reading too old",
+              "no_active_session": "No active irrigation session",
+              "other_valve_open": "Other valve is open",
+              "schedule_ends_before_target": "Allowed schedule likely ends before the target is reached",
+              "soak_pause": "Soaking pause between irrigation cycles.",
+              "stopping": "Closing valve",
+              "waiting_for_flow": "Remaining time requires measurable flow"
+            }
+          },
+          "session_flow_l_min": {
+            "name": "Session flow (L/min)"
+          },
+          "session_liters": {
+            "name": "Recorded session quantity (L)"
+          },
+          "session_measurement_gap": {
+            "name": "Session measurement gap"
+          },
+          "session_pause_reason": {
+            "name": "Pause reason",
+            "state": {
+              "other_valve_open": "Other valve is open",
+              "soak_pause": "Soaking pause between irrigation cycles."
+            }
+          },
+          "session_paused_seconds": {
+            "name": "Session paused time (seconds)"
+          },
+          "session_progress_percent": {
+            "name": "Quantity progress (%)"
+          },
+          "session_remaining_active_minutes": {
+            "name": "Remaining active time (minutes)"
+          },
+          "session_remaining_liters": {
+            "name": "Remaining water (L)"
+          },
+          "session_remaining_seconds": {
+            "name": "Remaining safety runtime (seconds)"
+          },
+          "session_resume_after": {
+            "name": "Resume no earlier than"
+          },
+          "session_source": {
+            "name": "Session start source",
+            "state": {
+              "auto": "Automatic",
+              "manual": "Manual"
+            }
+          },
+          "session_target_liters": {
+            "name": "Session target (L)"
+          },
+          "storage_error": {
+            "name": "Storage error"
+          },
+          "valve_state": {
+            "name": "Lawn valve state",
+            "state": {
+              "on": "Open",
+              "off": "Closed",
+              "unknown": "Unknown",
+              "unavailable": "Unavailable",
+              "not_configured": "Not configured"
+            }
+          },
+          "water_balance": {
+            "name": "Last session water balance"
+          },
+          "water_budget": {
+            "name": "Water budgets"
+          },
+          "watering_explanation": {
+            "name": "Watering explanation"
           }
         }
       },
@@ -456,6 +1262,52 @@
           "mowing_recommended": "Mowing recommended",
           "good_condition": "Good condition",
           "lawn_wet": "Lawn wet"
+        },
+        "state_attributes": {
+          "days_since_fertilizing": {
+            "name": "Days since fertilizing"
+          },
+          "dose_g_m2": {
+            "name": "Fertilizer dose (g/m²)"
+          },
+          "fertilizer_status": {
+            "name": "Fertilizing status",
+            "state": {
+              "not_due": "No fertilizing due",
+              "wait_for_growth": "Wait for growth to begin",
+              "spring_fertilizing_recommended": "Spring fertilizing recommended",
+              "spring_fertilizing_recorded": "Spring fertilizing already recorded",
+              "summer_fertilizing_recommended": "Summer fertilizing recommended",
+              "fertilizing_not_due_yet": "Fertilizing not due yet",
+              "fertilize_only_if_needed": "Fertilize only if needed",
+              "autumn_fertilizing_recommended": "Autumn fertilizing recommended",
+              "autumn_fertilizing_recorded": "Autumn fertilizing already recorded"
+            }
+          },
+          "fertilizing_recommended": {
+            "name": "Fertilizing recommended"
+          },
+          "icon_color": {
+            "name": "Icon color"
+          },
+          "last_maintenance_event": {
+            "name": "Last care action"
+          },
+          "next_window": {
+            "name": "Next fertilizing window"
+          },
+          "npk": {
+            "name": "NPK ratio"
+          },
+          "reasons": {
+            "name": "Reason codes"
+          },
+          "reasons_text": {
+            "name": "Reasons"
+          },
+          "total_kg": {
+            "name": "Fertilizer quantity (kg)"
+          }
         }
       },
       "next_action": {
@@ -472,6 +1324,26 @@
           "no_action": "No action required",
           "wait_to_mow": "Wait for the lawn to dry before mowing",
           "wait_for_irrigation": "Wait for irrigation"
+        },
+        "state_attributes": {
+          "next_mowing_date": {
+            "name": "Next mowing date"
+          },
+          "npk": {
+            "name": "NPK ratio"
+          },
+          "recommended_liters": {
+            "name": "Recommended water (L)"
+          },
+          "recommended_mm": {
+            "name": "Recommended water (mm)"
+          },
+          "total_kg": {
+            "name": "Fertilizer quantity (kg)"
+          },
+          "watering_explanation": {
+            "name": "Watering explanation"
+          }
         }
       },
       "growth_status": {
@@ -485,6 +1357,23 @@
           "slow_growth": "Slow growth",
           "autumn_slowdown": "Growth slowing (autumn)",
           "heat_drought_stress": "Heat or drought stress (growth paused)"
+        },
+        "state_attributes": {
+          "current_temperature": {
+            "name": "Current temperature"
+          },
+          "growth_temperature_7d": {
+            "name": "Growth temperature over 7 days"
+          },
+          "icon_color": {
+            "name": "Icon color"
+          },
+          "temperature_source": {
+            "name": "Temperature source",
+            "state": {
+              "unavailable": "Unavailable"
+            }
+          }
         }
       },
       "mower_status": {
@@ -530,7 +1419,8 @@
             "name": "Recommendation confidence",
             "state": {
               "low": "Low",
-              "medium": "Medium (estimate)"
+              "medium": "Medium (estimate)",
+              "high": "High"
             }
           },
           "last_mowing_source": {
@@ -551,14 +1441,165 @@
           },
           "last_mowing_estimated": {
             "name": "Last mowing estimated"
+          },
+          "days_since_mowing": {
+            "name": "Days since mowing"
+          },
+          "estimate_note": {
+            "name": "Estimate note"
+          },
+          "growth_temperature_7d": {
+            "name": "Growth temperature over 7 days"
+          },
+          "icon_color": {
+            "name": "Icon color"
+          },
+          "last_mowing": {
+            "name": "Last mowing date"
+          },
+          "last_robot_session_active_minutes": {
+            "name": "Last robot session active minutes"
+          },
+          "last_robot_session_finished_at": {
+            "name": "Last robot session end"
+          },
+          "last_robot_session_started_at": {
+            "name": "Last robot session start"
+          },
+          "live_robot_session": {
+            "name": "Live robot session"
+          },
+          "mower_can_be_switched_off": {
+            "name": "Mower can be switched off"
+          },
+          "mower_start_recommended": {
+            "name": "Mower start recommended"
+          },
+          "mowing_interval_days": {
+            "name": "Mowing interval (days)"
+          },
+          "mowing_window": {
+            "name": "Mowing window"
+          },
+          "next_mowing_date": {
+            "name": "Next mowing date"
+          },
+          "recommendation_reason_text": {
+            "name": "Mowing recommendation explanation"
+          },
+          "temperature_source": {
+            "name": "Temperature source",
+            "state": {
+              "unavailable": "Unavailable"
+            }
+          },
+          "wet_reason": {
+            "name": "Wet lawn reason",
+            "state": {
+              "irrigation_paused": "Irrigation is paused; the lawn remains wet.",
+              "irrigation_running": "Irrigation is running; wait for the lawn to dry before mowing.",
+              "leaf_wetness": "Leaf wetness sensor reports wet lawn.",
+              "rain": "Lawn is still wet after rain.",
+              "watering": "Lawn is still wet after watering."
+            }
+          },
+          "wet_reason_text": {
+            "name": "Wet lawn explanation"
+          },
+          "wet_until": {
+            "name": "Wet lawn hold until"
           }
         }
       },
       "soil_moisture": {
-        "name": "Modeled soil moisture"
+        "name": "Modeled soil moisture",
+        "state_attributes": {
+          "daily_evapotranspiration_mm": {
+            "name": "Evapotranspiration today (mm)"
+          },
+          "drainage_today_mm": {
+            "name": "Drainage today (mm)"
+          },
+          "effective_rain_today_mm": {
+            "name": "Effective rain today (mm)"
+          },
+          "evapotranspiration_method": {
+            "name": "Evapotranspiration method",
+            "state": {
+              "penman_monteith_estimated_radiation": "Penman-Monteith with estimated radiation",
+              "hargreaves_samani": "Hargreaves-Samani fallback",
+              "estimated_fallback": "Seasonal estimate (temperature unavailable)",
+              "unavailable": "Unavailable"
+            }
+          },
+          "input_diagnostics": {
+            "name": "Input diagnostics"
+          },
+          "interception_today_mm": {
+            "name": "Intercepted rain today (mm)"
+          },
+          "measured_soil_moisture": {
+            "name": "Measured soil moisture (%)"
+          },
+          "model_confidence": {
+            "name": "Soil model confidence",
+            "state": {
+              "high": "High",
+              "medium": "Medium",
+              "low": "Low"
+            }
+          },
+          "model_confidence_reasons": {
+            "name": "Model confidence reason codes"
+          },
+          "model_confidence_reasons_text": {
+            "name": "Model confidence reasons"
+          },
+          "model_diagnostics": {
+            "name": "Soil model diagnostics"
+          },
+          "model_insights": {
+            "name": "Soil model insights"
+          },
+          "reference_evapotranspiration_mm": {
+            "name": "Reference evapotranspiration (mm)"
+          },
+          "runoff_today_mm": {
+            "name": "Runoff today (mm)"
+          },
+          "sensor_deviation_percentage_points": {
+            "name": "Sensor deviation (percentage points)"
+          },
+          "soil_capacity_mm": {
+            "name": "Soil water capacity (mm)"
+          },
+          "soil_moisture_source": {
+            "name": "Soil moisture source",
+            "state": {
+              "model": "Soil model"
+            }
+          },
+          "soil_temperature": {
+            "name": "Soil temperature"
+          },
+          "soil_water_mm": {
+            "name": "Soil water storage (mm)"
+          },
+          "water_stress_factor": {
+            "name": "Water stress factor"
+          }
+        }
       },
       "gts": {
-        "name": "Grassland temperature sum"
+        "name": "Grassland temperature sum",
+        "state_attributes": {
+          "gts_complete": {
+            "name": "Growing degree sum complete"
+          },
+          "missing_temperature_days": {
+            "name": "Days without temperature data"
+          }
+        }
       },
       "watering_recommendation": {
         "name": "Watering recommendation",
@@ -568,13 +1609,152 @@
           "water_now": "Water now",
           "wait_for_rain": "Wait for rain",
           "not_due": "Soil moisture sufficient"
+        },
+        "state_attributes": {
+          "confidence": {
+            "name": "Recommendation confidence",
+            "state": {
+              "high": "High",
+              "medium": "Medium",
+              "low": "Low"
+            }
+          },
+          "days_since_watering": {
+            "name": "Days since watering"
+          },
+          "effective_rain_today_mm": {
+            "name": "Effective rain today (mm)"
+          },
+          "expected_et_24h_mm": {
+            "name": "Expected evapotranspiration over 24 hours (mm)"
+          },
+          "forecast_72h_estimated": {
+            "name": "72-hour forecast estimated"
+          },
+          "forecast_coverage_hours": {
+            "name": "Forecast coverage (hours)"
+          },
+          "forecast_period_days": {
+            "name": "Forecast period (days)"
+          },
+          "forecast_rain_24h_mm": {
+            "name": "Forecast rain over 24 hours (mm)"
+          },
+          "forecast_rain_48h_mm": {
+            "name": "Forecast rain over 48 hours (mm)"
+          },
+          "forecast_rain_72h_mm": {
+            "name": "Forecast rain over 72 hours (mm)"
+          },
+          "forecast_rain_mm": {
+            "name": "Forecast rain (mm)"
+          },
+          "forecast_stale": {
+            "name": "Forecast stale"
+          },
+          "forecast_updated_at": {
+            "name": "Last forecast update"
+          },
+          "hours_until_rain": {
+            "name": "Hours until rain"
+          },
+          "icon_color": {
+            "name": "Icon color"
+          },
+          "last_soil_update": {
+            "name": "Last soil model update"
+          },
+          "next_rain_at": {
+            "name": "Next rain start"
+          },
+          "observed_rain_today_mm": {
+            "name": "Observed rain today (mm)"
+          },
+          "precipitation_mode": {
+            "name": "Precipitation measurement mode",
+            "state": {
+              "auto": "Automatic",
+              "rate": "Precipitation rate",
+              "cumulative": "Cumulative counter",
+              "increment": "Quantity per report"
+            }
+          },
+          "precipitation_source": {
+            "name": "Precipitation source",
+            "state": {
+              "unavailable": "Unavailable"
+            }
+          },
+          "probability_adjusted_rain_24h_mm": {
+            "name": "Probability-adjusted rain over 24 hours (mm)"
+          },
+          "reasons": {
+            "name": "Reason codes"
+          },
+          "reasons_text": {
+            "name": "Reasons"
+          },
+          "recommended_liters": {
+            "name": "Recommended water (L)"
+          },
+          "recommended_mm": {
+            "name": "Recommended water (mm)"
+          },
+          "soil_model_gap_hours": {
+            "name": "Soil model gap (hours)"
+          },
+          "soil_moisture_percent": {
+            "name": "Soil moisture (%)"
+          },
+          "watering_explanation": {
+            "name": "Watering explanation"
+          },
+          "watering_recommended": {
+            "name": "Watering recommended"
+          },
+          "watering_window_end": {
+            "name": "Watering window end"
+          },
+          "watering_window_reason": {
+            "name": "Watering window reason",
+            "state": {
+              "best_available_period": "Best available irrigation time window.",
+              "cool_calm_dry_period": "Cool, calm and dry time window.",
+              "no_suitable_window": "No suitable watering window"
+            }
+          },
+          "watering_window_reason_text": {
+            "name": "Watering window explanation"
+          },
+          "watering_window_start": {
+            "name": "Watering window start"
+          },
+          "watering_window_temperature": {
+            "name": "Watering window temperature"
+          },
+          "watering_window_wind_speed_m_s": {
+            "name": "Watering window wind (m/s)"
+          }
         }
       },
       "watering_amount": {
-        "name": "Recommended water amount"
+        "name": "Recommended water amount",
+        "state_attributes": {
+          "recommended_mm": {
+            "name": "Recommended water (mm)"
+          }
+        }
       },
       "fertilizer_amount": {
-        "name": "Recommended fertilizer amount"
+        "name": "Recommended fertilizer amount",
+        "state_attributes": {
+          "dose_g_m2": {
+            "name": "Fertilizer dose (g/m²)"
+          },
+          "npk": {
+            "name": "NPK ratio"
+          }
+        }
       },
       "data_quality": {
         "name": "Data quality",
@@ -582,6 +1762,80 @@
           "good": "Good",
           "limited": "Limited",
           "insufficient": "Insufficient"
+        },
+        "state_attributes": {
+          "cloud_coverage": {
+            "name": "Cloud coverage (%)"
+          },
+          "data_gaps": {
+            "name": "Data gaps"
+          },
+          "data_warnings": {
+            "name": "Data warnings"
+          },
+          "dew_point": {
+            "name": "Dew point"
+          },
+          "evapotranspiration_method": {
+            "name": "Evapotranspiration method",
+            "state": {
+              "penman_monteith_estimated_radiation": "Penman-Monteith with estimated radiation",
+              "hargreaves_samani": "Hargreaves-Samani fallback",
+              "estimated_fallback": "Seasonal estimate (temperature unavailable)",
+              "unavailable": "Unavailable"
+            }
+          },
+          "forecast_age_minutes": {
+            "name": "Forecast age (minutes)"
+          },
+          "forecast_coverage_hours": {
+            "name": "Forecast coverage (hours)"
+          },
+          "forecast_diagnostics": {
+            "name": "Forecast diagnostics"
+          },
+          "gts_complete": {
+            "name": "Growing degree sum complete"
+          },
+          "humidity": {
+            "name": "Humidity (%)"
+          },
+          "input_diagnostics": {
+            "name": "Input diagnostics"
+          },
+          "missing_temperature_days": {
+            "name": "Days without temperature data"
+          },
+          "model_initialization": {
+            "name": "Soil model initialization"
+          },
+          "mowing_window_quality": {
+            "name": "Mowing window data quality"
+          },
+          "pressure_hpa": {
+            "name": "Pressure (hPa)"
+          },
+          "sensor_review": {
+            "name": "Sensor review"
+          },
+          "soil_model_gap_hours": {
+            "name": "Soil model gap (hours)"
+          },
+          "storage_diagnostics": {
+            "name": "Storage diagnostics"
+          },
+          "temperature_history_days": {
+            "name": "Temperature history days"
+          },
+          "update_diagnostics": {
+            "name": "Update diagnostics"
+          },
+          "weather_age_minutes": {
+            "name": "Weather data age (minutes)"
+          },
+          "wind_speed_m_s": {
+            "name": "Wind speed (m/s)"
+          }
         }
       },
       "soil_model_confidence": {
@@ -622,7 +1876,12 @@
         "name": "Precipitation source"
       },
       "soil_water": {
-        "name": "Modeled soil water"
+        "name": "Modeled soil water",
+        "state_attributes": {
+          "soil_capacity_mm": {
+            "name": "Soil water capacity (mm)"
+          }
+        }
       },
       "daily_evapotranspiration": {
         "name": "Evapotranspiration today"
@@ -634,10 +1893,38 @@
           "hargreaves_samani": "Hargreaves-Samani fallback",
           "estimated_fallback": "Seasonal estimate (temperature unavailable)",
           "unavailable": "Unavailable"
+        },
+        "state_attributes": {
+          "cloud_coverage": {
+            "name": "Cloud coverage (%)"
+          },
+          "dew_point": {
+            "name": "Dew point"
+          },
+          "humidity": {
+            "name": "Humidity (%)"
+          },
+          "pressure_hpa": {
+            "name": "Pressure (hPa)"
+          },
+          "reference_evapotranspiration_mm": {
+            "name": "Reference evapotranspiration (mm)"
+          },
+          "weather_age_minutes": {
+            "name": "Weather data age (minutes)"
+          },
+          "wind_speed_m_s": {
+            "name": "Wind speed (m/s)"
+          }
         }
       },
       "last_soil_update": {
-        "name": "Last soil model update"
+        "name": "Last soil model update",
+        "state_attributes": {
+          "soil_model_gap_hours": {
+            "name": "Soil model gap (hours)"
+          }
+        }
       },
       "last_calculation": {
         "name": "Last calculation"
@@ -675,16 +1962,669 @@
           "water_budget_exhausted": "Water budget exhausted",
           "rain_detected": "Rain detected",
           "wind_too_strong": "Wind too strong"
+        },
+        "state_attributes": {
+          "action_hint": {
+            "name": "Action hint"
+          },
+          "automatic_blocker": {
+            "name": "Automatic blocker",
+            "state": {
+              "already_watered_today": "Lawn already watered today",
+              "automation_disabled": "Automatic irrigation is off",
+              "automation_enabled": "Automation disabled.",
+              "automation_suspended": "Automatic irrigation is temporarily suspended.",
+              "budget_uncertain": "Consumption incomplete; automation blocked",
+              "completed": "Completed",
+              "confidence_sufficient": "Data confidence is too low.",
+              "configured": "No valve configured.",
+              "current_weather_safe": "Wait for current rain or strong wind to subside",
+              "cycle_resume_unknown": "Pause end is unknown; total duration cannot be reliably estimated.",
+              "estimated_completion": "Estimated completion including soak pauses",
+              "excessive_flow": "Water flow exceeds the limit.",
+              "forecast_window_active": "No suitable forecast window is active.",
+              "frost": "Irrigation blocked because of frost.",
+              "frost_free": "Frost or unknown temperature.",
+              "homeassistant_running": "Home Assistant is stopping.",
+              "homeassistant_stopping": "Home Assistant is stopping",
+              "integration_unloaded": "Integration is unloading.",
+              "interrupted_by_restart": "Irrigation interrupted by restart; missing water measurements are not estimated.",
+              "irrigation": "Valve measurement",
+              "low": "Low",
+              "low_confidence": "Weather or soil model confidence is too low",
+              "maximum_runtime": "Maximum irrigation duration reached.",
+              "maximum_runtime_before_target": "Target likely exceeds the safety runtime",
+              "maximum_volume": "Maximum water volume reached.",
+              "meter_available": "Water meter is missing or invalid.",
+              "meter_fresh": "Water meter is missing or stale.",
+              "meter_required": "Water meter required for automatic watering",
+              "meter_reset": "Water meter reset during irrigation.",
+              "meter_stale": "Flow reading too old",
+              "meter_unavailable": "Water meter unavailable",
+              "meter_unit_changed": "Water meter unit changed.",
+              "mower_docked": "Mower is not docked.",
+              "mower_left_dock": "Mower left its safe position.",
+              "mower_not_docked": "Mower is not confirmed docked",
+              "no_active_session": "No active irrigation session",
+              "no_flow": "Insufficient water flow detected.",
+              "no_schedule_overlap": "Schedule and forecast window do not overlap",
+              "no_suitable_window": "No suitable watering window",
+              "not_configured": "No valve configured",
+              "not_suspended": "Automatic irrigation is temporarily suspended.",
+              "not_watered_today": "Already watered today.",
+              "other_valve_closed": "Second valve is open or unknown.",
+              "other_valve_open": "Other valve is open",
+              "other_valve_unavailable": "Other valve status unavailable",
+              "outside_schedule": "Outside the allowed irrigation schedule.",
+              "paused": "Paused – other valve open",
+              "planned_start": "Estimated start in an allowed weather window",
+              "rain_available": "Observed rain is missing.",
+              "rain_detected": "Watering stopped for rain",
+              "rain_unavailable": "Observed rain is unavailable",
+              "ready": "Ready to start",
+              "retry_allowed": "Waiting before another start.",
+              "retry_cooldown": "Waiting before retry after an unsuccessful start",
+              "running": "Watering",
+              "schedule_allowed": "Outside the allowed irrigation schedule.",
+              "schedule_ends_before_target": "Allowed schedule likely ends before the target is reached",
+              "session_active": "Watering session in progress",
+              "soak_pause": "Soaking pause between irrigation cycles.",
+              "stopped": "Stopped",
+              "stopped_manually": "Irrigation stopped manually.",
+              "stopping": "Closing valve",
+              "storage_available": "Storage is unavailable.",
+              "storage_error": "Storage error",
+              "target_reached": "Irrigation target reached.",
+              "unavailable": "Unavailable",
+              "valve_closed": "Owned valve is not closed.",
+              "valve_closed_externally": "Valve was closed outside the integration.",
+              "valve_did_not_open": "Valve did not confirm opening.",
+              "valve_not_closed": "Lawn valve is not closed",
+              "valve_open_failed": "Opening the valve failed; closure is being enforced.",
+              "valve_unavailable": "Valve state is unavailable.",
+              "waiting_for_flow": "Remaining time requires measurable flow",
+              "waiting_for_weather": "Waiting for weather data",
+              "waiting_for_window": "Waiting for the watering window",
+              "water_budget_available": "Check the consumption budget or measurement quality",
+              "water_budget_exhausted": "Water budget exhausted",
+              "water_now": "Water now",
+              "watering": "Lawn is still wet after watering.",
+              "watering_due": "Watering is not due.",
+              "watering_not_due": "Watering is not due",
+              "weather_available": "Weather data is missing or stale.",
+              "weather_unavailable": "Weather or forecast is unavailable",
+              "wind_too_strong": "Watering stopped for strong wind",
+              "window_expired": "Watering window has ended"
+            }
+          },
+          "automatic_blockers": {
+            "name": "Automatic blocker codes"
+          },
+          "automatic_blockers_text": {
+            "name": "Automatic blockers"
+          },
+          "automatic_conditions": {
+            "name": "Automatic conditions"
+          },
+          "automation_suspended_until": {
+            "name": "Automation suspended until"
+          },
+          "cycle_plan": {
+            "name": "Irrigation cycle plan"
+          },
+          "last_active_seconds": {
+            "name": "Last session active time (seconds)"
+          },
+          "last_measurement_gap": {
+            "name": "Last session measurement gap"
+          },
+          "last_paused_seconds": {
+            "name": "Last session paused time (seconds)"
+          },
+          "last_session": {
+            "name": "Last irrigation session"
+          },
+          "last_session_liters": {
+            "name": "Last session recorded quantity (L)"
+          },
+          "last_stop_reason": {
+            "name": "Last shutdown reason",
+            "state": {
+              "already_watered_today": "Lawn already watered today",
+              "automation_disabled": "Automatic irrigation is off",
+              "automation_enabled": "Automation disabled.",
+              "automation_suspended": "Automatic irrigation is temporarily suspended.",
+              "budget_uncertain": "Consumption incomplete; automation blocked",
+              "completed": "Completed",
+              "confidence_sufficient": "Data confidence is too low.",
+              "configured": "No valve configured.",
+              "current_weather_safe": "Wait for current rain or strong wind to subside",
+              "cycle_resume_unknown": "Pause end is unknown; total duration cannot be reliably estimated.",
+              "estimated_completion": "Estimated completion including soak pauses",
+              "excessive_flow": "Water flow exceeds the limit.",
+              "forecast_window_active": "No suitable forecast window is active.",
+              "frost": "Irrigation blocked because of frost.",
+              "frost_free": "Frost or unknown temperature.",
+              "homeassistant_running": "Home Assistant is stopping.",
+              "homeassistant_stopping": "Home Assistant is stopping",
+              "integration_unloaded": "Integration is unloading.",
+              "interrupted_by_restart": "Irrigation interrupted by restart; missing water measurements are not estimated.",
+              "irrigation": "Valve measurement",
+              "low": "Low",
+              "low_confidence": "Weather or soil model confidence is too low",
+              "maximum_runtime": "Maximum irrigation duration reached.",
+              "maximum_runtime_before_target": "Target likely exceeds the safety runtime",
+              "maximum_volume": "Maximum water volume reached.",
+              "meter_available": "Water meter is missing or invalid.",
+              "meter_fresh": "Water meter is missing or stale.",
+              "meter_required": "Water meter required for automatic watering",
+              "meter_reset": "Water meter reset during irrigation.",
+              "meter_stale": "Flow reading too old",
+              "meter_unavailable": "Water meter unavailable",
+              "meter_unit_changed": "Water meter unit changed.",
+              "mower_docked": "Mower is not docked.",
+              "mower_left_dock": "Mower left its safe position.",
+              "mower_not_docked": "Mower is not confirmed docked",
+              "no_active_session": "No active irrigation session",
+              "no_flow": "Insufficient water flow detected.",
+              "no_schedule_overlap": "Schedule and forecast window do not overlap",
+              "no_suitable_window": "No suitable watering window",
+              "not_configured": "No valve configured",
+              "not_suspended": "Automatic irrigation is temporarily suspended.",
+              "not_watered_today": "Already watered today.",
+              "other_valve_closed": "Second valve is open or unknown.",
+              "other_valve_open": "Other valve is open",
+              "other_valve_unavailable": "Other valve status unavailable",
+              "outside_schedule": "Outside the allowed irrigation schedule.",
+              "paused": "Paused – other valve open",
+              "planned_start": "Estimated start in an allowed weather window",
+              "rain_available": "Observed rain is missing.",
+              "rain_detected": "Watering stopped for rain",
+              "rain_unavailable": "Observed rain is unavailable",
+              "ready": "Ready to start",
+              "retry_allowed": "Waiting before another start.",
+              "retry_cooldown": "Waiting before retry after an unsuccessful start",
+              "running": "Watering",
+              "schedule_allowed": "Outside the allowed irrigation schedule.",
+              "schedule_ends_before_target": "Allowed schedule likely ends before the target is reached",
+              "session_active": "Watering session in progress",
+              "soak_pause": "Soaking pause between irrigation cycles.",
+              "stopped": "Stopped",
+              "stopped_manually": "Irrigation stopped manually.",
+              "stopping": "Closing valve",
+              "storage_available": "Storage is unavailable.",
+              "storage_error": "Storage error",
+              "target_reached": "Irrigation target reached.",
+              "unavailable": "Unavailable",
+              "valve_closed": "Owned valve is not closed.",
+              "valve_closed_externally": "Valve was closed outside the integration.",
+              "valve_did_not_open": "Valve did not confirm opening.",
+              "valve_not_closed": "Lawn valve is not closed",
+              "valve_open_failed": "Opening the valve failed; closure is being enforced.",
+              "valve_unavailable": "Valve state is unavailable.",
+              "waiting_for_flow": "Remaining time requires measurable flow",
+              "waiting_for_weather": "Waiting for weather data",
+              "waiting_for_window": "Waiting for the watering window",
+              "water_budget_available": "Check the consumption budget or measurement quality",
+              "water_budget_exhausted": "Water budget exhausted",
+              "water_now": "Water now",
+              "watering": "Lawn is still wet after watering.",
+              "watering_due": "Watering is not due.",
+              "watering_not_due": "Watering is not due",
+              "weather_available": "Weather data is missing or stale.",
+              "weather_unavailable": "Weather or forecast is unavailable",
+              "wind_too_strong": "Watering stopped for strong wind",
+              "window_expired": "Watering window has ended"
+            }
+          },
+          "meter_age_seconds": {
+            "name": "Meter reading age (seconds)"
+          },
+          "meter_attribution": {
+            "name": "Flow attribution",
+            "state": {
+              "all_flow_while_lawn_valve_open": "All flow while the lawn valve is open"
+            }
+          },
+          "meter_reading": {
+            "name": "Meter reading"
+          },
+          "meter_unit": {
+            "name": "Meter unit"
+          },
+          "mower_docked": {
+            "name": "Mower docked"
+          },
+          "next_automatic_start": {
+            "name": "Next possible automatic start"
+          },
+          "next_check": {
+            "name": "Next check"
+          },
+          "next_start_plan": {
+            "name": "Next start plan"
+          },
+          "other_valve_state": {
+            "name": "Other valve state",
+            "state": {
+              "on": "Open",
+              "off": "Closed",
+              "unknown": "Unknown",
+              "unavailable": "Unavailable",
+              "not_configured": "Not configured"
+            }
+          },
+          "quantity_comparison": {
+            "name": "Target versus recorded quantity"
+          },
+          "reason_text": {
+            "name": "Explanation"
+          },
+          "recent_sessions": {
+            "name": "Recent irrigation sessions"
+          },
+          "session_active_seconds": {
+            "name": "Session active time (seconds)"
+          },
+          "session_cycle_number": {
+            "name": "Current irrigation cycle"
+          },
+          "session_delivered_mm": {
+            "name": "Recorded water (mm)"
+          },
+          "session_elapsed_seconds": {
+            "name": "Elapsed session time (seconds)"
+          },
+          "session_estimated_end": {
+            "name": "Estimated session end"
+          },
+          "session_eta_estimated": {
+            "name": "Remaining time estimated"
+          },
+          "session_eta_reason": {
+            "name": "Remaining time estimate reason",
+            "state": {
+              "estimated_completion": "Estimated completion including soak pauses",
+              "maximum_runtime_before_target": "Target likely exceeds the safety runtime",
+              "meter_stale": "Flow reading too old",
+              "no_active_session": "No active irrigation session",
+              "other_valve_open": "Other valve is open",
+              "schedule_ends_before_target": "Allowed schedule likely ends before the target is reached",
+              "soak_pause": "Soaking pause between irrigation cycles.",
+              "stopping": "Closing valve",
+              "waiting_for_flow": "Remaining time requires measurable flow"
+            }
+          },
+          "session_flow_l_min": {
+            "name": "Session flow (L/min)"
+          },
+          "session_liters": {
+            "name": "Recorded session quantity (L)"
+          },
+          "session_measurement_gap": {
+            "name": "Session measurement gap"
+          },
+          "session_pause_reason": {
+            "name": "Pause reason",
+            "state": {
+              "other_valve_open": "Other valve is open",
+              "soak_pause": "Soaking pause between irrigation cycles."
+            }
+          },
+          "session_paused_seconds": {
+            "name": "Session paused time (seconds)"
+          },
+          "session_progress_percent": {
+            "name": "Quantity progress (%)"
+          },
+          "session_remaining_active_minutes": {
+            "name": "Remaining active time (minutes)"
+          },
+          "session_remaining_liters": {
+            "name": "Remaining water (L)"
+          },
+          "session_remaining_seconds": {
+            "name": "Remaining safety runtime (seconds)"
+          },
+          "session_resume_after": {
+            "name": "Resume no earlier than"
+          },
+          "session_source": {
+            "name": "Session start source",
+            "state": {
+              "auto": "Automatic",
+              "manual": "Manual"
+            }
+          },
+          "session_target_liters": {
+            "name": "Session target (L)"
+          },
+          "storage_error": {
+            "name": "Storage error"
+          },
+          "valve_state": {
+            "name": "Lawn valve state",
+            "state": {
+              "on": "Open",
+              "off": "Closed",
+              "unknown": "Unknown",
+              "unavailable": "Unavailable",
+              "not_configured": "Not configured"
+            }
+          },
+          "water_balance": {
+            "name": "Last session water balance"
+          },
+          "water_budget": {
+            "name": "Water budgets"
+          },
+          "watering_explanation": {
+            "name": "Watering explanation"
+          }
         }
       },
       "water_consumption_week": {
-        "name": "Recorded irrigation this week"
+        "name": "Recorded irrigation this week",
+        "state_attributes": {
+          "day_allocation_estimated_sessions": {
+            "name": "Day: Sessions with estimated daily allocation"
+          },
+          "day_irrigation_liters": {
+            "name": "Day: Recorded irrigation (L)"
+          },
+          "day_liters": {
+            "name": "Day: Recorded total (L)"
+          },
+          "day_manual_estimate_liters": {
+            "name": "Day: Manually estimated water (L)"
+          },
+          "day_manual_record_liters": {
+            "name": "Day: Manually recorded water (L)"
+          },
+          "day_measurement_gap_sessions": {
+            "name": "Day: Sessions with measurement gaps"
+          },
+          "day_sessions": {
+            "name": "Day: Sessions"
+          },
+          "day_source": {
+            "name": "Day: Consumption source",
+            "state": {
+              "recorded_water_only": "Recorded water only"
+            }
+          },
+          "day_unmetered_sessions": {
+            "name": "Day: Sessions without volume measurement"
+          },
+          "month_allocation_estimated_sessions": {
+            "name": "Month: Sessions with estimated daily allocation"
+          },
+          "month_irrigation_liters": {
+            "name": "Month: Recorded irrigation (L)"
+          },
+          "month_liters": {
+            "name": "Month: Recorded total (L)"
+          },
+          "month_manual_estimate_liters": {
+            "name": "Month: Manually estimated water (L)"
+          },
+          "month_manual_record_liters": {
+            "name": "Month: Manually recorded water (L)"
+          },
+          "month_measurement_gap_sessions": {
+            "name": "Month: Sessions with measurement gaps"
+          },
+          "month_sessions": {
+            "name": "Month: Sessions"
+          },
+          "month_source": {
+            "name": "Month: Consumption source",
+            "state": {
+              "recorded_water_only": "Recorded water only"
+            }
+          },
+          "month_unmetered_sessions": {
+            "name": "Month: Sessions without volume measurement"
+          },
+          "recent_records": {
+            "name": "Recent consumption records"
+          },
+          "totals_include_active_session": {
+            "name": "Totals include the active session"
+          },
+          "week_allocation_estimated_sessions": {
+            "name": "Week: Sessions with estimated daily allocation"
+          },
+          "week_irrigation_liters": {
+            "name": "Week: Recorded irrigation (L)"
+          },
+          "week_liters": {
+            "name": "Week: Recorded total (L)"
+          },
+          "week_manual_estimate_liters": {
+            "name": "Week: Manually estimated water (L)"
+          },
+          "week_manual_record_liters": {
+            "name": "Week: Manually recorded water (L)"
+          },
+          "week_measurement_gap_sessions": {
+            "name": "Week: Sessions with measurement gaps"
+          },
+          "week_sessions": {
+            "name": "Week: Sessions"
+          },
+          "week_source": {
+            "name": "Week: Consumption source",
+            "state": {
+              "recorded_water_only": "Recorded water only"
+            }
+          },
+          "week_unmetered_sessions": {
+            "name": "Week: Sessions without volume measurement"
+          }
+        }
       },
       "water_consumption_month": {
-        "name": "Recorded irrigation this month"
+        "name": "Recorded irrigation this month",
+        "state_attributes": {
+          "day_allocation_estimated_sessions": {
+            "name": "Day: Sessions with estimated daily allocation"
+          },
+          "day_irrigation_liters": {
+            "name": "Day: Recorded irrigation (L)"
+          },
+          "day_liters": {
+            "name": "Day: Recorded total (L)"
+          },
+          "day_manual_estimate_liters": {
+            "name": "Day: Manually estimated water (L)"
+          },
+          "day_manual_record_liters": {
+            "name": "Day: Manually recorded water (L)"
+          },
+          "day_measurement_gap_sessions": {
+            "name": "Day: Sessions with measurement gaps"
+          },
+          "day_sessions": {
+            "name": "Day: Sessions"
+          },
+          "day_source": {
+            "name": "Day: Consumption source",
+            "state": {
+              "recorded_water_only": "Recorded water only"
+            }
+          },
+          "day_unmetered_sessions": {
+            "name": "Day: Sessions without volume measurement"
+          },
+          "month_allocation_estimated_sessions": {
+            "name": "Month: Sessions with estimated daily allocation"
+          },
+          "month_irrigation_liters": {
+            "name": "Month: Recorded irrigation (L)"
+          },
+          "month_liters": {
+            "name": "Month: Recorded total (L)"
+          },
+          "month_manual_estimate_liters": {
+            "name": "Month: Manually estimated water (L)"
+          },
+          "month_manual_record_liters": {
+            "name": "Month: Manually recorded water (L)"
+          },
+          "month_measurement_gap_sessions": {
+            "name": "Month: Sessions with measurement gaps"
+          },
+          "month_sessions": {
+            "name": "Month: Sessions"
+          },
+          "month_source": {
+            "name": "Month: Consumption source",
+            "state": {
+              "recorded_water_only": "Recorded water only"
+            }
+          },
+          "month_unmetered_sessions": {
+            "name": "Month: Sessions without volume measurement"
+          },
+          "recent_records": {
+            "name": "Recent consumption records"
+          },
+          "totals_include_active_session": {
+            "name": "Totals include the active session"
+          },
+          "week_allocation_estimated_sessions": {
+            "name": "Week: Sessions with estimated daily allocation"
+          },
+          "week_irrigation_liters": {
+            "name": "Week: Recorded irrigation (L)"
+          },
+          "week_liters": {
+            "name": "Week: Recorded total (L)"
+          },
+          "week_manual_estimate_liters": {
+            "name": "Week: Manually estimated water (L)"
+          },
+          "week_manual_record_liters": {
+            "name": "Week: Manually recorded water (L)"
+          },
+          "week_measurement_gap_sessions": {
+            "name": "Week: Sessions with measurement gaps"
+          },
+          "week_sessions": {
+            "name": "Week: Sessions"
+          },
+          "week_source": {
+            "name": "Week: Consumption source",
+            "state": {
+              "recorded_water_only": "Recorded water only"
+            }
+          },
+          "week_unmetered_sessions": {
+            "name": "Week: Sessions without volume measurement"
+          }
+        }
       },
       "water_consumption_day": {
-        "name": "Water consumption today"
+        "name": "Water consumption today",
+        "state_attributes": {
+          "day_allocation_estimated_sessions": {
+            "name": "Day: Sessions with estimated daily allocation"
+          },
+          "day_irrigation_liters": {
+            "name": "Day: Recorded irrigation (L)"
+          },
+          "day_liters": {
+            "name": "Day: Recorded total (L)"
+          },
+          "day_manual_estimate_liters": {
+            "name": "Day: Manually estimated water (L)"
+          },
+          "day_manual_record_liters": {
+            "name": "Day: Manually recorded water (L)"
+          },
+          "day_measurement_gap_sessions": {
+            "name": "Day: Sessions with measurement gaps"
+          },
+          "day_sessions": {
+            "name": "Day: Sessions"
+          },
+          "day_source": {
+            "name": "Day: Consumption source",
+            "state": {
+              "recorded_water_only": "Recorded water only"
+            }
+          },
+          "day_unmetered_sessions": {
+            "name": "Day: Sessions without volume measurement"
+          },
+          "month_allocation_estimated_sessions": {
+            "name": "Month: Sessions with estimated daily allocation"
+          },
+          "month_irrigation_liters": {
+            "name": "Month: Recorded irrigation (L)"
+          },
+          "month_liters": {
+            "name": "Month: Recorded total (L)"
+          },
+          "month_manual_estimate_liters": {
+            "name": "Month: Manually estimated water (L)"
+          },
+          "month_manual_record_liters": {
+            "name": "Month: Manually recorded water (L)"
+          },
+          "month_measurement_gap_sessions": {
+            "name": "Month: Sessions with measurement gaps"
+          },
+          "month_sessions": {
+            "name": "Month: Sessions"
+          },
+          "month_source": {
+            "name": "Month: Consumption source",
+            "state": {
+              "recorded_water_only": "Recorded water only"
+            }
+          },
+          "month_unmetered_sessions": {
+            "name": "Month: Sessions without volume measurement"
+          },
+          "recent_records": {
+            "name": "Recent consumption records"
+          },
+          "totals_include_active_session": {
+            "name": "Totals include the active session"
+          },
+          "week_allocation_estimated_sessions": {
+            "name": "Week: Sessions with estimated daily allocation"
+          },
+          "week_irrigation_liters": {
+            "name": "Week: Recorded irrigation (L)"
+          },
+          "week_liters": {
+            "name": "Week: Recorded total (L)"
+          },
+          "week_manual_estimate_liters": {
+            "name": "Week: Manually estimated water (L)"
+          },
+          "week_manual_record_liters": {
+            "name": "Week: Manually recorded water (L)"
+          },
+          "week_measurement_gap_sessions": {
+            "name": "Week: Sessions with measurement gaps"
+          },
+          "week_sessions": {
+            "name": "Week: Sessions"
+          },
+          "week_source": {
+            "name": "Week: Consumption source",
+            "state": {
+              "recorded_water_only": "Recorded water only"
+            }
+          },
+          "week_unmetered_sessions": {
+            "name": "Week: Sessions without volume measurement"
+          }
+        }
       },
       "care_plan": {
         "name": "Care plan",
@@ -700,13 +2640,168 @@
           "no_action": "No action required",
           "wait_to_mow": "Wait for the lawn to dry before mowing",
           "wait_for_irrigation": "Wait for irrigation"
+        },
+        "state_attributes": {
+          "fertilizing": {
+            "name": "Fertilizing plan"
+          },
+          "forecast_estimated": {
+            "name": "Forecast estimated"
+          },
+          "mowing": {
+            "name": "Mowing plan"
+          },
+          "mowing_window": {
+            "name": "Mowing window"
+          },
+          "outlook": {
+            "name": "Care outlook"
+          },
+          "prioritized_steps": {
+            "name": "Prioritized care steps"
+          },
+          "summary": {
+            "name": "Care summary"
+          },
+          "watering": {
+            "name": "Watering plan"
+          }
         }
       },
       "next_automatic_start": {
-        "name": "Next automatic irrigation start"
+        "name": "Next automatic irrigation start",
+        "state_attributes": {
+          "at": {
+            "name": "Candidate start time"
+          },
+          "estimated": {
+            "name": "Estimated"
+          },
+          "reason": {
+            "name": "Reason",
+            "state": {
+              "already_watered_today": "Lawn already watered today",
+              "automation_disabled": "Automatic irrigation is off",
+              "automation_enabled": "Automation disabled.",
+              "automation_suspended": "Automatic irrigation is temporarily suspended.",
+              "budget_uncertain": "Consumption incomplete; automation blocked",
+              "completed": "Completed",
+              "confidence_sufficient": "Data confidence is too low.",
+              "configured": "No valve configured.",
+              "current_weather_safe": "Wait for current rain or strong wind to subside",
+              "cycle_resume_unknown": "Pause end is unknown; total duration cannot be reliably estimated.",
+              "estimated_completion": "Estimated completion including soak pauses",
+              "excessive_flow": "Water flow exceeds the limit.",
+              "forecast_window_active": "No suitable forecast window is active.",
+              "frost": "Irrigation blocked because of frost.",
+              "frost_free": "Frost or unknown temperature.",
+              "homeassistant_running": "Home Assistant is stopping.",
+              "homeassistant_stopping": "Home Assistant is stopping",
+              "integration_unloaded": "Integration is unloading.",
+              "interrupted_by_restart": "Irrigation interrupted by restart; missing water measurements are not estimated.",
+              "irrigation": "Valve measurement",
+              "low": "Low",
+              "low_confidence": "Weather or soil model confidence is too low",
+              "maximum_runtime": "Maximum irrigation duration reached.",
+              "maximum_runtime_before_target": "Target likely exceeds the safety runtime",
+              "maximum_volume": "Maximum water volume reached.",
+              "meter_available": "Water meter is missing or invalid.",
+              "meter_fresh": "Water meter is missing or stale.",
+              "meter_required": "Water meter required for automatic watering",
+              "meter_reset": "Water meter reset during irrigation.",
+              "meter_stale": "Flow reading too old",
+              "meter_unavailable": "Water meter unavailable",
+              "meter_unit_changed": "Water meter unit changed.",
+              "mower_docked": "Mower is not docked.",
+              "mower_left_dock": "Mower left its safe position.",
+              "mower_not_docked": "Mower is not confirmed docked",
+              "no_active_session": "No active irrigation session",
+              "no_flow": "Insufficient water flow detected.",
+              "no_schedule_overlap": "Schedule and forecast window do not overlap",
+              "no_suitable_window": "No suitable watering window",
+              "not_configured": "No valve configured",
+              "not_suspended": "Automatic irrigation is temporarily suspended.",
+              "not_watered_today": "Already watered today.",
+              "other_valve_closed": "Second valve is open or unknown.",
+              "other_valve_open": "Other valve is open",
+              "other_valve_unavailable": "Other valve status unavailable",
+              "outside_schedule": "Outside the allowed irrigation schedule.",
+              "paused": "Paused – other valve open",
+              "planned_start": "Estimated start in an allowed weather window",
+              "rain_available": "Observed rain is missing.",
+              "rain_detected": "Watering stopped for rain",
+              "rain_unavailable": "Observed rain is unavailable",
+              "ready": "Ready to start",
+              "retry_allowed": "Waiting before another start.",
+              "retry_cooldown": "Waiting before retry after an unsuccessful start",
+              "running": "Watering",
+              "schedule_allowed": "Outside the allowed irrigation schedule.",
+              "schedule_ends_before_target": "Allowed schedule likely ends before the target is reached",
+              "session_active": "Watering session in progress",
+              "soak_pause": "Soaking pause between irrigation cycles.",
+              "stopped": "Stopped",
+              "stopped_manually": "Irrigation stopped manually.",
+              "stopping": "Closing valve",
+              "storage_available": "Storage is unavailable.",
+              "storage_error": "Storage error",
+              "target_reached": "Irrigation target reached.",
+              "unavailable": "Unavailable",
+              "valve_closed": "Owned valve is not closed.",
+              "valve_closed_externally": "Valve was closed outside the integration.",
+              "valve_did_not_open": "Valve did not confirm opening.",
+              "valve_not_closed": "Lawn valve is not closed",
+              "valve_open_failed": "Opening the valve failed; closure is being enforced.",
+              "valve_unavailable": "Valve state is unavailable.",
+              "waiting_for_flow": "Remaining time requires measurable flow",
+              "waiting_for_weather": "Waiting for weather data",
+              "waiting_for_window": "Waiting for the watering window",
+              "water_budget_available": "Check the consumption budget or measurement quality",
+              "water_budget_exhausted": "Water budget exhausted",
+              "water_now": "Water now",
+              "watering": "Lawn is still wet after watering.",
+              "watering_due": "Watering is not due.",
+              "watering_not_due": "Watering is not due",
+              "weather_available": "Weather data is missing or stale.",
+              "weather_unavailable": "Weather or forecast is unavailable",
+              "wind_too_strong": "Watering stopped for strong wind",
+              "window_expired": "Watering window has ended"
+            }
+          },
+          "reason_text": {
+            "name": "Explanation"
+          }
+        }
       },
       "irrigation_remaining_time": {
-        "name": "Remaining irrigation time"
+        "name": "Remaining irrigation time",
+        "state_attributes": {
+          "reason_text": {
+            "name": "Explanation"
+          },
+          "session_estimated_end": {
+            "name": "Estimated session end"
+          },
+          "session_eta_estimated": {
+            "name": "Remaining time estimated"
+          },
+          "session_eta_reason": {
+            "name": "Remaining time estimate reason",
+            "state": {
+              "estimated_completion": "Estimated completion including soak pauses",
+              "maximum_runtime_before_target": "Target likely exceeds the safety runtime",
+              "meter_stale": "Flow reading too old",
+              "no_active_session": "No active irrigation session",
+              "other_valve_open": "Other valve is open",
+              "schedule_ends_before_target": "Allowed schedule likely ends before the target is reached",
+              "soak_pause": "Soaking pause between irrigation cycles.",
+              "stopping": "Closing valve",
+              "waiting_for_flow": "Remaining time requires measurable flow"
+            }
+          },
+          "session_remaining_active_minutes": {
+            "name": "Remaining active time (minutes)"
+          }
+        }
       }
     },
     "binary_sensor": {

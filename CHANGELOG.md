@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.16.1
+
+### Fixed
+- Complete German and English display labels for sensor attributes, including irrigation, soil-model, mowing, consumption and care-plan diagnostics. Translate known fixed attribute values while preserving raw keys and codes for automations.
+- Add readable nested mowing, watering and fertilizing statuses, including distinct fertilizing wording for `not_due`. Provide automatic blocker explanations on the irrigation-status sensor as well.
+- Resolve regional language variants consistently in explanations and irrigation action hints; retain English fallback and unknown diagnostic codes.
+
+### Documentation and validation
+- Explain frontend translations, shared HA-language explanation texts, raw Developer Tools data and nested diagnostic limitations in German and English.
+- Add 34 runtime translation-loader, enum coverage, language parity, regional fallback and read-only regression checks. All 939 tests pass with 90.41% combined line/branch coverage; Ruff and Mypy pass.
+
 ## 3.16.0
 
 ### Added

@@ -1057,7 +1057,9 @@ class IrrigationController:
             ),
         }
         return (
-            hints[blocker][0 if language == "de" else 1]
+            hints[blocker][
+                0 if language.lower().replace("_", "-").split("-", 1)[0] == "de" else 1
+            ]
             if blocker in hints
             else reason_text(blocker, language)
         )

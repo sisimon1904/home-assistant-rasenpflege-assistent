@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.16.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.16.1 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -384,6 +384,10 @@ Messwert vorliegt oder die Messreihe für den Tag unterbrochen war. Nach einer
 Neuinstallation während des Jahres zeigt die Grünlandtemperatursumme fehlende
 frühere Tage an, bis die Jahresgrenze erreicht ist oder ein Ausgangswert
 manuell gesetzt wird.
+
+## Sprache der Attribute
+
+Attributbeschriftungen und feste Werte sind auf Deutsch und Englisch hinterlegt. Technische Schlüssel bleiben für Automationen stabil; verschachtelte Erläuterungen verwenden die allgemeine Home-Assistant-Sprache. Details und Beispiele: [Attributübersetzungen](docs/attributes.de.md).
 
 ## Anzeige auf dem Dashboard
 

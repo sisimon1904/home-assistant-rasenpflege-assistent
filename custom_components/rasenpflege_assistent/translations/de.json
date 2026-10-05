@@ -421,6 +421,365 @@
           "storage_error": "Speicherfehler",
           "homeassistant_stopping": "Home Assistant wird beendet",
           "frost": "Frostsperre"
+        },
+        "state_attributes": {
+          "action_hint": {
+            "name": "Handlungshinweis"
+          },
+          "automatic_blocker": {
+            "name": "Automatiksperrgrund",
+            "state": {
+              "already_watered_today": "Rasen wurde heute bereits bewässert",
+              "automation_disabled": "Automatische Bewässerung ist aus",
+              "automation_enabled": "Automatik ausgeschaltet.",
+              "automation_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "budget_uncertain": "Verbrauch unvollständig; Automatik gesperrt",
+              "completed": "Abgeschlossen",
+              "confidence_sufficient": "Datenvertrauen zu gering.",
+              "configured": "Kein Ventil eingerichtet.",
+              "current_weather_safe": "Aktuell Regen oder starken Wind abwarten",
+              "cycle_resume_unknown": "Pausenende ist unbekannt; eine Gesamtdauer kann nicht verlässlich geschätzt werden.",
+              "estimated_completion": "Geschätztes Ende einschließlich Einweichpausen",
+              "excessive_flow": "Durchfluss überschreitet den Grenzwert.",
+              "forecast_window_active": "Kein aktuell geeignetes Vorhersagefenster.",
+              "frost": "Bewässerung wegen Frost gesperrt.",
+              "frost_free": "Frost oder unbekannte Temperatur.",
+              "homeassistant_running": "Home Assistant wird beendet.",
+              "homeassistant_stopping": "Home Assistant wird beendet",
+              "integration_unloaded": "Integration wird beendet.",
+              "interrupted_by_restart": "Bewässerung durch Neustart unterbrochen; Messlücke wird nicht geschätzt.",
+              "irrigation": "Ventilmessung",
+              "low": "Niedrig",
+              "low_confidence": "Wetter- oder Bodenmodelldaten zu unsicher",
+              "maximum_runtime": "Maximale Bewässerungsdauer erreicht.",
+              "maximum_runtime_before_target": "Zielmenge voraussichtlich nicht vor Sicherheitsende erreichbar",
+              "maximum_volume": "Maximale Wassermenge erreicht.",
+              "meter_available": "Wasserzähler fehlt oder ist ungültig.",
+              "meter_fresh": "Wasserzähler fehlt oder ist zu alt.",
+              "meter_required": "Wasserzähler für Automatik erforderlich",
+              "meter_reset": "Wasserzähler wurde während der Bewässerung zurückgesetzt.",
+              "meter_stale": "Durchflussmesswert zu alt",
+              "meter_unavailable": "Wasserzähler nicht verfügbar",
+              "meter_unit_changed": "Einheit des Wasserzählers wurde geändert.",
+              "mower_docked": "Mäher nicht an Station.",
+              "mower_left_dock": "Mäher hat die sichere Position verlassen.",
+              "mower_not_docked": "Mäher ist nicht an der Station",
+              "no_active_session": "Keine laufende Bewässerung",
+              "no_flow": "Kein ausreichender Durchfluss erkannt.",
+              "no_schedule_overlap": "Zeitplan und Wetterfenster überschneiden sich nicht",
+              "no_suitable_window": "Kein geeignetes Bewässerungsfenster",
+              "not_configured": "Kein Ventil eingerichtet",
+              "not_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "not_watered_today": "Heute bereits bewässert.",
+              "other_valve_closed": "Zweites Ventil offen oder unbekannt.",
+              "other_valve_open": "Zweites Ventil ist offen",
+              "other_valve_unavailable": "Status des zweiten Ventils fehlt",
+              "outside_schedule": "Außerhalb der erlaubten Bewässerungszeit.",
+              "paused": "Pausiert – zweites Ventil geöffnet",
+              "planned_start": "Voraussichtlicher Start im erlaubten Wetterfenster",
+              "rain_available": "Gemessener Regen fehlt.",
+              "rain_detected": "Bewässerung wegen Regen beendet",
+              "rain_unavailable": "Gemessener Regen fehlt",
+              "ready": "Start möglich",
+              "retry_allowed": "Wartezeit vor erneutem Start.",
+              "retry_cooldown": "Wartezeit nach fehlgeschlagenem Start",
+              "running": "Bewässerung läuft",
+              "schedule_allowed": "Außerhalb der erlaubten Bewässerungszeit.",
+              "schedule_ends_before_target": "Erlaubtes Zeitfenster endet voraussichtlich vor Erreichen der Zielmenge",
+              "session_active": "Bewässerung läuft",
+              "soak_pause": "Versickerungspause zwischen Bewässerungsetappen.",
+              "stopped": "Abgebrochen",
+              "stopped_manually": "Bewässerung manuell beendet.",
+              "stopping": "Ventil wird geschlossen",
+              "storage_available": "Speicher nicht verfügbar.",
+              "storage_error": "Speicherfehler",
+              "target_reached": "Bewässerungsziel erreicht.",
+              "unavailable": "Nicht verfügbar",
+              "valve_closed": "Eigenes Ventil nicht geschlossen.",
+              "valve_closed_externally": "Ventil wurde außerhalb der Integration geschlossen.",
+              "valve_did_not_open": "Ventil hat das Öffnen nicht bestätigt.",
+              "valve_not_closed": "Rasenventil ist nicht geschlossen",
+              "valve_open_failed": "Öffnen des Ventils fehlgeschlagen; es wird geschlossen.",
+              "valve_unavailable": "Ventilstatus ist nicht verfügbar.",
+              "waiting_for_flow": "Restlaufzeit erst bei messbarem Durchfluss verfügbar",
+              "waiting_for_weather": "Warte auf Wetterdaten",
+              "waiting_for_window": "Warte auf das Bewässerungsfenster",
+              "water_budget_available": "Verbrauchslimit oder Messqualität prüfen",
+              "water_budget_exhausted": "Verbrauchslimit erreicht",
+              "water_now": "Jetzt wässern",
+              "watering": "Rasen nach Bewässerung noch nass.",
+              "watering_due": "Bewässerung nicht erforderlich.",
+              "watering_not_due": "Bewässerung ist nicht fällig",
+              "weather_available": "Wetterdaten fehlen oder sind zu alt.",
+              "weather_unavailable": "Wetter oder Vorhersage fehlt",
+              "wind_too_strong": "Bewässerung wegen starkem Wind beendet",
+              "window_expired": "Bewässerungsfenster ist abgelaufen"
+            }
+          },
+          "automatic_blockers": {
+            "name": "Automatiksperrcodes"
+          },
+          "automatic_blockers_text": {
+            "name": "Automatiksperrgründe"
+          },
+          "automatic_conditions": {
+            "name": "Automatikvoraussetzungen"
+          },
+          "automation_suspended_until": {
+            "name": "Automatik pausiert bis"
+          },
+          "cycle_plan": {
+            "name": "Bewässerungszyklusplan"
+          },
+          "last_active_seconds": {
+            "name": "Aktive Zeit der letzten Sitzung (Sekunden)"
+          },
+          "last_measurement_gap": {
+            "name": "Messlücke der letzten Sitzung"
+          },
+          "last_paused_seconds": {
+            "name": "Pausenzeit der letzten Sitzung (Sekunden)"
+          },
+          "last_session": {
+            "name": "Letzte Bewässerungssitzung"
+          },
+          "last_session_liters": {
+            "name": "Erfasste Menge der letzten Sitzung (l)"
+          },
+          "last_stop_reason": {
+            "name": "Letzter Abschaltgrund",
+            "state": {
+              "already_watered_today": "Rasen wurde heute bereits bewässert",
+              "automation_disabled": "Automatische Bewässerung ist aus",
+              "automation_enabled": "Automatik ausgeschaltet.",
+              "automation_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "budget_uncertain": "Verbrauch unvollständig; Automatik gesperrt",
+              "completed": "Abgeschlossen",
+              "confidence_sufficient": "Datenvertrauen zu gering.",
+              "configured": "Kein Ventil eingerichtet.",
+              "current_weather_safe": "Aktuell Regen oder starken Wind abwarten",
+              "cycle_resume_unknown": "Pausenende ist unbekannt; eine Gesamtdauer kann nicht verlässlich geschätzt werden.",
+              "estimated_completion": "Geschätztes Ende einschließlich Einweichpausen",
+              "excessive_flow": "Durchfluss überschreitet den Grenzwert.",
+              "forecast_window_active": "Kein aktuell geeignetes Vorhersagefenster.",
+              "frost": "Bewässerung wegen Frost gesperrt.",
+              "frost_free": "Frost oder unbekannte Temperatur.",
+              "homeassistant_running": "Home Assistant wird beendet.",
+              "homeassistant_stopping": "Home Assistant wird beendet",
+              "integration_unloaded": "Integration wird beendet.",
+              "interrupted_by_restart": "Bewässerung durch Neustart unterbrochen; Messlücke wird nicht geschätzt.",
+              "irrigation": "Ventilmessung",
+              "low": "Niedrig",
+              "low_confidence": "Wetter- oder Bodenmodelldaten zu unsicher",
+              "maximum_runtime": "Maximale Bewässerungsdauer erreicht.",
+              "maximum_runtime_before_target": "Zielmenge voraussichtlich nicht vor Sicherheitsende erreichbar",
+              "maximum_volume": "Maximale Wassermenge erreicht.",
+              "meter_available": "Wasserzähler fehlt oder ist ungültig.",
+              "meter_fresh": "Wasserzähler fehlt oder ist zu alt.",
+              "meter_required": "Wasserzähler für Automatik erforderlich",
+              "meter_reset": "Wasserzähler wurde während der Bewässerung zurückgesetzt.",
+              "meter_stale": "Durchflussmesswert zu alt",
+              "meter_unavailable": "Wasserzähler nicht verfügbar",
+              "meter_unit_changed": "Einheit des Wasserzählers wurde geändert.",
+              "mower_docked": "Mäher nicht an Station.",
+              "mower_left_dock": "Mäher hat die sichere Position verlassen.",
+              "mower_not_docked": "Mäher ist nicht an der Station",
+              "no_active_session": "Keine laufende Bewässerung",
+              "no_flow": "Kein ausreichender Durchfluss erkannt.",
+              "no_schedule_overlap": "Zeitplan und Wetterfenster überschneiden sich nicht",
+              "no_suitable_window": "Kein geeignetes Bewässerungsfenster",
+              "not_configured": "Kein Ventil eingerichtet",
+              "not_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "not_watered_today": "Heute bereits bewässert.",
+              "other_valve_closed": "Zweites Ventil offen oder unbekannt.",
+              "other_valve_open": "Zweites Ventil ist offen",
+              "other_valve_unavailable": "Status des zweiten Ventils fehlt",
+              "outside_schedule": "Außerhalb der erlaubten Bewässerungszeit.",
+              "paused": "Pausiert – zweites Ventil geöffnet",
+              "planned_start": "Voraussichtlicher Start im erlaubten Wetterfenster",
+              "rain_available": "Gemessener Regen fehlt.",
+              "rain_detected": "Bewässerung wegen Regen beendet",
+              "rain_unavailable": "Gemessener Regen fehlt",
+              "ready": "Start möglich",
+              "retry_allowed": "Wartezeit vor erneutem Start.",
+              "retry_cooldown": "Wartezeit nach fehlgeschlagenem Start",
+              "running": "Bewässerung läuft",
+              "schedule_allowed": "Außerhalb der erlaubten Bewässerungszeit.",
+              "schedule_ends_before_target": "Erlaubtes Zeitfenster endet voraussichtlich vor Erreichen der Zielmenge",
+              "session_active": "Bewässerung läuft",
+              "soak_pause": "Versickerungspause zwischen Bewässerungsetappen.",
+              "stopped": "Abgebrochen",
+              "stopped_manually": "Bewässerung manuell beendet.",
+              "stopping": "Ventil wird geschlossen",
+              "storage_available": "Speicher nicht verfügbar.",
+              "storage_error": "Speicherfehler",
+              "target_reached": "Bewässerungsziel erreicht.",
+              "unavailable": "Nicht verfügbar",
+              "valve_closed": "Eigenes Ventil nicht geschlossen.",
+              "valve_closed_externally": "Ventil wurde außerhalb der Integration geschlossen.",
+              "valve_did_not_open": "Ventil hat das Öffnen nicht bestätigt.",
+              "valve_not_closed": "Rasenventil ist nicht geschlossen",
+              "valve_open_failed": "Öffnen des Ventils fehlgeschlagen; es wird geschlossen.",
+              "valve_unavailable": "Ventilstatus ist nicht verfügbar.",
+              "waiting_for_flow": "Restlaufzeit erst bei messbarem Durchfluss verfügbar",
+              "waiting_for_weather": "Warte auf Wetterdaten",
+              "waiting_for_window": "Warte auf das Bewässerungsfenster",
+              "water_budget_available": "Verbrauchslimit oder Messqualität prüfen",
+              "water_budget_exhausted": "Verbrauchslimit erreicht",
+              "water_now": "Jetzt wässern",
+              "watering": "Rasen nach Bewässerung noch nass.",
+              "watering_due": "Bewässerung nicht erforderlich.",
+              "watering_not_due": "Bewässerung ist nicht fällig",
+              "weather_available": "Wetterdaten fehlen oder sind zu alt.",
+              "weather_unavailable": "Wetter oder Vorhersage fehlt",
+              "wind_too_strong": "Bewässerung wegen starkem Wind beendet",
+              "window_expired": "Bewässerungsfenster ist abgelaufen"
+            }
+          },
+          "meter_age_seconds": {
+            "name": "Alter des Zählermesswerts (Sekunden)"
+          },
+          "meter_attribution": {
+            "name": "Zuordnung des Durchflusses",
+            "state": {
+              "all_flow_while_lawn_valve_open": "Gesamter Durchfluss bei geöffnetem Rasenventil"
+            }
+          },
+          "meter_reading": {
+            "name": "Zählermesswert"
+          },
+          "meter_unit": {
+            "name": "Zählereinheit"
+          },
+          "mower_docked": {
+            "name": "Mäher an der Station"
+          },
+          "next_automatic_start": {
+            "name": "Nächster möglicher Automatikstart"
+          },
+          "next_check": {
+            "name": "Nächste Prüfung"
+          },
+          "next_start_plan": {
+            "name": "Plan für den nächsten Start"
+          },
+          "other_valve_state": {
+            "name": "Status des zweiten Ventils",
+            "state": {
+              "on": "Offen",
+              "off": "Geschlossen",
+              "unknown": "Unbekannt",
+              "unavailable": "Nicht verfügbar",
+              "not_configured": "Nicht eingerichtet"
+            }
+          },
+          "quantity_comparison": {
+            "name": "Soll-Ist-Mengenvergleich"
+          },
+          "reason_text": {
+            "name": "Erklärung"
+          },
+          "recent_sessions": {
+            "name": "Letzte Bewässerungssitzungen"
+          },
+          "session_active_seconds": {
+            "name": "Aktive Sitzungszeit (Sekunden)"
+          },
+          "session_cycle_number": {
+            "name": "Aktueller Bewässerungszyklus"
+          },
+          "session_delivered_mm": {
+            "name": "Erfasste Wassermenge (mm)"
+          },
+          "session_elapsed_seconds": {
+            "name": "Vergangene Sitzungszeit (Sekunden)"
+          },
+          "session_estimated_end": {
+            "name": "Geschätztes Sitzungsende"
+          },
+          "session_eta_estimated": {
+            "name": "Restzeit geschätzt"
+          },
+          "session_eta_reason": {
+            "name": "Grund der Restzeitschätzung",
+            "state": {
+              "estimated_completion": "Geschätztes Ende einschließlich Einweichpausen",
+              "maximum_runtime_before_target": "Zielmenge voraussichtlich nicht vor Sicherheitsende erreichbar",
+              "meter_stale": "Durchflussmesswert zu alt",
+              "no_active_session": "Keine laufende Bewässerung",
+              "other_valve_open": "Zweites Ventil ist offen",
+              "schedule_ends_before_target": "Erlaubtes Zeitfenster endet voraussichtlich vor Erreichen der Zielmenge",
+              "soak_pause": "Versickerungspause zwischen Bewässerungsetappen.",
+              "stopping": "Ventil wird geschlossen",
+              "waiting_for_flow": "Restlaufzeit erst bei messbarem Durchfluss verfügbar"
+            }
+          },
+          "session_flow_l_min": {
+            "name": "Sitzungsdurchfluss (l/min)"
+          },
+          "session_liters": {
+            "name": "Erfasste Sitzungsmenge (l)"
+          },
+          "session_measurement_gap": {
+            "name": "Messlücke in der Sitzung"
+          },
+          "session_pause_reason": {
+            "name": "Pausengrund",
+            "state": {
+              "other_valve_open": "Zweites Ventil ist offen",
+              "soak_pause": "Versickerungspause zwischen Bewässerungsetappen."
+            }
+          },
+          "session_paused_seconds": {
+            "name": "Sitzungspause (Sekunden)"
+          },
+          "session_progress_percent": {
+            "name": "Mengenfortschritt (%)"
+          },
+          "session_remaining_active_minutes": {
+            "name": "Verbleibende aktive Zeit (Minuten)"
+          },
+          "session_remaining_liters": {
+            "name": "Verbleibende Wassermenge (l)"
+          },
+          "session_remaining_seconds": {
+            "name": "Verbleibende Sicherheitslaufzeit (Sekunden)"
+          },
+          "session_resume_after": {
+            "name": "Fortsetzung frühestens ab"
+          },
+          "session_source": {
+            "name": "Sitzungsstartquelle",
+            "state": {
+              "auto": "Automatisch",
+              "manual": "Manuell"
+            }
+          },
+          "session_target_liters": {
+            "name": "Sitzungssollmenge (l)"
+          },
+          "storage_error": {
+            "name": "Speicherfehler"
+          },
+          "valve_state": {
+            "name": "Status des Rasenventils",
+            "state": {
+              "on": "Offen",
+              "off": "Geschlossen",
+              "unknown": "Unbekannt",
+              "unavailable": "Nicht verfügbar",
+              "not_configured": "Nicht eingerichtet"
+            }
+          },
+          "water_balance": {
+            "name": "Wasserbilanz der letzten Sitzung"
+          },
+          "water_budget": {
+            "name": "Verbrauchslimits"
+          },
+          "watering_explanation": {
+            "name": "Erklärung zur Bewässerung"
+          }
         }
       },
       "irrigation_status": {
@@ -437,8 +796,455 @@
           "reason": {
             "name": "Abschaltgrund",
             "state": {
-              "meter_unit_changed": "Zählereinheit geändert"
+              "meter_unit_changed": "Einheit des Wasserzählers wurde geändert.",
+              "already_watered_today": "Rasen wurde heute bereits bewässert",
+              "automation_disabled": "Automatische Bewässerung ist aus",
+              "automation_enabled": "Automatik ausgeschaltet.",
+              "automation_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "budget_uncertain": "Verbrauch unvollständig; Automatik gesperrt",
+              "completed": "Abgeschlossen",
+              "confidence_sufficient": "Datenvertrauen zu gering.",
+              "configured": "Kein Ventil eingerichtet.",
+              "current_weather_safe": "Aktuell Regen oder starken Wind abwarten",
+              "cycle_resume_unknown": "Pausenende ist unbekannt; eine Gesamtdauer kann nicht verlässlich geschätzt werden.",
+              "estimated_completion": "Geschätztes Ende einschließlich Einweichpausen",
+              "excessive_flow": "Durchfluss überschreitet den Grenzwert.",
+              "forecast_window_active": "Kein aktuell geeignetes Vorhersagefenster.",
+              "frost": "Bewässerung wegen Frost gesperrt.",
+              "frost_free": "Frost oder unbekannte Temperatur.",
+              "homeassistant_running": "Home Assistant wird beendet.",
+              "homeassistant_stopping": "Home Assistant wird beendet",
+              "integration_unloaded": "Integration wird beendet.",
+              "interrupted_by_restart": "Bewässerung durch Neustart unterbrochen; Messlücke wird nicht geschätzt.",
+              "irrigation": "Ventilmessung",
+              "low": "Niedrig",
+              "low_confidence": "Wetter- oder Bodenmodelldaten zu unsicher",
+              "maximum_runtime": "Maximale Bewässerungsdauer erreicht.",
+              "maximum_runtime_before_target": "Zielmenge voraussichtlich nicht vor Sicherheitsende erreichbar",
+              "maximum_volume": "Maximale Wassermenge erreicht.",
+              "meter_available": "Wasserzähler fehlt oder ist ungültig.",
+              "meter_fresh": "Wasserzähler fehlt oder ist zu alt.",
+              "meter_required": "Wasserzähler für Automatik erforderlich",
+              "meter_reset": "Wasserzähler wurde während der Bewässerung zurückgesetzt.",
+              "meter_stale": "Durchflussmesswert zu alt",
+              "meter_unavailable": "Wasserzähler nicht verfügbar",
+              "mower_docked": "Mäher nicht an Station.",
+              "mower_left_dock": "Mäher hat die sichere Position verlassen.",
+              "mower_not_docked": "Mäher ist nicht an der Station",
+              "no_active_session": "Keine laufende Bewässerung",
+              "no_flow": "Kein ausreichender Durchfluss erkannt.",
+              "no_schedule_overlap": "Zeitplan und Wetterfenster überschneiden sich nicht",
+              "no_suitable_window": "Kein geeignetes Bewässerungsfenster",
+              "not_configured": "Kein Ventil eingerichtet",
+              "not_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "not_watered_today": "Heute bereits bewässert.",
+              "other_valve_closed": "Zweites Ventil offen oder unbekannt.",
+              "other_valve_open": "Zweites Ventil ist offen",
+              "other_valve_unavailable": "Status des zweiten Ventils fehlt",
+              "outside_schedule": "Außerhalb der erlaubten Bewässerungszeit.",
+              "paused": "Pausiert – zweites Ventil geöffnet",
+              "planned_start": "Voraussichtlicher Start im erlaubten Wetterfenster",
+              "rain_available": "Gemessener Regen fehlt.",
+              "rain_detected": "Bewässerung wegen Regen beendet",
+              "rain_unavailable": "Gemessener Regen fehlt",
+              "ready": "Start möglich",
+              "retry_allowed": "Wartezeit vor erneutem Start.",
+              "retry_cooldown": "Wartezeit nach fehlgeschlagenem Start",
+              "running": "Bewässerung läuft",
+              "schedule_allowed": "Außerhalb der erlaubten Bewässerungszeit.",
+              "schedule_ends_before_target": "Erlaubtes Zeitfenster endet voraussichtlich vor Erreichen der Zielmenge",
+              "session_active": "Bewässerung läuft",
+              "soak_pause": "Versickerungspause zwischen Bewässerungsetappen.",
+              "stopped": "Abgebrochen",
+              "stopped_manually": "Bewässerung manuell beendet.",
+              "stopping": "Ventil wird geschlossen",
+              "storage_available": "Speicher nicht verfügbar.",
+              "storage_error": "Speicherfehler",
+              "target_reached": "Bewässerungsziel erreicht.",
+              "unavailable": "Nicht verfügbar",
+              "valve_closed": "Eigenes Ventil nicht geschlossen.",
+              "valve_closed_externally": "Ventil wurde außerhalb der Integration geschlossen.",
+              "valve_did_not_open": "Ventil hat das Öffnen nicht bestätigt.",
+              "valve_not_closed": "Rasenventil ist nicht geschlossen",
+              "valve_open_failed": "Öffnen des Ventils fehlgeschlagen; es wird geschlossen.",
+              "valve_unavailable": "Ventilstatus ist nicht verfügbar.",
+              "waiting_for_flow": "Restlaufzeit erst bei messbarem Durchfluss verfügbar",
+              "waiting_for_weather": "Warte auf Wetterdaten",
+              "waiting_for_window": "Warte auf das Bewässerungsfenster",
+              "water_budget_available": "Verbrauchslimit oder Messqualität prüfen",
+              "water_budget_exhausted": "Verbrauchslimit erreicht",
+              "water_now": "Jetzt wässern",
+              "watering": "Rasen nach Bewässerung noch nass.",
+              "watering_due": "Bewässerung nicht erforderlich.",
+              "watering_not_due": "Bewässerung ist nicht fällig",
+              "weather_available": "Wetterdaten fehlen oder sind zu alt.",
+              "weather_unavailable": "Wetter oder Vorhersage fehlt",
+              "wind_too_strong": "Bewässerung wegen starkem Wind beendet",
+              "window_expired": "Bewässerungsfenster ist abgelaufen"
             }
+          },
+          "action_hint": {
+            "name": "Handlungshinweis"
+          },
+          "automatic_blocker": {
+            "name": "Automatiksperrgrund",
+            "state": {
+              "already_watered_today": "Rasen wurde heute bereits bewässert",
+              "automation_disabled": "Automatische Bewässerung ist aus",
+              "automation_enabled": "Automatik ausgeschaltet.",
+              "automation_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "budget_uncertain": "Verbrauch unvollständig; Automatik gesperrt",
+              "completed": "Abgeschlossen",
+              "confidence_sufficient": "Datenvertrauen zu gering.",
+              "configured": "Kein Ventil eingerichtet.",
+              "current_weather_safe": "Aktuell Regen oder starken Wind abwarten",
+              "cycle_resume_unknown": "Pausenende ist unbekannt; eine Gesamtdauer kann nicht verlässlich geschätzt werden.",
+              "estimated_completion": "Geschätztes Ende einschließlich Einweichpausen",
+              "excessive_flow": "Durchfluss überschreitet den Grenzwert.",
+              "forecast_window_active": "Kein aktuell geeignetes Vorhersagefenster.",
+              "frost": "Bewässerung wegen Frost gesperrt.",
+              "frost_free": "Frost oder unbekannte Temperatur.",
+              "homeassistant_running": "Home Assistant wird beendet.",
+              "homeassistant_stopping": "Home Assistant wird beendet",
+              "integration_unloaded": "Integration wird beendet.",
+              "interrupted_by_restart": "Bewässerung durch Neustart unterbrochen; Messlücke wird nicht geschätzt.",
+              "irrigation": "Ventilmessung",
+              "low": "Niedrig",
+              "low_confidence": "Wetter- oder Bodenmodelldaten zu unsicher",
+              "maximum_runtime": "Maximale Bewässerungsdauer erreicht.",
+              "maximum_runtime_before_target": "Zielmenge voraussichtlich nicht vor Sicherheitsende erreichbar",
+              "maximum_volume": "Maximale Wassermenge erreicht.",
+              "meter_available": "Wasserzähler fehlt oder ist ungültig.",
+              "meter_fresh": "Wasserzähler fehlt oder ist zu alt.",
+              "meter_required": "Wasserzähler für Automatik erforderlich",
+              "meter_reset": "Wasserzähler wurde während der Bewässerung zurückgesetzt.",
+              "meter_stale": "Durchflussmesswert zu alt",
+              "meter_unavailable": "Wasserzähler nicht verfügbar",
+              "meter_unit_changed": "Einheit des Wasserzählers wurde geändert.",
+              "mower_docked": "Mäher nicht an Station.",
+              "mower_left_dock": "Mäher hat die sichere Position verlassen.",
+              "mower_not_docked": "Mäher ist nicht an der Station",
+              "no_active_session": "Keine laufende Bewässerung",
+              "no_flow": "Kein ausreichender Durchfluss erkannt.",
+              "no_schedule_overlap": "Zeitplan und Wetterfenster überschneiden sich nicht",
+              "no_suitable_window": "Kein geeignetes Bewässerungsfenster",
+              "not_configured": "Kein Ventil eingerichtet",
+              "not_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "not_watered_today": "Heute bereits bewässert.",
+              "other_valve_closed": "Zweites Ventil offen oder unbekannt.",
+              "other_valve_open": "Zweites Ventil ist offen",
+              "other_valve_unavailable": "Status des zweiten Ventils fehlt",
+              "outside_schedule": "Außerhalb der erlaubten Bewässerungszeit.",
+              "paused": "Pausiert – zweites Ventil geöffnet",
+              "planned_start": "Voraussichtlicher Start im erlaubten Wetterfenster",
+              "rain_available": "Gemessener Regen fehlt.",
+              "rain_detected": "Bewässerung wegen Regen beendet",
+              "rain_unavailable": "Gemessener Regen fehlt",
+              "ready": "Start möglich",
+              "retry_allowed": "Wartezeit vor erneutem Start.",
+              "retry_cooldown": "Wartezeit nach fehlgeschlagenem Start",
+              "running": "Bewässerung läuft",
+              "schedule_allowed": "Außerhalb der erlaubten Bewässerungszeit.",
+              "schedule_ends_before_target": "Erlaubtes Zeitfenster endet voraussichtlich vor Erreichen der Zielmenge",
+              "session_active": "Bewässerung läuft",
+              "soak_pause": "Versickerungspause zwischen Bewässerungsetappen.",
+              "stopped": "Abgebrochen",
+              "stopped_manually": "Bewässerung manuell beendet.",
+              "stopping": "Ventil wird geschlossen",
+              "storage_available": "Speicher nicht verfügbar.",
+              "storage_error": "Speicherfehler",
+              "target_reached": "Bewässerungsziel erreicht.",
+              "unavailable": "Nicht verfügbar",
+              "valve_closed": "Eigenes Ventil nicht geschlossen.",
+              "valve_closed_externally": "Ventil wurde außerhalb der Integration geschlossen.",
+              "valve_did_not_open": "Ventil hat das Öffnen nicht bestätigt.",
+              "valve_not_closed": "Rasenventil ist nicht geschlossen",
+              "valve_open_failed": "Öffnen des Ventils fehlgeschlagen; es wird geschlossen.",
+              "valve_unavailable": "Ventilstatus ist nicht verfügbar.",
+              "waiting_for_flow": "Restlaufzeit erst bei messbarem Durchfluss verfügbar",
+              "waiting_for_weather": "Warte auf Wetterdaten",
+              "waiting_for_window": "Warte auf das Bewässerungsfenster",
+              "water_budget_available": "Verbrauchslimit oder Messqualität prüfen",
+              "water_budget_exhausted": "Verbrauchslimit erreicht",
+              "water_now": "Jetzt wässern",
+              "watering": "Rasen nach Bewässerung noch nass.",
+              "watering_due": "Bewässerung nicht erforderlich.",
+              "watering_not_due": "Bewässerung ist nicht fällig",
+              "weather_available": "Wetterdaten fehlen oder sind zu alt.",
+              "weather_unavailable": "Wetter oder Vorhersage fehlt",
+              "wind_too_strong": "Bewässerung wegen starkem Wind beendet",
+              "window_expired": "Bewässerungsfenster ist abgelaufen"
+            }
+          },
+          "automatic_blockers": {
+            "name": "Automatiksperrcodes"
+          },
+          "automatic_blockers_text": {
+            "name": "Automatiksperrgründe"
+          },
+          "automatic_conditions": {
+            "name": "Automatikvoraussetzungen"
+          },
+          "automatic_irrigation_enabled": {
+            "name": "Automatische Bewässerung aktiviert"
+          },
+          "automation_suspended_until": {
+            "name": "Automatik pausiert bis"
+          },
+          "cycle_plan": {
+            "name": "Bewässerungszyklusplan"
+          },
+          "last_active_seconds": {
+            "name": "Aktive Zeit der letzten Sitzung (Sekunden)"
+          },
+          "last_irrigation_liters": {
+            "name": "Letzte Bewässerungsmenge (l)"
+          },
+          "last_measurement_gap": {
+            "name": "Messlücke der letzten Sitzung"
+          },
+          "last_paused_seconds": {
+            "name": "Pausenzeit der letzten Sitzung (Sekunden)"
+          },
+          "last_session": {
+            "name": "Letzte Bewässerungssitzung"
+          },
+          "last_session_liters": {
+            "name": "Erfasste Menge der letzten Sitzung (l)"
+          },
+          "last_stop_reason": {
+            "name": "Letzter Abschaltgrund",
+            "state": {
+              "already_watered_today": "Rasen wurde heute bereits bewässert",
+              "automation_disabled": "Automatische Bewässerung ist aus",
+              "automation_enabled": "Automatik ausgeschaltet.",
+              "automation_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "budget_uncertain": "Verbrauch unvollständig; Automatik gesperrt",
+              "completed": "Abgeschlossen",
+              "confidence_sufficient": "Datenvertrauen zu gering.",
+              "configured": "Kein Ventil eingerichtet.",
+              "current_weather_safe": "Aktuell Regen oder starken Wind abwarten",
+              "cycle_resume_unknown": "Pausenende ist unbekannt; eine Gesamtdauer kann nicht verlässlich geschätzt werden.",
+              "estimated_completion": "Geschätztes Ende einschließlich Einweichpausen",
+              "excessive_flow": "Durchfluss überschreitet den Grenzwert.",
+              "forecast_window_active": "Kein aktuell geeignetes Vorhersagefenster.",
+              "frost": "Bewässerung wegen Frost gesperrt.",
+              "frost_free": "Frost oder unbekannte Temperatur.",
+              "homeassistant_running": "Home Assistant wird beendet.",
+              "homeassistant_stopping": "Home Assistant wird beendet",
+              "integration_unloaded": "Integration wird beendet.",
+              "interrupted_by_restart": "Bewässerung durch Neustart unterbrochen; Messlücke wird nicht geschätzt.",
+              "irrigation": "Ventilmessung",
+              "low": "Niedrig",
+              "low_confidence": "Wetter- oder Bodenmodelldaten zu unsicher",
+              "maximum_runtime": "Maximale Bewässerungsdauer erreicht.",
+              "maximum_runtime_before_target": "Zielmenge voraussichtlich nicht vor Sicherheitsende erreichbar",
+              "maximum_volume": "Maximale Wassermenge erreicht.",
+              "meter_available": "Wasserzähler fehlt oder ist ungültig.",
+              "meter_fresh": "Wasserzähler fehlt oder ist zu alt.",
+              "meter_required": "Wasserzähler für Automatik erforderlich",
+              "meter_reset": "Wasserzähler wurde während der Bewässerung zurückgesetzt.",
+              "meter_stale": "Durchflussmesswert zu alt",
+              "meter_unavailable": "Wasserzähler nicht verfügbar",
+              "meter_unit_changed": "Einheit des Wasserzählers wurde geändert.",
+              "mower_docked": "Mäher nicht an Station.",
+              "mower_left_dock": "Mäher hat die sichere Position verlassen.",
+              "mower_not_docked": "Mäher ist nicht an der Station",
+              "no_active_session": "Keine laufende Bewässerung",
+              "no_flow": "Kein ausreichender Durchfluss erkannt.",
+              "no_schedule_overlap": "Zeitplan und Wetterfenster überschneiden sich nicht",
+              "no_suitable_window": "Kein geeignetes Bewässerungsfenster",
+              "not_configured": "Kein Ventil eingerichtet",
+              "not_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "not_watered_today": "Heute bereits bewässert.",
+              "other_valve_closed": "Zweites Ventil offen oder unbekannt.",
+              "other_valve_open": "Zweites Ventil ist offen",
+              "other_valve_unavailable": "Status des zweiten Ventils fehlt",
+              "outside_schedule": "Außerhalb der erlaubten Bewässerungszeit.",
+              "paused": "Pausiert – zweites Ventil geöffnet",
+              "planned_start": "Voraussichtlicher Start im erlaubten Wetterfenster",
+              "rain_available": "Gemessener Regen fehlt.",
+              "rain_detected": "Bewässerung wegen Regen beendet",
+              "rain_unavailable": "Gemessener Regen fehlt",
+              "ready": "Start möglich",
+              "retry_allowed": "Wartezeit vor erneutem Start.",
+              "retry_cooldown": "Wartezeit nach fehlgeschlagenem Start",
+              "running": "Bewässerung läuft",
+              "schedule_allowed": "Außerhalb der erlaubten Bewässerungszeit.",
+              "schedule_ends_before_target": "Erlaubtes Zeitfenster endet voraussichtlich vor Erreichen der Zielmenge",
+              "session_active": "Bewässerung läuft",
+              "soak_pause": "Versickerungspause zwischen Bewässerungsetappen.",
+              "stopped": "Abgebrochen",
+              "stopped_manually": "Bewässerung manuell beendet.",
+              "stopping": "Ventil wird geschlossen",
+              "storage_available": "Speicher nicht verfügbar.",
+              "storage_error": "Speicherfehler",
+              "target_reached": "Bewässerungsziel erreicht.",
+              "unavailable": "Nicht verfügbar",
+              "valve_closed": "Eigenes Ventil nicht geschlossen.",
+              "valve_closed_externally": "Ventil wurde außerhalb der Integration geschlossen.",
+              "valve_did_not_open": "Ventil hat das Öffnen nicht bestätigt.",
+              "valve_not_closed": "Rasenventil ist nicht geschlossen",
+              "valve_open_failed": "Öffnen des Ventils fehlgeschlagen; es wird geschlossen.",
+              "valve_unavailable": "Ventilstatus ist nicht verfügbar.",
+              "waiting_for_flow": "Restlaufzeit erst bei messbarem Durchfluss verfügbar",
+              "waiting_for_weather": "Warte auf Wetterdaten",
+              "waiting_for_window": "Warte auf das Bewässerungsfenster",
+              "water_budget_available": "Verbrauchslimit oder Messqualität prüfen",
+              "water_budget_exhausted": "Verbrauchslimit erreicht",
+              "water_now": "Jetzt wässern",
+              "watering": "Rasen nach Bewässerung noch nass.",
+              "watering_due": "Bewässerung nicht erforderlich.",
+              "watering_not_due": "Bewässerung ist nicht fällig",
+              "weather_available": "Wetterdaten fehlen oder sind zu alt.",
+              "weather_unavailable": "Wetter oder Vorhersage fehlt",
+              "wind_too_strong": "Bewässerung wegen starkem Wind beendet",
+              "window_expired": "Bewässerungsfenster ist abgelaufen"
+            }
+          },
+          "meter_age_seconds": {
+            "name": "Alter des Zählermesswerts (Sekunden)"
+          },
+          "meter_attribution": {
+            "name": "Zuordnung des Durchflusses",
+            "state": {
+              "all_flow_while_lawn_valve_open": "Gesamter Durchfluss bei geöffnetem Rasenventil"
+            }
+          },
+          "meter_reading": {
+            "name": "Zählermesswert"
+          },
+          "meter_unit": {
+            "name": "Zählereinheit"
+          },
+          "mower_docked": {
+            "name": "Mäher an der Station"
+          },
+          "next_automatic_start": {
+            "name": "Nächster möglicher Automatikstart"
+          },
+          "next_check": {
+            "name": "Nächste Prüfung"
+          },
+          "next_start_plan": {
+            "name": "Plan für den nächsten Start"
+          },
+          "other_valve_state": {
+            "name": "Status des zweiten Ventils",
+            "state": {
+              "on": "Offen",
+              "off": "Geschlossen",
+              "unknown": "Unbekannt",
+              "unavailable": "Nicht verfügbar",
+              "not_configured": "Nicht eingerichtet"
+            }
+          },
+          "quantity_comparison": {
+            "name": "Soll-Ist-Mengenvergleich"
+          },
+          "reason_text": {
+            "name": "Erklärung"
+          },
+          "recent_sessions": {
+            "name": "Letzte Bewässerungssitzungen"
+          },
+          "session_active_seconds": {
+            "name": "Aktive Sitzungszeit (Sekunden)"
+          },
+          "session_cycle_number": {
+            "name": "Aktueller Bewässerungszyklus"
+          },
+          "session_delivered_mm": {
+            "name": "Erfasste Wassermenge (mm)"
+          },
+          "session_elapsed_seconds": {
+            "name": "Vergangene Sitzungszeit (Sekunden)"
+          },
+          "session_estimated_end": {
+            "name": "Geschätztes Sitzungsende"
+          },
+          "session_eta_estimated": {
+            "name": "Restzeit geschätzt"
+          },
+          "session_eta_reason": {
+            "name": "Grund der Restzeitschätzung",
+            "state": {
+              "estimated_completion": "Geschätztes Ende einschließlich Einweichpausen",
+              "maximum_runtime_before_target": "Zielmenge voraussichtlich nicht vor Sicherheitsende erreichbar",
+              "meter_stale": "Durchflussmesswert zu alt",
+              "no_active_session": "Keine laufende Bewässerung",
+              "other_valve_open": "Zweites Ventil ist offen",
+              "schedule_ends_before_target": "Erlaubtes Zeitfenster endet voraussichtlich vor Erreichen der Zielmenge",
+              "soak_pause": "Versickerungspause zwischen Bewässerungsetappen.",
+              "stopping": "Ventil wird geschlossen",
+              "waiting_for_flow": "Restlaufzeit erst bei messbarem Durchfluss verfügbar"
+            }
+          },
+          "session_flow_l_min": {
+            "name": "Sitzungsdurchfluss (l/min)"
+          },
+          "session_liters": {
+            "name": "Erfasste Sitzungsmenge (l)"
+          },
+          "session_measurement_gap": {
+            "name": "Messlücke in der Sitzung"
+          },
+          "session_pause_reason": {
+            "name": "Pausengrund",
+            "state": {
+              "other_valve_open": "Zweites Ventil ist offen",
+              "soak_pause": "Versickerungspause zwischen Bewässerungsetappen."
+            }
+          },
+          "session_paused_seconds": {
+            "name": "Sitzungspause (Sekunden)"
+          },
+          "session_progress_percent": {
+            "name": "Mengenfortschritt (%)"
+          },
+          "session_remaining_active_minutes": {
+            "name": "Verbleibende aktive Zeit (Minuten)"
+          },
+          "session_remaining_liters": {
+            "name": "Verbleibende Wassermenge (l)"
+          },
+          "session_remaining_seconds": {
+            "name": "Verbleibende Sicherheitslaufzeit (Sekunden)"
+          },
+          "session_resume_after": {
+            "name": "Fortsetzung frühestens ab"
+          },
+          "session_source": {
+            "name": "Sitzungsstartquelle",
+            "state": {
+              "auto": "Automatisch",
+              "manual": "Manuell"
+            }
+          },
+          "session_target_liters": {
+            "name": "Sitzungssollmenge (l)"
+          },
+          "storage_error": {
+            "name": "Speicherfehler"
+          },
+          "valve_state": {
+            "name": "Status des Rasenventils",
+            "state": {
+              "on": "Offen",
+              "off": "Geschlossen",
+              "unknown": "Unbekannt",
+              "unavailable": "Nicht verfügbar",
+              "not_configured": "Nicht eingerichtet"
+            }
+          },
+          "water_balance": {
+            "name": "Wasserbilanz der letzten Sitzung"
+          },
+          "water_budget": {
+            "name": "Verbrauchslimits"
+          },
+          "watering_explanation": {
+            "name": "Erklärung zur Bewässerung"
           }
         }
       },
@@ -456,6 +1262,52 @@
           "mowing_recommended": "Mähen empfohlen",
           "good_condition": "Guter Zustand",
           "lawn_wet": "Rasen nass"
+        },
+        "state_attributes": {
+          "days_since_fertilizing": {
+            "name": "Tage seit der Düngung"
+          },
+          "dose_g_m2": {
+            "name": "Düngerdosis (g/m²)"
+          },
+          "fertilizer_status": {
+            "name": "Düngestatus",
+            "state": {
+              "not_due": "Keine Düngung fällig",
+              "wait_for_growth": "Auf Wachstumsbeginn warten",
+              "spring_fertilizing_recommended": "Frühjahrsdüngung empfohlen",
+              "spring_fertilizing_recorded": "Frühjahrsdüngung bereits erfasst",
+              "summer_fertilizing_recommended": "Sommerdüngung empfohlen",
+              "fertilizing_not_due_yet": "Düngung noch nicht fällig",
+              "fertilize_only_if_needed": "Nur bei Bedarf düngen",
+              "autumn_fertilizing_recommended": "Herbstdüngung empfohlen",
+              "autumn_fertilizing_recorded": "Herbstdüngung bereits erfasst"
+            }
+          },
+          "fertilizing_recommended": {
+            "name": "Düngung empfohlen"
+          },
+          "icon_color": {
+            "name": "Symbolfarbe"
+          },
+          "last_maintenance_event": {
+            "name": "Letzte Pflegeaktion"
+          },
+          "next_window": {
+            "name": "Nächstes Düngefenster"
+          },
+          "npk": {
+            "name": "NPK-Verhältnis"
+          },
+          "reasons": {
+            "name": "Begründungscodes"
+          },
+          "reasons_text": {
+            "name": "Begründungen"
+          },
+          "total_kg": {
+            "name": "Düngermenge (kg)"
+          }
         }
       },
       "next_action": {
@@ -472,6 +1324,26 @@
           "no_action": "Keine Aktion erforderlich",
           "wait_to_mow": "Mit Mähen warten, bis der Rasen trocken ist",
           "wait_for_irrigation": "Bewässerung abwarten"
+        },
+        "state_attributes": {
+          "next_mowing_date": {
+            "name": "Nächstes Mähdatum"
+          },
+          "npk": {
+            "name": "NPK-Verhältnis"
+          },
+          "recommended_liters": {
+            "name": "Empfohlene Wassermenge (l)"
+          },
+          "recommended_mm": {
+            "name": "Empfohlene Wassermenge (mm)"
+          },
+          "total_kg": {
+            "name": "Düngermenge (kg)"
+          },
+          "watering_explanation": {
+            "name": "Erklärung zur Bewässerung"
+          }
         }
       },
       "growth_status": {
@@ -485,6 +1357,23 @@
           "slow_growth": "Langsames Wachstum",
           "autumn_slowdown": "Wachstum verlangsamt (Herbst)",
           "heat_drought_stress": "Hitze- oder Trockenstress (Wachstum pausiert)"
+        },
+        "state_attributes": {
+          "current_temperature": {
+            "name": "Aktuelle Temperatur"
+          },
+          "growth_temperature_7d": {
+            "name": "Wachstumstemperatur der letzten 7 Tage"
+          },
+          "icon_color": {
+            "name": "Symbolfarbe"
+          },
+          "temperature_source": {
+            "name": "Temperaturquelle",
+            "state": {
+              "unavailable": "Nicht verfügbar"
+            }
+          }
         }
       },
       "mower_status": {
@@ -530,7 +1419,8 @@
             "name": "Vertrauen in die Empfehlung",
             "state": {
               "low": "Niedrig",
-              "medium": "Mittel (Schätzung)"
+              "medium": "Mittel (Schätzung)",
+              "high": "Hoch"
             }
           },
           "last_mowing_source": {
@@ -551,14 +1441,165 @@
           },
           "last_mowing_estimated": {
             "name": "Letztes Mähen geschätzt"
+          },
+          "days_since_mowing": {
+            "name": "Tage seit dem Mähen"
+          },
+          "estimate_note": {
+            "name": "Hinweis zur Schätzung"
+          },
+          "growth_temperature_7d": {
+            "name": "Wachstumstemperatur der letzten 7 Tage"
+          },
+          "icon_color": {
+            "name": "Symbolfarbe"
+          },
+          "last_mowing": {
+            "name": "Letztes Mähdatum"
+          },
+          "last_robot_session_active_minutes": {
+            "name": "Aktive Minuten des letzten Mähdurchgangs"
+          },
+          "last_robot_session_finished_at": {
+            "name": "Ende des letzten Mähdurchgangs"
+          },
+          "last_robot_session_started_at": {
+            "name": "Beginn des letzten Mähdurchgangs"
+          },
+          "live_robot_session": {
+            "name": "Aktueller Mähdurchgang"
+          },
+          "mower_can_be_switched_off": {
+            "name": "Mäher kann ausgeschaltet werden"
+          },
+          "mower_start_recommended": {
+            "name": "Mäherstart empfohlen"
+          },
+          "mowing_interval_days": {
+            "name": "Mähintervall (Tage)"
+          },
+          "mowing_window": {
+            "name": "Mähfenster"
+          },
+          "next_mowing_date": {
+            "name": "Nächstes Mähdatum"
+          },
+          "recommendation_reason_text": {
+            "name": "Erklärung zur Mähempfehlung"
+          },
+          "temperature_source": {
+            "name": "Temperaturquelle",
+            "state": {
+              "unavailable": "Nicht verfügbar"
+            }
+          },
+          "wet_reason": {
+            "name": "Grund für nassen Rasen",
+            "state": {
+              "irrigation_paused": "Bewässerung ist pausiert; der Rasen gilt weiterhin als nass.",
+              "irrigation_running": "Bewässerung läuft; Mähpause bis der Rasen abgetrocknet ist.",
+              "leaf_wetness": "Blattnässesensor meldet nassen Rasen.",
+              "rain": "Rasen nach Regen noch nass.",
+              "watering": "Rasen nach Bewässerung noch nass."
+            }
+          },
+          "wet_reason_text": {
+            "name": "Erklärung zur Rasenfeuchte"
+          },
+          "wet_until": {
+            "name": "Nassrasenpause bis"
           }
         }
       },
       "soil_moisture": {
-        "name": "Modellierte Bodenfeuchte"
+        "name": "Modellierte Bodenfeuchte",
+        "state_attributes": {
+          "daily_evapotranspiration_mm": {
+            "name": "Verdunstung heute (mm)"
+          },
+          "drainage_today_mm": {
+            "name": "Drainage heute (mm)"
+          },
+          "effective_rain_today_mm": {
+            "name": "Wirksamer Regen heute (mm)"
+          },
+          "evapotranspiration_method": {
+            "name": "Verdunstungsverfahren",
+            "state": {
+              "penman_monteith_estimated_radiation": "Penman-Monteith mit geschätzter Strahlung",
+              "hargreaves_samani": "Hargreaves-Samani als Rückfallverfahren",
+              "estimated_fallback": "Saisonale Schätzung (Temperatur fehlt)",
+              "unavailable": "Nicht verfügbar"
+            }
+          },
+          "input_diagnostics": {
+            "name": "Diagnose der Eingangsdaten"
+          },
+          "interception_today_mm": {
+            "name": "Zurückgehaltener Regen heute (mm)"
+          },
+          "measured_soil_moisture": {
+            "name": "Gemessene Bodenfeuchte (%)"
+          },
+          "model_confidence": {
+            "name": "Vertrauen in das Bodenmodell",
+            "state": {
+              "high": "Hoch",
+              "medium": "Mittel",
+              "low": "Niedrig"
+            }
+          },
+          "model_confidence_reasons": {
+            "name": "Begründungscodes zum Modellvertrauen"
+          },
+          "model_confidence_reasons_text": {
+            "name": "Begründungen zum Modellvertrauen"
+          },
+          "model_diagnostics": {
+            "name": "Bodenmodelldiagnose"
+          },
+          "model_insights": {
+            "name": "Einblicke in das Bodenmodell"
+          },
+          "reference_evapotranspiration_mm": {
+            "name": "Referenzverdunstung (mm)"
+          },
+          "runoff_today_mm": {
+            "name": "Oberflächenabfluss heute (mm)"
+          },
+          "sensor_deviation_percentage_points": {
+            "name": "Sensorabweichung (Prozentpunkte)"
+          },
+          "soil_capacity_mm": {
+            "name": "Bodenwasserkapazität (mm)"
+          },
+          "soil_moisture_source": {
+            "name": "Quelle der Bodenfeuchte",
+            "state": {
+              "model": "Bodenmodell"
+            }
+          },
+          "soil_temperature": {
+            "name": "Bodentemperatur"
+          },
+          "soil_water_mm": {
+            "name": "Bodenwasservorrat (mm)"
+          },
+          "water_stress_factor": {
+            "name": "Wasserstressfaktor"
+          }
+        }
       },
       "gts": {
-        "name": "Grünlandtemperatursumme"
+        "name": "Grünlandtemperatursumme",
+        "state_attributes": {
+          "gts_complete": {
+            "name": "Grünlandtemperatursumme vollständig"
+          },
+          "missing_temperature_days": {
+            "name": "Tage ohne Temperaturdaten"
+          }
+        }
       },
       "watering_recommendation": {
         "name": "Bewässerungsempfehlung",
@@ -568,13 +1609,152 @@
           "water_now": "Jetzt wässern",
           "wait_for_rain": "Auf Regen warten",
           "not_due": "Bodenfeuchte ausreichend"
+        },
+        "state_attributes": {
+          "confidence": {
+            "name": "Vertrauen in die Empfehlung",
+            "state": {
+              "high": "Hoch",
+              "medium": "Mittel",
+              "low": "Niedrig"
+            }
+          },
+          "days_since_watering": {
+            "name": "Tage seit der Bewässerung"
+          },
+          "effective_rain_today_mm": {
+            "name": "Wirksamer Regen heute (mm)"
+          },
+          "expected_et_24h_mm": {
+            "name": "Erwartete Verdunstung in 24 Stunden (mm)"
+          },
+          "forecast_72h_estimated": {
+            "name": "72-Stunden-Prognose geschätzt"
+          },
+          "forecast_coverage_hours": {
+            "name": "Prognoseabdeckung (Stunden)"
+          },
+          "forecast_period_days": {
+            "name": "Prognosezeitraum (Tage)"
+          },
+          "forecast_rain_24h_mm": {
+            "name": "Prognoseregen in 24 Stunden (mm)"
+          },
+          "forecast_rain_48h_mm": {
+            "name": "Prognoseregen in 48 Stunden (mm)"
+          },
+          "forecast_rain_72h_mm": {
+            "name": "Prognoseregen in 72 Stunden (mm)"
+          },
+          "forecast_rain_mm": {
+            "name": "Prognoseregen (mm)"
+          },
+          "forecast_stale": {
+            "name": "Prognose veraltet"
+          },
+          "forecast_updated_at": {
+            "name": "Letzte Prognoseaktualisierung"
+          },
+          "hours_until_rain": {
+            "name": "Stunden bis zum Regen"
+          },
+          "icon_color": {
+            "name": "Symbolfarbe"
+          },
+          "last_soil_update": {
+            "name": "Letzte Bodenmodellaktualisierung"
+          },
+          "next_rain_at": {
+            "name": "Nächster Regenbeginn"
+          },
+          "observed_rain_today_mm": {
+            "name": "Beobachteter Regen heute (mm)"
+          },
+          "precipitation_mode": {
+            "name": "Niederschlagsmessverfahren",
+            "state": {
+              "auto": "Automatisch",
+              "rate": "Niederschlagsrate",
+              "cumulative": "Summenzähler",
+              "increment": "Menge je Meldung"
+            }
+          },
+          "precipitation_source": {
+            "name": "Niederschlagsquelle",
+            "state": {
+              "unavailable": "Nicht verfügbar"
+            }
+          },
+          "probability_adjusted_rain_24h_mm": {
+            "name": "Wahrscheinlichkeitsgewichteter Regen in 24 Stunden (mm)"
+          },
+          "reasons": {
+            "name": "Begründungscodes"
+          },
+          "reasons_text": {
+            "name": "Begründungen"
+          },
+          "recommended_liters": {
+            "name": "Empfohlene Wassermenge (l)"
+          },
+          "recommended_mm": {
+            "name": "Empfohlene Wassermenge (mm)"
+          },
+          "soil_model_gap_hours": {
+            "name": "Bodenmodelllücke (Stunden)"
+          },
+          "soil_moisture_percent": {
+            "name": "Bodenfeuchte (%)"
+          },
+          "watering_explanation": {
+            "name": "Erklärung zur Bewässerung"
+          },
+          "watering_recommended": {
+            "name": "Bewässerung empfohlen"
+          },
+          "watering_window_end": {
+            "name": "Ende des Bewässerungsfensters"
+          },
+          "watering_window_reason": {
+            "name": "Grund für das Bewässerungsfenster",
+            "state": {
+              "best_available_period": "Bestes verfügbares Bewässerungszeitfenster.",
+              "cool_calm_dry_period": "Kühles, windarmes und trockenes Zeitfenster.",
+              "no_suitable_window": "Kein geeignetes Bewässerungsfenster"
+            }
+          },
+          "watering_window_reason_text": {
+            "name": "Erklärung zum Bewässerungsfenster"
+          },
+          "watering_window_start": {
+            "name": "Beginn des Bewässerungsfensters"
+          },
+          "watering_window_temperature": {
+            "name": "Temperatur im Bewässerungsfenster"
+          },
+          "watering_window_wind_speed_m_s": {
+            "name": "Wind im Bewässerungsfenster (m/s)"
+          }
         }
       },
       "watering_amount": {
-        "name": "Empfohlene Wassermenge"
+        "name": "Empfohlene Wassermenge",
+        "state_attributes": {
+          "recommended_mm": {
+            "name": "Empfohlene Wassermenge (mm)"
+          }
+        }
       },
       "fertilizer_amount": {
-        "name": "Empfohlene Düngermenge"
+        "name": "Empfohlene Düngermenge",
+        "state_attributes": {
+          "dose_g_m2": {
+            "name": "Düngerdosis (g/m²)"
+          },
+          "npk": {
+            "name": "NPK-Verhältnis"
+          }
+        }
       },
       "data_quality": {
         "name": "Datenqualität",
@@ -582,6 +1762,80 @@
           "good": "Gut",
           "limited": "Eingeschränkt",
           "insufficient": "Unzureichend"
+        },
+        "state_attributes": {
+          "cloud_coverage": {
+            "name": "Bewölkung (%)"
+          },
+          "data_gaps": {
+            "name": "Datenlücken"
+          },
+          "data_warnings": {
+            "name": "Datenwarnungen"
+          },
+          "dew_point": {
+            "name": "Taupunkt"
+          },
+          "evapotranspiration_method": {
+            "name": "Verdunstungsverfahren",
+            "state": {
+              "penman_monteith_estimated_radiation": "Penman-Monteith mit geschätzter Strahlung",
+              "hargreaves_samani": "Hargreaves-Samani als Rückfallverfahren",
+              "estimated_fallback": "Saisonale Schätzung (Temperatur fehlt)",
+              "unavailable": "Nicht verfügbar"
+            }
+          },
+          "forecast_age_minutes": {
+            "name": "Prognosealter (Minuten)"
+          },
+          "forecast_coverage_hours": {
+            "name": "Prognoseabdeckung (Stunden)"
+          },
+          "forecast_diagnostics": {
+            "name": "Prognosediagnose"
+          },
+          "gts_complete": {
+            "name": "Grünlandtemperatursumme vollständig"
+          },
+          "humidity": {
+            "name": "Luftfeuchtigkeit (%)"
+          },
+          "input_diagnostics": {
+            "name": "Diagnose der Eingangsdaten"
+          },
+          "missing_temperature_days": {
+            "name": "Tage ohne Temperaturdaten"
+          },
+          "model_initialization": {
+            "name": "Bodenmodellinitialisierung"
+          },
+          "mowing_window_quality": {
+            "name": "Datenqualität des Mähfensters"
+          },
+          "pressure_hpa": {
+            "name": "Luftdruck (hPa)"
+          },
+          "sensor_review": {
+            "name": "Sensorprüfung"
+          },
+          "soil_model_gap_hours": {
+            "name": "Bodenmodelllücke (Stunden)"
+          },
+          "storage_diagnostics": {
+            "name": "Speicherdiagnose"
+          },
+          "temperature_history_days": {
+            "name": "Tage im Temperaturverlauf"
+          },
+          "update_diagnostics": {
+            "name": "Aktualisierungsdiagnose"
+          },
+          "weather_age_minutes": {
+            "name": "Wetterdatenalter (Minuten)"
+          },
+          "wind_speed_m_s": {
+            "name": "Windgeschwindigkeit (m/s)"
+          }
         }
       },
       "soil_model_confidence": {
@@ -622,7 +1876,12 @@
         "name": "Niederschlagsquelle"
       },
       "soil_water": {
-        "name": "Modellierter Bodenwasservorrat"
+        "name": "Modellierter Bodenwasservorrat",
+        "state_attributes": {
+          "soil_capacity_mm": {
+            "name": "Bodenwasserkapazität (mm)"
+          }
+        }
       },
       "daily_evapotranspiration": {
         "name": "Verdunstung heute"
@@ -634,10 +1893,38 @@
           "hargreaves_samani": "Hargreaves-Samani als Rückfallverfahren",
           "estimated_fallback": "Saisonale Schätzung (Temperatur fehlt)",
           "unavailable": "Nicht verfügbar"
+        },
+        "state_attributes": {
+          "cloud_coverage": {
+            "name": "Bewölkung (%)"
+          },
+          "dew_point": {
+            "name": "Taupunkt"
+          },
+          "humidity": {
+            "name": "Luftfeuchtigkeit (%)"
+          },
+          "pressure_hpa": {
+            "name": "Luftdruck (hPa)"
+          },
+          "reference_evapotranspiration_mm": {
+            "name": "Referenzverdunstung (mm)"
+          },
+          "weather_age_minutes": {
+            "name": "Wetterdatenalter (Minuten)"
+          },
+          "wind_speed_m_s": {
+            "name": "Windgeschwindigkeit (m/s)"
+          }
         }
       },
       "last_soil_update": {
-        "name": "Letzte Aktualisierung des Bodenmodells"
+        "name": "Letzte Aktualisierung des Bodenmodells",
+        "state_attributes": {
+          "soil_model_gap_hours": {
+            "name": "Bodenmodelllücke (Stunden)"
+          }
+        }
       },
       "last_calculation": {
         "name": "Letzte Berechnung"
@@ -675,16 +1962,669 @@
           "water_budget_exhausted": "Verbrauchslimit erreicht",
           "rain_detected": "Regen erkannt",
           "wind_too_strong": "Wind zu stark"
+        },
+        "state_attributes": {
+          "action_hint": {
+            "name": "Handlungshinweis"
+          },
+          "automatic_blocker": {
+            "name": "Automatiksperrgrund",
+            "state": {
+              "already_watered_today": "Rasen wurde heute bereits bewässert",
+              "automation_disabled": "Automatische Bewässerung ist aus",
+              "automation_enabled": "Automatik ausgeschaltet.",
+              "automation_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "budget_uncertain": "Verbrauch unvollständig; Automatik gesperrt",
+              "completed": "Abgeschlossen",
+              "confidence_sufficient": "Datenvertrauen zu gering.",
+              "configured": "Kein Ventil eingerichtet.",
+              "current_weather_safe": "Aktuell Regen oder starken Wind abwarten",
+              "cycle_resume_unknown": "Pausenende ist unbekannt; eine Gesamtdauer kann nicht verlässlich geschätzt werden.",
+              "estimated_completion": "Geschätztes Ende einschließlich Einweichpausen",
+              "excessive_flow": "Durchfluss überschreitet den Grenzwert.",
+              "forecast_window_active": "Kein aktuell geeignetes Vorhersagefenster.",
+              "frost": "Bewässerung wegen Frost gesperrt.",
+              "frost_free": "Frost oder unbekannte Temperatur.",
+              "homeassistant_running": "Home Assistant wird beendet.",
+              "homeassistant_stopping": "Home Assistant wird beendet",
+              "integration_unloaded": "Integration wird beendet.",
+              "interrupted_by_restart": "Bewässerung durch Neustart unterbrochen; Messlücke wird nicht geschätzt.",
+              "irrigation": "Ventilmessung",
+              "low": "Niedrig",
+              "low_confidence": "Wetter- oder Bodenmodelldaten zu unsicher",
+              "maximum_runtime": "Maximale Bewässerungsdauer erreicht.",
+              "maximum_runtime_before_target": "Zielmenge voraussichtlich nicht vor Sicherheitsende erreichbar",
+              "maximum_volume": "Maximale Wassermenge erreicht.",
+              "meter_available": "Wasserzähler fehlt oder ist ungültig.",
+              "meter_fresh": "Wasserzähler fehlt oder ist zu alt.",
+              "meter_required": "Wasserzähler für Automatik erforderlich",
+              "meter_reset": "Wasserzähler wurde während der Bewässerung zurückgesetzt.",
+              "meter_stale": "Durchflussmesswert zu alt",
+              "meter_unavailable": "Wasserzähler nicht verfügbar",
+              "meter_unit_changed": "Einheit des Wasserzählers wurde geändert.",
+              "mower_docked": "Mäher nicht an Station.",
+              "mower_left_dock": "Mäher hat die sichere Position verlassen.",
+              "mower_not_docked": "Mäher ist nicht an der Station",
+              "no_active_session": "Keine laufende Bewässerung",
+              "no_flow": "Kein ausreichender Durchfluss erkannt.",
+              "no_schedule_overlap": "Zeitplan und Wetterfenster überschneiden sich nicht",
+              "no_suitable_window": "Kein geeignetes Bewässerungsfenster",
+              "not_configured": "Kein Ventil eingerichtet",
+              "not_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "not_watered_today": "Heute bereits bewässert.",
+              "other_valve_closed": "Zweites Ventil offen oder unbekannt.",
+              "other_valve_open": "Zweites Ventil ist offen",
+              "other_valve_unavailable": "Status des zweiten Ventils fehlt",
+              "outside_schedule": "Außerhalb der erlaubten Bewässerungszeit.",
+              "paused": "Pausiert – zweites Ventil geöffnet",
+              "planned_start": "Voraussichtlicher Start im erlaubten Wetterfenster",
+              "rain_available": "Gemessener Regen fehlt.",
+              "rain_detected": "Bewässerung wegen Regen beendet",
+              "rain_unavailable": "Gemessener Regen fehlt",
+              "ready": "Start möglich",
+              "retry_allowed": "Wartezeit vor erneutem Start.",
+              "retry_cooldown": "Wartezeit nach fehlgeschlagenem Start",
+              "running": "Bewässerung läuft",
+              "schedule_allowed": "Außerhalb der erlaubten Bewässerungszeit.",
+              "schedule_ends_before_target": "Erlaubtes Zeitfenster endet voraussichtlich vor Erreichen der Zielmenge",
+              "session_active": "Bewässerung läuft",
+              "soak_pause": "Versickerungspause zwischen Bewässerungsetappen.",
+              "stopped": "Abgebrochen",
+              "stopped_manually": "Bewässerung manuell beendet.",
+              "stopping": "Ventil wird geschlossen",
+              "storage_available": "Speicher nicht verfügbar.",
+              "storage_error": "Speicherfehler",
+              "target_reached": "Bewässerungsziel erreicht.",
+              "unavailable": "Nicht verfügbar",
+              "valve_closed": "Eigenes Ventil nicht geschlossen.",
+              "valve_closed_externally": "Ventil wurde außerhalb der Integration geschlossen.",
+              "valve_did_not_open": "Ventil hat das Öffnen nicht bestätigt.",
+              "valve_not_closed": "Rasenventil ist nicht geschlossen",
+              "valve_open_failed": "Öffnen des Ventils fehlgeschlagen; es wird geschlossen.",
+              "valve_unavailable": "Ventilstatus ist nicht verfügbar.",
+              "waiting_for_flow": "Restlaufzeit erst bei messbarem Durchfluss verfügbar",
+              "waiting_for_weather": "Warte auf Wetterdaten",
+              "waiting_for_window": "Warte auf das Bewässerungsfenster",
+              "water_budget_available": "Verbrauchslimit oder Messqualität prüfen",
+              "water_budget_exhausted": "Verbrauchslimit erreicht",
+              "water_now": "Jetzt wässern",
+              "watering": "Rasen nach Bewässerung noch nass.",
+              "watering_due": "Bewässerung nicht erforderlich.",
+              "watering_not_due": "Bewässerung ist nicht fällig",
+              "weather_available": "Wetterdaten fehlen oder sind zu alt.",
+              "weather_unavailable": "Wetter oder Vorhersage fehlt",
+              "wind_too_strong": "Bewässerung wegen starkem Wind beendet",
+              "window_expired": "Bewässerungsfenster ist abgelaufen"
+            }
+          },
+          "automatic_blockers": {
+            "name": "Automatiksperrcodes"
+          },
+          "automatic_blockers_text": {
+            "name": "Automatiksperrgründe"
+          },
+          "automatic_conditions": {
+            "name": "Automatikvoraussetzungen"
+          },
+          "automation_suspended_until": {
+            "name": "Automatik pausiert bis"
+          },
+          "cycle_plan": {
+            "name": "Bewässerungszyklusplan"
+          },
+          "last_active_seconds": {
+            "name": "Aktive Zeit der letzten Sitzung (Sekunden)"
+          },
+          "last_measurement_gap": {
+            "name": "Messlücke der letzten Sitzung"
+          },
+          "last_paused_seconds": {
+            "name": "Pausenzeit der letzten Sitzung (Sekunden)"
+          },
+          "last_session": {
+            "name": "Letzte Bewässerungssitzung"
+          },
+          "last_session_liters": {
+            "name": "Erfasste Menge der letzten Sitzung (l)"
+          },
+          "last_stop_reason": {
+            "name": "Letzter Abschaltgrund",
+            "state": {
+              "already_watered_today": "Rasen wurde heute bereits bewässert",
+              "automation_disabled": "Automatische Bewässerung ist aus",
+              "automation_enabled": "Automatik ausgeschaltet.",
+              "automation_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "budget_uncertain": "Verbrauch unvollständig; Automatik gesperrt",
+              "completed": "Abgeschlossen",
+              "confidence_sufficient": "Datenvertrauen zu gering.",
+              "configured": "Kein Ventil eingerichtet.",
+              "current_weather_safe": "Aktuell Regen oder starken Wind abwarten",
+              "cycle_resume_unknown": "Pausenende ist unbekannt; eine Gesamtdauer kann nicht verlässlich geschätzt werden.",
+              "estimated_completion": "Geschätztes Ende einschließlich Einweichpausen",
+              "excessive_flow": "Durchfluss überschreitet den Grenzwert.",
+              "forecast_window_active": "Kein aktuell geeignetes Vorhersagefenster.",
+              "frost": "Bewässerung wegen Frost gesperrt.",
+              "frost_free": "Frost oder unbekannte Temperatur.",
+              "homeassistant_running": "Home Assistant wird beendet.",
+              "homeassistant_stopping": "Home Assistant wird beendet",
+              "integration_unloaded": "Integration wird beendet.",
+              "interrupted_by_restart": "Bewässerung durch Neustart unterbrochen; Messlücke wird nicht geschätzt.",
+              "irrigation": "Ventilmessung",
+              "low": "Niedrig",
+              "low_confidence": "Wetter- oder Bodenmodelldaten zu unsicher",
+              "maximum_runtime": "Maximale Bewässerungsdauer erreicht.",
+              "maximum_runtime_before_target": "Zielmenge voraussichtlich nicht vor Sicherheitsende erreichbar",
+              "maximum_volume": "Maximale Wassermenge erreicht.",
+              "meter_available": "Wasserzähler fehlt oder ist ungültig.",
+              "meter_fresh": "Wasserzähler fehlt oder ist zu alt.",
+              "meter_required": "Wasserzähler für Automatik erforderlich",
+              "meter_reset": "Wasserzähler wurde während der Bewässerung zurückgesetzt.",
+              "meter_stale": "Durchflussmesswert zu alt",
+              "meter_unavailable": "Wasserzähler nicht verfügbar",
+              "meter_unit_changed": "Einheit des Wasserzählers wurde geändert.",
+              "mower_docked": "Mäher nicht an Station.",
+              "mower_left_dock": "Mäher hat die sichere Position verlassen.",
+              "mower_not_docked": "Mäher ist nicht an der Station",
+              "no_active_session": "Keine laufende Bewässerung",
+              "no_flow": "Kein ausreichender Durchfluss erkannt.",
+              "no_schedule_overlap": "Zeitplan und Wetterfenster überschneiden sich nicht",
+              "no_suitable_window": "Kein geeignetes Bewässerungsfenster",
+              "not_configured": "Kein Ventil eingerichtet",
+              "not_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "not_watered_today": "Heute bereits bewässert.",
+              "other_valve_closed": "Zweites Ventil offen oder unbekannt.",
+              "other_valve_open": "Zweites Ventil ist offen",
+              "other_valve_unavailable": "Status des zweiten Ventils fehlt",
+              "outside_schedule": "Außerhalb der erlaubten Bewässerungszeit.",
+              "paused": "Pausiert – zweites Ventil geöffnet",
+              "planned_start": "Voraussichtlicher Start im erlaubten Wetterfenster",
+              "rain_available": "Gemessener Regen fehlt.",
+              "rain_detected": "Bewässerung wegen Regen beendet",
+              "rain_unavailable": "Gemessener Regen fehlt",
+              "ready": "Start möglich",
+              "retry_allowed": "Wartezeit vor erneutem Start.",
+              "retry_cooldown": "Wartezeit nach fehlgeschlagenem Start",
+              "running": "Bewässerung läuft",
+              "schedule_allowed": "Außerhalb der erlaubten Bewässerungszeit.",
+              "schedule_ends_before_target": "Erlaubtes Zeitfenster endet voraussichtlich vor Erreichen der Zielmenge",
+              "session_active": "Bewässerung läuft",
+              "soak_pause": "Versickerungspause zwischen Bewässerungsetappen.",
+              "stopped": "Abgebrochen",
+              "stopped_manually": "Bewässerung manuell beendet.",
+              "stopping": "Ventil wird geschlossen",
+              "storage_available": "Speicher nicht verfügbar.",
+              "storage_error": "Speicherfehler",
+              "target_reached": "Bewässerungsziel erreicht.",
+              "unavailable": "Nicht verfügbar",
+              "valve_closed": "Eigenes Ventil nicht geschlossen.",
+              "valve_closed_externally": "Ventil wurde außerhalb der Integration geschlossen.",
+              "valve_did_not_open": "Ventil hat das Öffnen nicht bestätigt.",
+              "valve_not_closed": "Rasenventil ist nicht geschlossen",
+              "valve_open_failed": "Öffnen des Ventils fehlgeschlagen; es wird geschlossen.",
+              "valve_unavailable": "Ventilstatus ist nicht verfügbar.",
+              "waiting_for_flow": "Restlaufzeit erst bei messbarem Durchfluss verfügbar",
+              "waiting_for_weather": "Warte auf Wetterdaten",
+              "waiting_for_window": "Warte auf das Bewässerungsfenster",
+              "water_budget_available": "Verbrauchslimit oder Messqualität prüfen",
+              "water_budget_exhausted": "Verbrauchslimit erreicht",
+              "water_now": "Jetzt wässern",
+              "watering": "Rasen nach Bewässerung noch nass.",
+              "watering_due": "Bewässerung nicht erforderlich.",
+              "watering_not_due": "Bewässerung ist nicht fällig",
+              "weather_available": "Wetterdaten fehlen oder sind zu alt.",
+              "weather_unavailable": "Wetter oder Vorhersage fehlt",
+              "wind_too_strong": "Bewässerung wegen starkem Wind beendet",
+              "window_expired": "Bewässerungsfenster ist abgelaufen"
+            }
+          },
+          "meter_age_seconds": {
+            "name": "Alter des Zählermesswerts (Sekunden)"
+          },
+          "meter_attribution": {
+            "name": "Zuordnung des Durchflusses",
+            "state": {
+              "all_flow_while_lawn_valve_open": "Gesamter Durchfluss bei geöffnetem Rasenventil"
+            }
+          },
+          "meter_reading": {
+            "name": "Zählermesswert"
+          },
+          "meter_unit": {
+            "name": "Zählereinheit"
+          },
+          "mower_docked": {
+            "name": "Mäher an der Station"
+          },
+          "next_automatic_start": {
+            "name": "Nächster möglicher Automatikstart"
+          },
+          "next_check": {
+            "name": "Nächste Prüfung"
+          },
+          "next_start_plan": {
+            "name": "Plan für den nächsten Start"
+          },
+          "other_valve_state": {
+            "name": "Status des zweiten Ventils",
+            "state": {
+              "on": "Offen",
+              "off": "Geschlossen",
+              "unknown": "Unbekannt",
+              "unavailable": "Nicht verfügbar",
+              "not_configured": "Nicht eingerichtet"
+            }
+          },
+          "quantity_comparison": {
+            "name": "Soll-Ist-Mengenvergleich"
+          },
+          "reason_text": {
+            "name": "Erklärung"
+          },
+          "recent_sessions": {
+            "name": "Letzte Bewässerungssitzungen"
+          },
+          "session_active_seconds": {
+            "name": "Aktive Sitzungszeit (Sekunden)"
+          },
+          "session_cycle_number": {
+            "name": "Aktueller Bewässerungszyklus"
+          },
+          "session_delivered_mm": {
+            "name": "Erfasste Wassermenge (mm)"
+          },
+          "session_elapsed_seconds": {
+            "name": "Vergangene Sitzungszeit (Sekunden)"
+          },
+          "session_estimated_end": {
+            "name": "Geschätztes Sitzungsende"
+          },
+          "session_eta_estimated": {
+            "name": "Restzeit geschätzt"
+          },
+          "session_eta_reason": {
+            "name": "Grund der Restzeitschätzung",
+            "state": {
+              "estimated_completion": "Geschätztes Ende einschließlich Einweichpausen",
+              "maximum_runtime_before_target": "Zielmenge voraussichtlich nicht vor Sicherheitsende erreichbar",
+              "meter_stale": "Durchflussmesswert zu alt",
+              "no_active_session": "Keine laufende Bewässerung",
+              "other_valve_open": "Zweites Ventil ist offen",
+              "schedule_ends_before_target": "Erlaubtes Zeitfenster endet voraussichtlich vor Erreichen der Zielmenge",
+              "soak_pause": "Versickerungspause zwischen Bewässerungsetappen.",
+              "stopping": "Ventil wird geschlossen",
+              "waiting_for_flow": "Restlaufzeit erst bei messbarem Durchfluss verfügbar"
+            }
+          },
+          "session_flow_l_min": {
+            "name": "Sitzungsdurchfluss (l/min)"
+          },
+          "session_liters": {
+            "name": "Erfasste Sitzungsmenge (l)"
+          },
+          "session_measurement_gap": {
+            "name": "Messlücke in der Sitzung"
+          },
+          "session_pause_reason": {
+            "name": "Pausengrund",
+            "state": {
+              "other_valve_open": "Zweites Ventil ist offen",
+              "soak_pause": "Versickerungspause zwischen Bewässerungsetappen."
+            }
+          },
+          "session_paused_seconds": {
+            "name": "Sitzungspause (Sekunden)"
+          },
+          "session_progress_percent": {
+            "name": "Mengenfortschritt (%)"
+          },
+          "session_remaining_active_minutes": {
+            "name": "Verbleibende aktive Zeit (Minuten)"
+          },
+          "session_remaining_liters": {
+            "name": "Verbleibende Wassermenge (l)"
+          },
+          "session_remaining_seconds": {
+            "name": "Verbleibende Sicherheitslaufzeit (Sekunden)"
+          },
+          "session_resume_after": {
+            "name": "Fortsetzung frühestens ab"
+          },
+          "session_source": {
+            "name": "Sitzungsstartquelle",
+            "state": {
+              "auto": "Automatisch",
+              "manual": "Manuell"
+            }
+          },
+          "session_target_liters": {
+            "name": "Sitzungssollmenge (l)"
+          },
+          "storage_error": {
+            "name": "Speicherfehler"
+          },
+          "valve_state": {
+            "name": "Status des Rasenventils",
+            "state": {
+              "on": "Offen",
+              "off": "Geschlossen",
+              "unknown": "Unbekannt",
+              "unavailable": "Nicht verfügbar",
+              "not_configured": "Nicht eingerichtet"
+            }
+          },
+          "water_balance": {
+            "name": "Wasserbilanz der letzten Sitzung"
+          },
+          "water_budget": {
+            "name": "Verbrauchslimits"
+          },
+          "watering_explanation": {
+            "name": "Erklärung zur Bewässerung"
+          }
         }
       },
       "water_consumption_week": {
-        "name": "Erfasste Bewässerung diese Woche"
+        "name": "Erfasste Bewässerung diese Woche",
+        "state_attributes": {
+          "day_allocation_estimated_sessions": {
+            "name": "Tag: Sitzungen mit geschätzter Tageszuordnung"
+          },
+          "day_irrigation_liters": {
+            "name": "Tag: Erfasste Bewässerung (l)"
+          },
+          "day_liters": {
+            "name": "Tag: Erfasster Gesamtverbrauch (l)"
+          },
+          "day_manual_estimate_liters": {
+            "name": "Tag: Manuell geschätzte Wassermenge (l)"
+          },
+          "day_manual_record_liters": {
+            "name": "Tag: Manuell eingetragene Wassermenge (l)"
+          },
+          "day_measurement_gap_sessions": {
+            "name": "Tag: Sitzungen mit Messlücken"
+          },
+          "day_sessions": {
+            "name": "Tag: Sitzungen"
+          },
+          "day_source": {
+            "name": "Tag: Verbrauchsquelle",
+            "state": {
+              "recorded_water_only": "Nur erfasste Wassermengen"
+            }
+          },
+          "day_unmetered_sessions": {
+            "name": "Tag: Sitzungen ohne Mengenmessung"
+          },
+          "month_allocation_estimated_sessions": {
+            "name": "Monat: Sitzungen mit geschätzter Tageszuordnung"
+          },
+          "month_irrigation_liters": {
+            "name": "Monat: Erfasste Bewässerung (l)"
+          },
+          "month_liters": {
+            "name": "Monat: Erfasster Gesamtverbrauch (l)"
+          },
+          "month_manual_estimate_liters": {
+            "name": "Monat: Manuell geschätzte Wassermenge (l)"
+          },
+          "month_manual_record_liters": {
+            "name": "Monat: Manuell eingetragene Wassermenge (l)"
+          },
+          "month_measurement_gap_sessions": {
+            "name": "Monat: Sitzungen mit Messlücken"
+          },
+          "month_sessions": {
+            "name": "Monat: Sitzungen"
+          },
+          "month_source": {
+            "name": "Monat: Verbrauchsquelle",
+            "state": {
+              "recorded_water_only": "Nur erfasste Wassermengen"
+            }
+          },
+          "month_unmetered_sessions": {
+            "name": "Monat: Sitzungen ohne Mengenmessung"
+          },
+          "recent_records": {
+            "name": "Letzte Verbrauchseinträge"
+          },
+          "totals_include_active_session": {
+            "name": "Summen enthalten die aktive Sitzung"
+          },
+          "week_allocation_estimated_sessions": {
+            "name": "Woche: Sitzungen mit geschätzter Tageszuordnung"
+          },
+          "week_irrigation_liters": {
+            "name": "Woche: Erfasste Bewässerung (l)"
+          },
+          "week_liters": {
+            "name": "Woche: Erfasster Gesamtverbrauch (l)"
+          },
+          "week_manual_estimate_liters": {
+            "name": "Woche: Manuell geschätzte Wassermenge (l)"
+          },
+          "week_manual_record_liters": {
+            "name": "Woche: Manuell eingetragene Wassermenge (l)"
+          },
+          "week_measurement_gap_sessions": {
+            "name": "Woche: Sitzungen mit Messlücken"
+          },
+          "week_sessions": {
+            "name": "Woche: Sitzungen"
+          },
+          "week_source": {
+            "name": "Woche: Verbrauchsquelle",
+            "state": {
+              "recorded_water_only": "Nur erfasste Wassermengen"
+            }
+          },
+          "week_unmetered_sessions": {
+            "name": "Woche: Sitzungen ohne Mengenmessung"
+          }
+        }
       },
       "water_consumption_month": {
-        "name": "Erfasste Bewässerung diesen Monat"
+        "name": "Erfasste Bewässerung diesen Monat",
+        "state_attributes": {
+          "day_allocation_estimated_sessions": {
+            "name": "Tag: Sitzungen mit geschätzter Tageszuordnung"
+          },
+          "day_irrigation_liters": {
+            "name": "Tag: Erfasste Bewässerung (l)"
+          },
+          "day_liters": {
+            "name": "Tag: Erfasster Gesamtverbrauch (l)"
+          },
+          "day_manual_estimate_liters": {
+            "name": "Tag: Manuell geschätzte Wassermenge (l)"
+          },
+          "day_manual_record_liters": {
+            "name": "Tag: Manuell eingetragene Wassermenge (l)"
+          },
+          "day_measurement_gap_sessions": {
+            "name": "Tag: Sitzungen mit Messlücken"
+          },
+          "day_sessions": {
+            "name": "Tag: Sitzungen"
+          },
+          "day_source": {
+            "name": "Tag: Verbrauchsquelle",
+            "state": {
+              "recorded_water_only": "Nur erfasste Wassermengen"
+            }
+          },
+          "day_unmetered_sessions": {
+            "name": "Tag: Sitzungen ohne Mengenmessung"
+          },
+          "month_allocation_estimated_sessions": {
+            "name": "Monat: Sitzungen mit geschätzter Tageszuordnung"
+          },
+          "month_irrigation_liters": {
+            "name": "Monat: Erfasste Bewässerung (l)"
+          },
+          "month_liters": {
+            "name": "Monat: Erfasster Gesamtverbrauch (l)"
+          },
+          "month_manual_estimate_liters": {
+            "name": "Monat: Manuell geschätzte Wassermenge (l)"
+          },
+          "month_manual_record_liters": {
+            "name": "Monat: Manuell eingetragene Wassermenge (l)"
+          },
+          "month_measurement_gap_sessions": {
+            "name": "Monat: Sitzungen mit Messlücken"
+          },
+          "month_sessions": {
+            "name": "Monat: Sitzungen"
+          },
+          "month_source": {
+            "name": "Monat: Verbrauchsquelle",
+            "state": {
+              "recorded_water_only": "Nur erfasste Wassermengen"
+            }
+          },
+          "month_unmetered_sessions": {
+            "name": "Monat: Sitzungen ohne Mengenmessung"
+          },
+          "recent_records": {
+            "name": "Letzte Verbrauchseinträge"
+          },
+          "totals_include_active_session": {
+            "name": "Summen enthalten die aktive Sitzung"
+          },
+          "week_allocation_estimated_sessions": {
+            "name": "Woche: Sitzungen mit geschätzter Tageszuordnung"
+          },
+          "week_irrigation_liters": {
+            "name": "Woche: Erfasste Bewässerung (l)"
+          },
+          "week_liters": {
+            "name": "Woche: Erfasster Gesamtverbrauch (l)"
+          },
+          "week_manual_estimate_liters": {
+            "name": "Woche: Manuell geschätzte Wassermenge (l)"
+          },
+          "week_manual_record_liters": {
+            "name": "Woche: Manuell eingetragene Wassermenge (l)"
+          },
+          "week_measurement_gap_sessions": {
+            "name": "Woche: Sitzungen mit Messlücken"
+          },
+          "week_sessions": {
+            "name": "Woche: Sitzungen"
+          },
+          "week_source": {
+            "name": "Woche: Verbrauchsquelle",
+            "state": {
+              "recorded_water_only": "Nur erfasste Wassermengen"
+            }
+          },
+          "week_unmetered_sessions": {
+            "name": "Woche: Sitzungen ohne Mengenmessung"
+          }
+        }
       },
       "water_consumption_day": {
-        "name": "Wasserverbrauch heute"
+        "name": "Wasserverbrauch heute",
+        "state_attributes": {
+          "day_allocation_estimated_sessions": {
+            "name": "Tag: Sitzungen mit geschätzter Tageszuordnung"
+          },
+          "day_irrigation_liters": {
+            "name": "Tag: Erfasste Bewässerung (l)"
+          },
+          "day_liters": {
+            "name": "Tag: Erfasster Gesamtverbrauch (l)"
+          },
+          "day_manual_estimate_liters": {
+            "name": "Tag: Manuell geschätzte Wassermenge (l)"
+          },
+          "day_manual_record_liters": {
+            "name": "Tag: Manuell eingetragene Wassermenge (l)"
+          },
+          "day_measurement_gap_sessions": {
+            "name": "Tag: Sitzungen mit Messlücken"
+          },
+          "day_sessions": {
+            "name": "Tag: Sitzungen"
+          },
+          "day_source": {
+            "name": "Tag: Verbrauchsquelle",
+            "state": {
+              "recorded_water_only": "Nur erfasste Wassermengen"
+            }
+          },
+          "day_unmetered_sessions": {
+            "name": "Tag: Sitzungen ohne Mengenmessung"
+          },
+          "month_allocation_estimated_sessions": {
+            "name": "Monat: Sitzungen mit geschätzter Tageszuordnung"
+          },
+          "month_irrigation_liters": {
+            "name": "Monat: Erfasste Bewässerung (l)"
+          },
+          "month_liters": {
+            "name": "Monat: Erfasster Gesamtverbrauch (l)"
+          },
+          "month_manual_estimate_liters": {
+            "name": "Monat: Manuell geschätzte Wassermenge (l)"
+          },
+          "month_manual_record_liters": {
+            "name": "Monat: Manuell eingetragene Wassermenge (l)"
+          },
+          "month_measurement_gap_sessions": {
+            "name": "Monat: Sitzungen mit Messlücken"
+          },
+          "month_sessions": {
+            "name": "Monat: Sitzungen"
+          },
+          "month_source": {
+            "name": "Monat: Verbrauchsquelle",
+            "state": {
+              "recorded_water_only": "Nur erfasste Wassermengen"
+            }
+          },
+          "month_unmetered_sessions": {
+            "name": "Monat: Sitzungen ohne Mengenmessung"
+          },
+          "recent_records": {
+            "name": "Letzte Verbrauchseinträge"
+          },
+          "totals_include_active_session": {
+            "name": "Summen enthalten die aktive Sitzung"
+          },
+          "week_allocation_estimated_sessions": {
+            "name": "Woche: Sitzungen mit geschätzter Tageszuordnung"
+          },
+          "week_irrigation_liters": {
+            "name": "Woche: Erfasste Bewässerung (l)"
+          },
+          "week_liters": {
+            "name": "Woche: Erfasster Gesamtverbrauch (l)"
+          },
+          "week_manual_estimate_liters": {
+            "name": "Woche: Manuell geschätzte Wassermenge (l)"
+          },
+          "week_manual_record_liters": {
+            "name": "Woche: Manuell eingetragene Wassermenge (l)"
+          },
+          "week_measurement_gap_sessions": {
+            "name": "Woche: Sitzungen mit Messlücken"
+          },
+          "week_sessions": {
+            "name": "Woche: Sitzungen"
+          },
+          "week_source": {
+            "name": "Woche: Verbrauchsquelle",
+            "state": {
+              "recorded_water_only": "Nur erfasste Wassermengen"
+            }
+          },
+          "week_unmetered_sessions": {
+            "name": "Woche: Sitzungen ohne Mengenmessung"
+          }
+        }
       },
       "care_plan": {
         "name": "Pflegeplan",
@@ -700,13 +2640,168 @@
           "no_action": "Keine Aktion erforderlich",
           "wait_to_mow": "Mit Mähen warten, bis der Rasen trocken ist",
           "wait_for_irrigation": "Bewässerung abwarten"
+        },
+        "state_attributes": {
+          "fertilizing": {
+            "name": "Düngeplanung"
+          },
+          "forecast_estimated": {
+            "name": "Prognose geschätzt"
+          },
+          "mowing": {
+            "name": "Mähplanung"
+          },
+          "mowing_window": {
+            "name": "Mähfenster"
+          },
+          "outlook": {
+            "name": "Pflegeausblick"
+          },
+          "prioritized_steps": {
+            "name": "Priorisierte Pflegeschritte"
+          },
+          "summary": {
+            "name": "Pflegezusammenfassung"
+          },
+          "watering": {
+            "name": "Bewässerungsplanung"
+          }
         }
       },
       "next_automatic_start": {
-        "name": "Nächster automatischer Bewässerungsstart"
+        "name": "Nächster automatischer Bewässerungsstart",
+        "state_attributes": {
+          "at": {
+            "name": "Möglicher Startzeitpunkt"
+          },
+          "estimated": {
+            "name": "Geschätzt"
+          },
+          "reason": {
+            "name": "Grund",
+            "state": {
+              "already_watered_today": "Rasen wurde heute bereits bewässert",
+              "automation_disabled": "Automatische Bewässerung ist aus",
+              "automation_enabled": "Automatik ausgeschaltet.",
+              "automation_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "budget_uncertain": "Verbrauch unvollständig; Automatik gesperrt",
+              "completed": "Abgeschlossen",
+              "confidence_sufficient": "Datenvertrauen zu gering.",
+              "configured": "Kein Ventil eingerichtet.",
+              "current_weather_safe": "Aktuell Regen oder starken Wind abwarten",
+              "cycle_resume_unknown": "Pausenende ist unbekannt; eine Gesamtdauer kann nicht verlässlich geschätzt werden.",
+              "estimated_completion": "Geschätztes Ende einschließlich Einweichpausen",
+              "excessive_flow": "Durchfluss überschreitet den Grenzwert.",
+              "forecast_window_active": "Kein aktuell geeignetes Vorhersagefenster.",
+              "frost": "Bewässerung wegen Frost gesperrt.",
+              "frost_free": "Frost oder unbekannte Temperatur.",
+              "homeassistant_running": "Home Assistant wird beendet.",
+              "homeassistant_stopping": "Home Assistant wird beendet",
+              "integration_unloaded": "Integration wird beendet.",
+              "interrupted_by_restart": "Bewässerung durch Neustart unterbrochen; Messlücke wird nicht geschätzt.",
+              "irrigation": "Ventilmessung",
+              "low": "Niedrig",
+              "low_confidence": "Wetter- oder Bodenmodelldaten zu unsicher",
+              "maximum_runtime": "Maximale Bewässerungsdauer erreicht.",
+              "maximum_runtime_before_target": "Zielmenge voraussichtlich nicht vor Sicherheitsende erreichbar",
+              "maximum_volume": "Maximale Wassermenge erreicht.",
+              "meter_available": "Wasserzähler fehlt oder ist ungültig.",
+              "meter_fresh": "Wasserzähler fehlt oder ist zu alt.",
+              "meter_required": "Wasserzähler für Automatik erforderlich",
+              "meter_reset": "Wasserzähler wurde während der Bewässerung zurückgesetzt.",
+              "meter_stale": "Durchflussmesswert zu alt",
+              "meter_unavailable": "Wasserzähler nicht verfügbar",
+              "meter_unit_changed": "Einheit des Wasserzählers wurde geändert.",
+              "mower_docked": "Mäher nicht an Station.",
+              "mower_left_dock": "Mäher hat die sichere Position verlassen.",
+              "mower_not_docked": "Mäher ist nicht an der Station",
+              "no_active_session": "Keine laufende Bewässerung",
+              "no_flow": "Kein ausreichender Durchfluss erkannt.",
+              "no_schedule_overlap": "Zeitplan und Wetterfenster überschneiden sich nicht",
+              "no_suitable_window": "Kein geeignetes Bewässerungsfenster",
+              "not_configured": "Kein Ventil eingerichtet",
+              "not_suspended": "Automatische Bewässerung vorübergehend gesperrt.",
+              "not_watered_today": "Heute bereits bewässert.",
+              "other_valve_closed": "Zweites Ventil offen oder unbekannt.",
+              "other_valve_open": "Zweites Ventil ist offen",
+              "other_valve_unavailable": "Status des zweiten Ventils fehlt",
+              "outside_schedule": "Außerhalb der erlaubten Bewässerungszeit.",
+              "paused": "Pausiert – zweites Ventil geöffnet",
+              "planned_start": "Voraussichtlicher Start im erlaubten Wetterfenster",
+              "rain_available": "Gemessener Regen fehlt.",
+              "rain_detected": "Bewässerung wegen Regen beendet",
+              "rain_unavailable": "Gemessener Regen fehlt",
+              "ready": "Start möglich",
+              "retry_allowed": "Wartezeit vor erneutem Start.",
+              "retry_cooldown": "Wartezeit nach fehlgeschlagenem Start",
+              "running": "Bewässerung läuft",
+              "schedule_allowed": "Außerhalb der erlaubten Bewässerungszeit.",
+              "schedule_ends_before_target": "Erlaubtes Zeitfenster endet voraussichtlich vor Erreichen der Zielmenge",
+              "session_active": "Bewässerung läuft",
+              "soak_pause": "Versickerungspause zwischen Bewässerungsetappen.",
+              "stopped": "Abgebrochen",
+              "stopped_manually": "Bewässerung manuell beendet.",
+              "stopping": "Ventil wird geschlossen",
+              "storage_available": "Speicher nicht verfügbar.",
+              "storage_error": "Speicherfehler",
+              "target_reached": "Bewässerungsziel erreicht.",
+              "unavailable": "Nicht verfügbar",
+              "valve_closed": "Eigenes Ventil nicht geschlossen.",
+              "valve_closed_externally": "Ventil wurde außerhalb der Integration geschlossen.",
+              "valve_did_not_open": "Ventil hat das Öffnen nicht bestätigt.",
+              "valve_not_closed": "Rasenventil ist nicht geschlossen",
+              "valve_open_failed": "Öffnen des Ventils fehlgeschlagen; es wird geschlossen.",
+              "valve_unavailable": "Ventilstatus ist nicht verfügbar.",
+              "waiting_for_flow": "Restlaufzeit erst bei messbarem Durchfluss verfügbar",
+              "waiting_for_weather": "Warte auf Wetterdaten",
+              "waiting_for_window": "Warte auf das Bewässerungsfenster",
+              "water_budget_available": "Verbrauchslimit oder Messqualität prüfen",
+              "water_budget_exhausted": "Verbrauchslimit erreicht",
+              "water_now": "Jetzt wässern",
+              "watering": "Rasen nach Bewässerung noch nass.",
+              "watering_due": "Bewässerung nicht erforderlich.",
+              "watering_not_due": "Bewässerung ist nicht fällig",
+              "weather_available": "Wetterdaten fehlen oder sind zu alt.",
+              "weather_unavailable": "Wetter oder Vorhersage fehlt",
+              "wind_too_strong": "Bewässerung wegen starkem Wind beendet",
+              "window_expired": "Bewässerungsfenster ist abgelaufen"
+            }
+          },
+          "reason_text": {
+            "name": "Erklärung"
+          }
+        }
       },
       "irrigation_remaining_time": {
-        "name": "Verbleibende Bewässerungsdauer"
+        "name": "Verbleibende Bewässerungsdauer",
+        "state_attributes": {
+          "reason_text": {
+            "name": "Erklärung"
+          },
+          "session_estimated_end": {
+            "name": "Geschätztes Sitzungsende"
+          },
+          "session_eta_estimated": {
+            "name": "Restzeit geschätzt"
+          },
+          "session_eta_reason": {
+            "name": "Grund der Restzeitschätzung",
+            "state": {
+              "estimated_completion": "Geschätztes Ende einschließlich Einweichpausen",
+              "maximum_runtime_before_target": "Zielmenge voraussichtlich nicht vor Sicherheitsende erreichbar",
+              "meter_stale": "Durchflussmesswert zu alt",
+              "no_active_session": "Keine laufende Bewässerung",
+              "other_valve_open": "Zweites Ventil ist offen",
+              "schedule_ends_before_target": "Erlaubtes Zeitfenster endet voraussichtlich vor Erreichen der Zielmenge",
+              "soak_pause": "Versickerungspause zwischen Bewässerungsetappen.",
+              "stopping": "Ventil wird geschlossen",
+              "waiting_for_flow": "Restlaufzeit erst bei messbarem Durchfluss verfügbar"
+            }
+          },
+          "session_remaining_active_minutes": {
+            "name": "Verbleibende aktive Zeit (Minuten)"
+          }
+        }
       }
     },
     "binary_sensor": {
