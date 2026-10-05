@@ -798,6 +798,85 @@ for _code, _texts in _MOWING_PLAN_EXPLANATIONS.items():
     EXPLANATIONS["en"][_code] = _texts[1]
 
 
+_RELEASE_316_EXPLANATIONS = {
+    "outlook_scope": (
+        "Ausblick aus vorhandenen Daten für 48 Stunden; keine Reservierung. Voraussetzungen und Wetter vor jeder Handlung erneut prüfen.",
+        "Preview from existing data for 48 hours; no reservation. Recheck prerequisites and weather before each action.",
+    ),
+    "outlook_prerequisite": (
+        "Vorgänger muss erst abgeschlossen und die Lage erneut bewertet werden.",
+        "The prerequisite must complete before conditions can be reassessed.",
+    ),
+    "outlook_outside_horizon": (
+        "Der bekannte Zeitpunkt liegt außerhalb der nächsten 48 Stunden.",
+        "The known time is outside the next 48 hours.",
+    ),
+    "outlook_expired": (
+        "Das gespeicherte Zeitfenster ist abgelaufen.",
+        "The cached time window has expired.",
+    ),
+    "outlook_blocked": (
+        "Aktuelle Voraussetzungen verhindern diese Handlung.",
+        "Current prerequisites block this action.",
+    ),
+    "outlook_no_time": (
+        "Kein belegter Zeitpunkt vorhanden; Hinweis bleibt ohne Termin.",
+        "No supported time is available; guidance remains unscheduled.",
+    ),
+    "outlook_candidate": (
+        "Geschätzter Zeitpunkt; vor der Handlung erneut prüfen.",
+        "Estimated candidate time; recheck before acting.",
+    ),
+    "soil_sensor_supported": (
+        "Aktuelle Bodenmessung verfügbar; das Bodenmodell bleibt Grundlage und wird nur anteilig korrigiert.",
+        "A current soil reading is available; the model remains the basis and is only partially corrected.",
+    ),
+    "soil_model_only": (
+        "Aktuelle gültige Bodenmessung fehlt; die Feuchte beruht auf dem Modell.",
+        "No valid current soil reading is available; moisture relies on the model.",
+    ),
+    "review_summary_scope": (
+        "Zählung gespeicherter Fenster, keine Genauigkeitsquote. Überlappende Fenster können dieselben Wetterpunkte verwenden; fehlende Daten bleiben unbekannt.",
+        "Counts of saved windows, not an accuracy score. Overlapping windows may share weather samples; missing evidence remains unknown.",
+    ),
+    "comparison_target_met": (
+        "Sollmenge innerhalb der Vergleichstoleranz erfasst.",
+        "Target recorded within the comparison tolerance.",
+    ),
+    "comparison_over_target": (
+        "Mehr als 5 % beziehungsweise 1 Liter über dem Soll erfasst.",
+        "Recorded delivery exceeds the target by more than 5% or 1 liter, whichever is larger.",
+    ),
+    "comparison_target_short": (
+        "Als Ziel erreicht beendet, aber die erfasste Menge liegt unter der Vergleichstoleranz.",
+        "Finished as target reached, but recorded delivery is below the comparison tolerance.",
+    ),
+    "comparison_stopped_short": (
+        "Vor dem Soll beendet; dies bestätigt keinen Zählerfehler.",
+        "Stopped short of the target; this does not confirm a meter fault.",
+    ),
+    "comparison_review": (
+        "Mindestens drei vergleichbare Sitzungen zeigen dieselbe Mengenabweichung. Schaltverzögerungen und Einstellungen prüfen.",
+        "At least three comparable sessions show the same quantity deviation. Review valve delays and settings.",
+    ),
+    "comparison_available": (
+        "Vergleichbare abgeschlossene Mengensitzungen vorhanden.",
+        "Comparable completed targeted sessions are available.",
+    ),
+    "comparison_insufficient": (
+        "Keine vollständig gemessenen vergleichbaren Mengensitzungen verfügbar.",
+        "No fully measured comparable targeted sessions are available.",
+    ),
+    "comparison_scope": (
+        "Bis zu 20 Sitzungen der letzten 30 Tage. Messlücken, Schätzungen und geänderte Quellen werden getrennt gezählt; keine automatische Anpassung.",
+        "Up to 20 sessions from the last 30 days. Gaps, estimates and changed sources are counted separately; no automatic adjustment.",
+    ),
+}
+for _code, _texts in _RELEASE_316_EXPLANATIONS.items():
+    EXPLANATIONS["de"][_code] = _texts[0]
+    EXPLANATIONS["en"][_code] = _texts[1]
+
+
 def reason_text(code: str | None, language: str) -> str | None:
     """Return a localized explanation, preserving unknown codes for diagnosis."""
     if code is None:

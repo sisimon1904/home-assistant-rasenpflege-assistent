@@ -146,6 +146,7 @@ from .insights import (
 )
 from .models import LawnData, RuntimeState
 from .mowing_plan import MowingWindow, mowing_window
+from .outlook import care_outlook
 from .review import program_context, remember_advice, restore_advice, review_advice
 from .storage import VerifiedStore as Store
 
@@ -1253,7 +1254,25 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             gaps.append("forecast_stale")
         if self.state.last_soil_model_gap_hours > 0:
             gaps.append("model_interval_gap")
+        measured, _ = self._read_soil_moisture()
+        basis = "soil_sensor_supported" if measured is not None else "soil_model_only"
         return {
+            "soil_evidence": {
+                "basis": basis,
+                "basis_text": reason_text(basis, language),
+                "current_sensor_percent": measured,
+                "input_reason": self.input_diagnostics()[CONF_SOIL_MOISTURE_ENTITY][
+                    "reason"
+                ],
+                "sensor_blend_fraction": SOIL_SENSOR_BLEND_FACTOR,
+                "last_correction_at": self.state.soil_sensor_last_calibrated_at
+                if (correction := aware_time(self.state.soil_sensor_last_calibrated_at))
+                is not None
+                and correction <= now
+                else None,
+                "model_still_used": True,
+                "field_accuracy_confirmed": False,
+            },
             "weekly_comparison": weekly_comparison(
                 history, self.state.water_usage, now
             ),
@@ -1281,7 +1300,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 if self.state.last_soil_model_gap_at is not None
                 else None,
                 "recovery_basis": "fresh_soil_measurement"
-                if self.data and self.data.measured_soil_moisture_percent is not None
+                if measured is not None
                 else "model_estimate",
                 "interval_gap_cause": "not_recorded"
                 if self.state.last_soil_model_gap_hours
@@ -1570,6 +1589,29 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             )
         return results
 
+    def care_outlook_details(
+        self, steps: list[dict[str, Any]] | None = None
+    ) -> dict[str, Any]:
+        """Combine existing priorities and cached times without device commands."""
+        data = self.data
+        watering = (
+            self.irrigation_controller.next_start_details() if self.irrigation else {}
+        )
+        if data and (not self.irrigation or not self.irrigation_controller.configured):
+            watering = {
+                "at": data.watering_window_start,
+                "reason": data.watering_window_reason,
+            }
+        watering = {**watering, "end": data.watering_window_end if data else None}
+        return care_outlook(
+            steps if steps is not None else self.care_priority_details(),
+            self.mowing_plan_details(),
+            watering,
+            data.next_fertilizing_window if data else None,
+            dt_util.now(),
+            self.hass.config.language,
+        )
+
     def update_diagnostics(self) -> dict[str, Any]:
         """Expose process-local refresh outcomes without retaining error text."""
         return {
@@ -1617,9 +1659,10 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         assert self._state is not None
         if measured_percent is None:
             return
-        last_calibrated = dt_util.parse_datetime(
-            self.state.soil_sensor_last_calibrated_at or ""
-        )
+        # Optional saved clocks must not crash or suppress a fresh observation.
+        last_calibrated = aware_time(self.state.soil_sensor_last_calibrated_at)
+        if last_calibrated is not None and last_calibrated > now:
+            last_calibrated = None
         if (
             last_calibrated is not None
             and now - last_calibrated < SOIL_SENSOR_CALIBRATION_INTERVAL

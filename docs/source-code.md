@@ -20,6 +20,7 @@ Alle Python-Dateien besitzen einen englischen Modulheader mit Dateipfad, Zweck u
 | `irrigation.py` | Ventilbesitz, Start/Pause/Fortsetzung/Stopp, Sicherheitsprüfungen und Abrechnung. |
 | `storage.py` | Speichern und anschließendes Bestätigen der gespeicherten Momentaufnahme. |
 | `guidance.py` | Vergleichbare Dauervorschläge, Pflegeverlaufsvalidierung und Modellbilanz-Erklärung. |
+| `outlook.py` | Bedingter 48-Stunden-Pflegeausblick und vergleichbare Bewässerungsmengen ohne Geräteaktionen. |
 | `review.py` | Begrenzter Mähfenster-Rückblick, gemeldete Programmmerkmale und lesende Sitzungswasserbilanz. |
 | `mowing_plan.py` | Reine Taupunkt-/Risikohilfe und lokale Mähfenster aus vorhandenen Wetterdaten. |
 | `mowing.py` | Ausschließlich lesende Beobachtung geschätzter Mährobotersitzungen. |
@@ -59,7 +60,7 @@ Bei reinen Kommentaränderungen lassen sich Python-Syntaxbäume ohne Docstrings 
 
 ## Typprüfung und Regressionen
 
-`python -m mypy` verwendet `mypy.ini` und prüft alle 23 Programmdateien einschließlich bisher untypisierter Funktionskörper. Berechnungen, Diagnoseverträge, Datenmodelle, Zeitplanung, Speicherung, Eingangsprüfung, Verlaufshilfen, Alltagshinweise, Mäherbeobachtung und Mähfenster verwenden zusätzlich strenge Prüfoptionen. Dynamische HA-/Provider-Payloads und Teile des Controllers verwenden weiterhin `Any`; eine vollständige Strict-Typisierung des gesamten Pakets ist damit nicht behauptet. Die GitHub-Tests führen dieselbe Prüfung mit Mypy 2.4.0 aus.
+`python -m mypy` verwendet `mypy.ini` und prüft alle 24 Programmdateien einschließlich bisher untypisierter Funktionskörper. Berechnungen, Diagnoseverträge, Datenmodelle, Zeitplanung, Speicherung, Eingangsprüfung, Verlaufshilfen, Alltagshinweise, Mäherbeobachtung und Mähfenster verwenden zusätzlich strenge Prüfoptionen. Dynamische HA-/Provider-Payloads und Teile des Controllers verwenden weiterhin `Any`; eine vollständige Strict-Typisierung des gesamten Pakets ist damit nicht behauptet. Die GitHub-Tests führen dieselbe Prüfung mit Mypy 2.4.0 aus.
 
 Die neuen Regressionen in `test_release_390_model.py`, `test_release_390_diagnostics.py` und `test_release_390_config.py` prüfen mehrtägige Wassererhaltung, Intervallvergleich, Modellvertrauen, Sensorabgleich, Speicherfehler, Diagnoseexport und unabhängige Optionsseiten. Sie ergänzen die bisherigen Geräte-/Lebenszyklustests.
 

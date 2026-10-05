@@ -377,7 +377,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> boo
         )
     ):
         return False
-    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    try:
+        unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    except BaseException:
+        # A rejected/cancelled unload keeps the entry loaded and supervised.
+        entry.runtime_data.irrigation_controller._shutting_down = False
+        raise
     if unloaded:
         entry.runtime_data.irrigation_controller.detach()
     else:

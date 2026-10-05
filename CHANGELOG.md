@@ -1,5 +1,27 @@
 # Changelog
 
+## 3.16.0
+
+### Added
+- Combine existing priorities and cached candidate windows into a conditional 48-elapsed-hour care outlook. Keep watering, drying, mowing and fertilizing prerequisites explicit; never reserve future actions or invent unsupported times.
+- Summarize saved mowing-window reviews with separate suitable-sample, observed-blocker and insufficient-evidence counts. Deduplicate identical windows without claiming an accuracy score or dry grass.
+- Compare up to twenty recent targeted irrigation records over thirty days using matching area, valve and meter semantics. Separate measurement gaps, flow estimates, unknown legacy data, stopped shortfalls and repeated measured deviations; never adjust dosing automatically.
+- Explain the currently valid soil reading, model-only versus sensor-supported evidence, eligible 25% model corrections and the last valid correction clock.
+- Extend German/English dashboards and keep detailed guidance in dedicated documentation pages. Reuse existing entities and weather caches.
+
+### Fixed
+- Reject malformed, naive and future saved soil-calibration clocks before arithmetic or eligibility checks, allowing fresh observations without crashing or indefinite suppression.
+- Restore controller supervision when platform unload raises or is cancelled; retain listeners when physical shutdown remains unconfirmed.
+- Determine model-gap recovery evidence from current sensor validity instead of a previously cached measurement.
+
+### Validation
+- Reproduce seven failing clock, unload and stale-evidence cases before correction.
+- Add 105 cases for conditional care timing/DST, retrospective counts, quantity tolerances, repeated/duplicate/conflicting sessions, source changes, legacy data, persistence metadata, read-only diagnostics, lifecycle failures and populated German/English cards.
+- Check thirty-day analytic dry-down across soils, root depths and update intervals; reference storm infiltration/runoff under slope and compaction; repeated water additions and sensor loss/recovery.
+- All 905 tests pass with 89.63% combined line/branch coverage. Ruff and Mypy pass; Mypy checks all 24 program modules.
+- Existing restart, soak-pause, concurrent persistence and irrigation safety regressions pass. The second valve remains read-only; no extra regular weather polling or mower commands.
+- Soil-profile calculations and weather samples still require local field checks; numerical tests do not certify real hardware or agronomic accuracy.
+
 ## 3.15.0
 
 ### Added

@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.15.0 · [Changelog](CHANGELOG.md)
+Version 3.16.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -408,3 +408,9 @@ Duration suggestions expose their observations, active/elapsed minutes, minimum/
 `water_balance` in irrigation status and readiness diagnostics separates target, recorded liters, remainder against that session's target and effective model credit. Measurement gaps leave the remainder unknown; flow-based quantities carry an estimate flag. Model liters require the saved session area, which may be absent in older records. Aborted irrigation never automatically resumes to fill a remainder. Current safety conditions must be checked before a new start.
 
 `data_gaps.impact_text` explains historical model gaps. A new soil reading can support the current state without reconstructing missing historical rainfall or evaporation. The [diagnostics card](docs/dashboard/diagnostics.en.yaml) shows these explanations and the water balance; the [care-plan card](docs/dashboard/care-plan.en.yaml) shows the compact next action.
+
+### Care outlook and comparison diagnostics
+
+The care plan now includes a conditional **48-hour outlook**. Diagnostics add mowing-window counts, completed-irrigation target comparisons and the current soil-moisture evidence basis. Predecessor actions remain prerequisites; gaps and estimates stay separate. No new entities or extra regular weather polling are introduced.
+
+Details, limitations and dashboard templates: [Care outlook and comparison diagnostics](docs/care-outlook.en.md).

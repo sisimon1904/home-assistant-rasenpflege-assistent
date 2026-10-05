@@ -836,6 +836,7 @@ class LawnSensor(LawnEntity, SensorEntity):
                 "prioritized_steps": steps,
                 "mowing_window": self.coordinator.mowing_plan_details(),
                 "summary": (steps or [{}])[0],
+                "outlook": self.coordinator.care_outlook_details(steps),
             }
         if key in {
             "water_consumption_day",

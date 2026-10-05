@@ -175,7 +175,28 @@ def review_advice(
                 "surface_dry_confirmed": False,
             }
         )
+    # Repeated copies of the same saved interval cannot increase review counts.
+    unique = {(row["start"], row["end"]): row for row in results}
+    counts = {
+        code: sum(row["status"] == code for row in unique.values())
+        for code in (
+            "review_suitable_sampled",
+            "review_unsuitable_observed",
+            "review_insufficient",
+        )
+    }
     return {
+        "summary": {
+            "reviewed_windows": len(unique),
+            "counts": counts,
+            "counts_text": [
+                {"status": code, "text": reason_text(code, language), "count": count}
+                for code, count in counts.items()
+            ],
+            "accuracy_score": None,
+            "retention_days": 7,
+            "scope_text": reason_text("review_summary_scope", language),
+        },
         "windows": results[-12:],
         "continuous_weather_confirmed": False,
         "surface_dry_confirmed": False,

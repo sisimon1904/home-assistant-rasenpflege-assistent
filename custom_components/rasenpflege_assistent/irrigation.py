@@ -78,6 +78,7 @@ from .explanations import reason_text
 from .inputs import MeterObservation, meter_observation
 from .inputs import meter_reading as _meter_reading
 from .insights import aware_time, finite_number
+from .outlook import irrigation_comparison, irrigation_context
 from .planning import (
     allocate_volume,
     consumption_summary,
@@ -1236,6 +1237,18 @@ class IrrigationController:
             "next_automatic_start": self.next_start_details()["at"],
             "next_start_plan": self.next_start_details(),
             "water_budget": self.budget_details(session),
+            "quantity_comparison": irrigation_comparison(
+                self.state.water_usage,
+                irrigation_context(
+                    self.coordinator.settings,
+                    reading[0] if reading else None,
+                    meter.attributes.get("unit_of_measurement") if meter else None,
+                )
+                if reading and meter
+                else None,
+                dt_util.now(),
+                self.hass.config.language,
+            ),
             "recent_sessions": [
                 item
                 for item in reversed(self.state.water_usage)
@@ -2850,6 +2863,11 @@ class IrrigationController:
                 for item in self.state.water_usage
                 if item["id"] == self.state.irrigation_last_session["usage_id"]
             )
+            record["comparison_context"] = irrigation_context(
+                self.coordinator.settings,
+                session["meter_kind"],
+                session.get("meter_unit"),
+            )
             record.update(
                 {
                     key: self.state.irrigation_last_session[key]
@@ -2860,6 +2878,8 @@ class IrrigationController:
                         "paused_seconds",
                         "reason",
                         "target_liters",
+                        "area_m2",
+                        "volume_estimated",
                     )
                 }
             )

@@ -218,3 +218,64 @@ cards:
     action: more-info
   secondary: '{% set g = state_attr(entity, ''data_gaps'') or {} %}{{ g.get(''impact_text'') or ''—''
     }}'
+- type: custom:mushroom-template-card
+  entity: sensor.rasen_datenqualitat
+  primary: Mowing windows – summary
+  icon: mdi:chart-bar
+  multiline_secondary: true
+  secondary: '{% set p = state_attr(entity, ''mowing_window_quality'') or {} %}{% set s = (p.get(''retrospective'')
+    or {}).get(''summary'') or {} %}
+
+    {% for row in s.get(''counts_text'') or [] %}{{ row.get(''count'', 0) }} · {{ row.get(''text'') or
+    '''' }}
+
+    {% endfor %}
+
+    {{ s.get(''scope_text'') or '''' }}'
+  tap_action:
+    action: more-info
+- type: custom:mushroom-template-card
+  entity: sensor.rasen_bewasserung_diagnose
+  primary: Irrigation – target comparison
+  icon: mdi:water-percent
+  multiline_secondary: true
+  secondary: '{% set q = state_attr(entity, ''quantity_comparison'') or {} %}{% set c = q.get(''counts'')
+    or {} %}
+
+    {{ q.get(''reason_text'') or '''' }}
+
+    Comparable sessions: {{ q.get(''comparable_sessions'', 0) }}
+
+    Median target difference: {{ q.get(''median_difference_liters'') if q.get(''median_difference_liters'')
+    is not none else ''—'' }} L
+
+    Gaps / estimates / source changes / unknown: {{ c.get(''measurement_gaps'', 0) }} / {{ c.get(''estimated_sessions'',
+    0) }} / {{ c.get(''different_context'', 0) }} / {{ c.get(''unknown_sessions'', 0) }}
+
+    {% for row in q.get(''sessions'') or [] %}{{ as_local(as_datetime(row.get(''finished_at''))).strftime(''%d.%m.
+    %H:%M'') }} · {{ row.get(''status_text'') or '''' }} · {{ row.get(''difference_liters'') }} L
+
+    {% endfor %}
+
+    {{ q.get(''scope_text'') or '''' }}'
+  tap_action:
+    action: more-info
+- type: custom:mushroom-template-card
+  entity: sensor.rasen_modellierte_bodenfeuchte
+  primary: Soil moisture – evidence basis
+  icon: mdi:water-check
+  multiline_secondary: true
+  secondary: '{% set e = (state_attr(entity, ''model_insights'') or {}).get(''soil_evidence'') or {} %}
+
+    {{ e.get(''basis_text'') or ''—'' }}
+
+    Current soil reading: {{ e.get(''current_sensor_percent'') if e.get(''current_sensor_percent'') is
+    not none else ''—'' }} %
+
+    Sensor share per eligible model correction: {{ (e.get(''sensor_blend_fraction'') * 100) | round(0)
+    if e.get(''sensor_blend_fraction'') is not none else ''—'' }} %
+
+    Last model correction: {% if e.get(''last_correction_at'') %}{{ as_local(as_datetime(e.get(''last_correction_at''))).strftime(''%d.%m.
+    %H:%M'') }}{% else %}—{% endif %}'
+  tap_action:
+    action: more-info

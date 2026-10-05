@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.15.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.16.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -423,3 +423,9 @@ Der Dauer-Vorschlag zeigt die verwendeten Durchgänge, aktive/verstrichene Minut
 `water_balance` im Bewässerungsstatus und in der Bereitschaftsdiagnose trennt Sollmenge, erfasste Liter, Rest zum damaligen Soll und wirksame Modellgutschrift. Messlücken lassen die Restmenge unbekannt; durchflussbasierte Mengen sind als Schätzung gekennzeichnet. Modellliter werden nur mit der gespeicherten Sitzungsfläche berechnet; bei älteren Sitzungen kann diese Angabe fehlen. Ein Abbruch startet keine Restbewässerung. Vor einem neuen Start sind die aktuellen Sicherheitsbedingungen erneut zu prüfen.
 
 `data_gaps.impact_text` erklärt die Wirkung früherer Modelllücken. Eine neue Bodenmessung kann den aktuellen Zustand stützen; fehlender historischer Regen und Verdunstung werden damit nicht rekonstruiert. Die [Diagnosekarte](docs/dashboard/diagnostics.de.yaml) zeigt diese Hinweise und die Wasserbilanz, die [Pflegeplankarte](docs/dashboard/care-plan.de.yaml) die kompakte nächste Handlung.
+
+### Pflegeausblick und Vergleichsdiagnosen
+
+Der Pflegeplan zeigt jetzt einen bedingten **48-Stunden-Ausblick**. Die Diagnose ergänzt Mähfenster-Zählungen, den Sollvergleich abgeschlossener Bewässerungen und die aktuelle Messgrundlage der Bodenfeuchte. Vorgängerhandlungen bleiben Voraussetzungen; Messlücken und Schätzungen werden getrennt behandelt. Es entstehen keine neuen Entitäten oder zusätzlichen regelmäßigen Wetterabfragen.
+
+Details, Grenzen und Dashboard-Vorlagen: [Pflegeausblick und Vergleichsdiagnosen](docs/care-outlook.de.md).

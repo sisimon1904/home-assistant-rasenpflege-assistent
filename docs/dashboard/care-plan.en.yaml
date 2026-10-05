@@ -125,3 +125,30 @@ cards:
   icon: mdi:grass
   tap_action:
     action: more-info
+- type: custom:mushroom-template-card
+  entity: sensor.lawn_care_plan
+  primary: Care outlook – 48 hours
+  icon: mdi:calendar-clock
+  multiline_secondary: true
+  secondary: '{% set o = state_attr(entity, ''outlook'') or {} %}
+
+    {% for step in o.get(''steps'') or [] %}{{ loop.index }}. {{ step.get(''action_text'') or '''' }}
+
+    Earliest: {% if step.get(''not_before'') %}{{ as_local(as_datetime(step.get(''not_before''))).strftime(''%d.%m.
+    %H:%M'') }}{% else %}—{% endif %}
+
+    Candidate window to review: {% if step.get(''candidate_at'') %}{{ as_local(as_datetime(step.get(''candidate_at''))).strftime(''%d.%m.
+    %H:%M'') }}{% if step.get(''candidate_end'') %}–{{ as_local(as_datetime(step.get(''candidate_end''))).strftime(''%d.%m.
+    %H:%M'') }}{% endif %}{% else %}—{% endif %}
+
+    {{ step.get(''outlook_reason_text'') or '''' }}
+
+    {{ step.get(''window_reason_text'') or step.get(''blocker_text'') or '''' }}
+
+    Prerequisite: {{ step.get(''dependency_text'') or ''—'' }}
+
+    {% endfor %}
+
+    {{ o.get(''scope_text'') or '''' }}'
+  tap_action:
+    action: more-info

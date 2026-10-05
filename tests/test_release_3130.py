@@ -224,7 +224,12 @@ async def test_dashboard_renders_actual_alternative_and_quality(
             ).read_text()
         )
         if name == "care-plan":
-            card = card["cards"][-1]
+            # Locate the mowing detail card independently of other appended cards.
+            card = next(
+                item
+                for item in card["cards"]
+                if "alternative" in item.get("secondary", "")
+            )
         entity = card["entity"]
         hass.states.async_set(entity, "mow_regularly", {"mowing_window": plan})
         rendered = Template(card["secondary"], hass).async_render(
