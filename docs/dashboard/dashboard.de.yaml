@@ -1,0 +1,729 @@
+# File: docs/dashboard/dashboard.de.yaml
+# Complete native Home Assistant dashboard for Lawn Care Assistant v3.17.0+.
+# Paste into a NEW dashboard raw configuration editor, not a manual card.
+# Replace example entity IDs globally and REPLACE_WITH_ENTRY_ID before use.
+# No Mushroom, card-mod, additional sensors or weather API calls required.
+# Service actions use the integration safety controller; no direct valve calls.
+# History requires HA Recorder. Missing model evidence stays unknown.
+title: Rasenpflege
+views:
+- title: Übersicht
+  path: overview
+  icon: mdi:grass
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: Heute wichtig
+      icon: mdi:clipboard-check
+    - type: tile
+      entity: sensor.rasen_pflegestatus
+      name: Rasenzustand
+      icon: mdi:grass
+      tap_action:
+        action: more-info
+    - type: tile
+      entity: sensor.rasen_nachste_aktion
+      name: Nächste Aktion
+      icon: mdi:clipboard-check
+      tap_action:
+        action: more-info
+    - type: tile
+      entity: sensor.rasen_wachstumsstatus
+      name: Wachstum
+      icon: mdi:sprout
+      tap_action:
+        action: more-info
+    - type: markdown
+      title: Pflegeplan
+      content: |-
+        {% set entity = 'sensor.rasen_pflegeplan' %}
+        {% set s = state_attr(entity, 'summary') or {} %}{{ s.get('action_text') or state_translated(entity) }} · {{ s.get('availability_text') or '' }}
+
+        {{ s.get('blocker_text') or s.get('reason_text') or '' }}
+
+        {% if s.get('not_before') %}{{ as_local(as_datetime(s.get('not_before'))).strftime('%d.%m. %H:%M') }}{% endif %}
+      entity_id:
+      - sensor.rasen_pflegeplan
+  - type: grid
+    cards:
+    - type: heading
+      heading: Boden & Verlauf
+      icon: mdi:water-percent
+    - type: gauge
+      entity: sensor.rasen_modellierte_bodenfeuchte
+      name: Modellierte Bodenfeuchte
+      min: 0
+      max: 100
+      needle: true
+    - type: history-graph
+      title: Bodenfeuchte · 7 Tage
+      hours_to_show: 168
+      entities:
+      - sensor.rasen_modellierte_bodenfeuchte
+    - type: markdown
+      content: Die Bodenfeuchte ist ein Modellwert. Messgrundlage und Unsicherheit stehen unter **Diagnose**.
+  - type: grid
+    cards:
+    - type: heading
+      heading: Auf einen Blick
+      icon: mdi:view-dashboard
+    - type: tile
+      entity: sensor.rasen_mahroboterstatus
+      name: Mähempfehlung
+      icon: mdi:robot-mower
+      tap_action:
+        action: more-info
+    - type: tile
+      entity: sensor.rasen_bewasserungsempfehlung
+      name: Bewässerung
+      icon: mdi:water
+      tap_action:
+        action: more-info
+    - type: tile
+      entity: sensor.rasen_datenqualitat
+      name: Datenqualität
+      icon: mdi:database-check
+      tap_action:
+        action: more-info
+- title: Pflegeplan
+  path: care-plan
+  icon: mdi:calendar-check
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: Reihenfolge
+      icon: mdi:format-list-numbered
+    - type: markdown
+      title: Pflegereihenfolge
+      content: |-
+        {% set entity = 'sensor.rasen_pflegeplan' %}
+        {% for step in state_attr(entity, 'prioritized_steps') or [] %}{{ loop.index }}. {{ step.get('action_text') }} · {{ step.get('availability_text') or '' }}{% if step.get('not_before') %} · {{ as_local(as_datetime(step.get('not_before'))).strftime('%d.%m. %H:%M') }}{% endif %}
+
+        {{ step.get('blocker_text') or step.get('reason_text') }}
+
+        {% endfor %}
+      entity_id:
+      - sensor.rasen_pflegeplan
+  - type: grid
+    cards:
+    - type: heading
+      heading: 48-Stunden-Ausblick
+      icon: mdi:calendar-clock
+    - type: markdown
+      title: Pflegeausblick – 48 Stunden
+      content: |-
+        {% set entity = 'sensor.rasen_pflegeplan' %}
+        {% set o = state_attr(entity, 'outlook') or {} %}
+
+        {% for step in o.get('steps') or [] %}{{ loop.index }}. {{ step.get('action_text') or '' }}
+
+        Frühestens: {% if step.get('not_before') %}{{ as_local(as_datetime(step.get('not_before'))).strftime('%d.%m. %H:%M') }}{% else %}—{% endif %}
+
+        Wetterfenster zur Prüfung: {% if step.get('candidate_at') %}{{ as_local(as_datetime(step.get('candidate_at'))).strftime('%d.%m. %H:%M') }}{% if step.get('candidate_end') %}–{{ as_local(as_datetime(step.get('candidate_end'))).strftime('%d.%m. %H:%M') }}{% endif %}{% else %}—{% endif %}
+
+        {{ step.get('outlook_reason_text') or '' }}
+
+        {{ step.get('window_reason_text') or step.get('blocker_text') or '' }}
+
+        Voraussetzung: {{ step.get('dependency_text') or '—' }}
+
+        {% endfor %}
+
+        {{ o.get('scope_text') or '' }}
+      entity_id:
+      - sensor.rasen_pflegeplan
+  - type: grid
+    cards:
+    - type: heading
+      heading: Düngung
+      icon: mdi:flower
+    - type: markdown
+      title: Düngung
+      content: |-
+        {% set entity = 'sensor.rasen_pflegeplan' %}
+        {% set f = state_attr(entity, 'fertilizing') or {} %}
+        {% set lawn = 'sensor.rasen_pflegestatus' %}
+        **{{ f.get('status_text') or '—' }}**
+
+        Zeitfenster: {{ f.get('window') or '—' }}
+
+        NPK: {{ state_attr(lawn, 'npk') or '—' }}
+
+        Dosierung: {{ state_attr(lawn, 'dose_g_m2') if state_attr(lawn, 'dose_g_m2') is not none else '—' }} g/m²
+
+        Gesamtmenge: {{ f.get('recommended_kg') if f.get('recommended_kg') is not none else '—' }} kg
+
+        {{ (f.get('reasons_text') or []) | join(' · ') }}
+- title: Mähen
+  path: mowing
+  icon: mdi:robot-mower
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: Mähfenster & Tau
+      icon: mdi:weather-fog
+    - type: markdown
+      title: Mähen
+      content: |-
+        {% set entity = 'sensor.rasen_mahroboterstatus' %}
+        {{ state_translated(entity) }}
+
+        {{ state_attr(entity, 'recommendation_reason_text') or '' }}
+
+        Nächster Termin: {% set at = state_attr(entity, 'next_mowing_at') %}{{ as_local(as_datetime(at)).strftime('%d.%m. %H:%M') if at else '—' }}
+
+        {% set live = state_attr(entity, 'live_robot_session') or {} %}Aktive Minuten: {{ live.get('active_minutes', 0) }} · {{ live.get('status', 'idle') }}
+
+        Letzte Sitzung, geschätzt: {{ state_attr(entity, 'last_robot_session_active_minutes') if state_attr(entity, 'last_robot_session_active_minutes') is not none else '—' }} min
+
+        {% set p = state_attr(entity, 'mowing_window') or {} %}
+
+        Geschätztes Mähfenster: {% if p.get('start') %}{{ as_local(as_datetime(p.get('start'))).strftime('%d.%m. %H:%M') }}–{{ as_local(as_datetime(p.get('end'))).strftime('%H:%M') }}{% else %}—{% endif %}
+
+        {{ p.get('current_dew_risk_text') or '' }}
+
+        {{ p.get('reason_text') or '' }}
+
+        {{ (p.get('missing_inputs_text') or []) | join(' · ') }}
+
+
+
+        {% set p = state_attr(entity, 'mowing_window') or {} %}
+
+        Dauer: {{ p.get('required_minutes', 0) }} min · Verfügbar: {{ p.get('available_minutes') if p.get('available_minutes') is not none else '—' }} min
+
+        {% set alt = p.get('alternative') or {} %}
+
+        Ausweichtermin: {% if alt.get('start') %}{{ as_local(as_datetime(alt.get('start'))).strftime('%d.%m. %H:%M') }}–{{ as_local(as_datetime(alt.get('end'))).strftime('%d.%m. %H:%M') }}{% else %}—{% endif %}
+
+        {{ p.get('quality_text') or '' }}
+
+        {{ (p.get('quality_reasons_text') or []) | join(' · ') }}
+
+
+
+        {% set p = state_attr(entity, 'mowing_window') or {} %}
+
+        {% set s = p.get('duration_suggestion') or {} %}
+
+        Dauer-Vorschlag: {{ s.get('suggested_minutes') if s.get('suggested_minutes') is not none else '—' }} min · {{ s.get('sample_count', 0) }} Durchgänge
+
+        {{ s.get('reason_text') or '' }}
+
+        Prognosealter: {{ p.get('forecast_age_minutes') if p.get('forecast_age_minutes') is not none else '—' }} min
+
+        {{ (p.get('change') or {}).get('reason_text') or '' }}
+
+        {% set p = state_attr(entity, 'mowing_window') or {} %}{% set s = p.get('duration_suggestion') or {} %}
+
+        Verwendete Dauer: {{ s.get('minimum_minutes') if s.get('minimum_minutes') is not none else '—' }}–{{ s.get('maximum_minutes') if s.get('maximum_minutes') is not none else '—' }} min
+
+        {% for row in s.get('excluded_text') or [] %}{{ row.get('count') }} · {{ row.get('text') }}
+
+        {% endfor %}
+
+        {{ ((p.get('evidence') or {}).get('supporting_unknown_text') or []) | join(' · ') }}
+      entity_id:
+      - sensor.rasen_mahroboterstatus
+  - type: grid
+    cards:
+    - type: heading
+      heading: Planung
+      icon: mdi:calendar
+    - type: markdown
+      title: Mähbeginn mit Tauprüfung
+      content: |-
+        {% set entity = 'sensor.rasen_pflegeplan' %}
+        {% set p = state_attr(entity, 'mowing_window') or {} %}{% if p.get('start') %}{{ as_local(as_datetime(p.get('start'))).strftime('%d.%m. %H:%M') }}{% else %}—{% endif %}
+
+        {{ p.get('current_dew_risk_text') or '' }}
+
+        {{ p.get('reason_text') or '' }}
+
+
+
+        {% set p = state_attr(entity, 'mowing_window') or {} %}
+
+        Dauer: {{ p.get('required_minutes', 0) }} min · Verfügbar: {{ p.get('available_minutes') if p.get('available_minutes') is not none else '—' }} min
+
+        {% set alt = p.get('alternative') or {} %}
+
+        Ausweichtermin: {% if alt.get('start') %}{{ as_local(as_datetime(alt.get('start'))).strftime('%d.%m. %H:%M') }}–{{ as_local(as_datetime(alt.get('end'))).strftime('%d.%m. %H:%M') }}{% else %}—{% endif %}
+
+        {{ p.get('quality_text') or '' }}
+
+        {{ (p.get('quality_reasons_text') or []) | join(' · ') }}
+
+
+
+        {% set p = state_attr(entity, 'mowing_window') or {} %}
+
+        {% set s = p.get('duration_suggestion') or {} %}
+
+        Dauer-Vorschlag: {{ s.get('suggested_minutes') if s.get('suggested_minutes') is not none else '—' }} min · {{ s.get('sample_count', 0) }} Durchgänge
+
+        {{ s.get('reason_text') or '' }}
+
+        Prognosealter: {{ p.get('forecast_age_minutes') if p.get('forecast_age_minutes') is not none else '—' }} min
+
+        {{ (p.get('change') or {}).get('reason_text') or '' }}
+
+        {% set p = state_attr(entity, 'mowing_window') or {} %}{% set s = p.get('duration_suggestion') or {} %}
+
+        Verwendete Dauer: {{ s.get('minimum_minutes') if s.get('minimum_minutes') is not none else '—' }}–{{ s.get('maximum_minutes') if s.get('maximum_minutes') is not none else '—' }} min
+
+        {% for row in s.get('excluded_text') or [] %}{{ row.get('count') }} · {{ row.get('text') }}
+
+        {% endfor %}
+
+        {{ ((p.get('evidence') or {}).get('supporting_unknown_text') or []) | join(' · ') }}
+      entity_id:
+      - sensor.rasen_pflegeplan
+- title: Bewässerung
+  path: irrigation
+  icon: mdi:sprinkler
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: Empfehlung
+      icon: mdi:water
+    - type: tile
+      entity: sensor.rasen_bewasserungsempfehlung
+      name: Bewässerung
+      icon: mdi:water
+      tap_action:
+        action: more-info
+    - type: markdown
+      title: Bewässerung
+      content: |-
+        {% set entity = 'sensor.rasen_pflegeplan' %}
+        {% set p = state_attr(entity, 'watering') or {} %}{% set start = p.get('next_start') or {} %}{{ start.get('at') or '—' }}
+
+        {{ p.get('recommended_liters') or 0 }} L
+
+        {{ p.get('blocker_text') or '' }}
+      entity_id:
+      - sensor.rasen_pflegeplan
+  - type: grid
+    cards:
+    - type: heading
+      heading: Steuerung & Sitzungsfortschritt
+      icon: mdi:sprinkler-variant
+    - type: markdown
+      title: Bewässerung
+      content: |-
+        {% set entity = 'sensor.rasen_bewasserungsstatus' %}
+        {{ state_translated(entity) }}
+
+        Geliefert: {{ state_attr(entity, 'session_liters') if state_attr(entity, 'session_liters') is not none else '—' }} L / {{ state_attr(entity, 'session_target_liters') if state_attr(entity, 'session_target_liters') is not none else '—' }} L
+
+        Verbleibend: {{ state_attr(entity, 'session_remaining_liters') if state_attr(entity, 'session_remaining_liters') is not none else '—' }} L · {{ state_attr(entity, 'session_progress_percent') if state_attr(entity, 'session_progress_percent') is not none else '—' }} %
+
+        {{ state_attr(entity, 'reason_text') or '' }}
+
+        {{ state_attr(entity, 'session_remaining_active_minutes') if state_attr(entity, 'session_remaining_active_minutes') is not none else '—' }} min · {{ state_attr(entity, 'session_estimated_end') | as_datetime | as_local if state_attr(entity, 'session_estimated_end') else '—' }}
+
+        {{ state_attr(entity, 'action_hint') or '' }}
+      entity_id:
+      - sensor.rasen_bewasserungsstatus
+    - type: horizontal-stack
+      cards:
+      - type: button
+        name: 3 mm starten
+        icon: mdi:water-plus
+        tap_action:
+          action: perform-action
+          perform_action: rasenpflege_assistent.start_irrigation
+          data:
+            config_entry_id: REPLACE_WITH_ENTRY_ID
+            target_mm: 3
+        show_state: false
+      - type: button
+        name: Stoppen
+        icon: mdi:water-off
+        tap_action:
+          action: perform-action
+          perform_action: rasenpflege_assistent.stop_irrigation
+          data:
+            config_entry_id: REPLACE_WITH_ENTRY_ID
+        show_state: false
+    - type: horizontal-stack
+      cards:
+      - type: button
+        name: 1 mm
+        icon: mdi:water
+        tap_action:
+          action: perform-action
+          perform_action: rasenpflege_assistent.start_irrigation
+          data:
+            config_entry_id: REPLACE_WITH_ENTRY_ID
+            target_mm: 1
+        show_state: false
+      - type: button
+        name: 5 mm
+        icon: mdi:water-plus
+        tap_action:
+          action: perform-action
+          perform_action: rasenpflege_assistent.start_irrigation
+          data:
+            config_entry_id: REPLACE_WITH_ENTRY_ID
+            target_mm: 5
+        show_state: false
+      - type: button
+        name: 100 L
+        icon: mdi:water-plus
+        tap_action:
+          action: perform-action
+          perform_action: rasenpflege_assistent.start_irrigation
+          data:
+            config_entry_id: REPLACE_WITH_ENTRY_ID
+            target_liters: 100
+        show_state: false
+    - type: tile
+      entity: switch.rasen_automatische_bewasserung
+      tap_action:
+        action: toggle
+    - type: horizontal-stack
+      cards:
+      - type: button
+        name: 2 h Pause
+        icon: mdi:pause-circle
+        tap_action:
+          action: perform-action
+          perform_action: rasenpflege_assistent.suspend_irrigation
+          data:
+            config_entry_id: REPLACE_WITH_ENTRY_ID
+            duration_hours: 2
+        show_state: false
+      - type: button
+        name: 24 h Pause
+        icon: mdi:pause-circle
+        tap_action:
+          action: perform-action
+          perform_action: rasenpflege_assistent.suspend_irrigation
+          data:
+            config_entry_id: REPLACE_WITH_ENTRY_ID
+            duration_hours: 24
+        show_state: false
+      - type: button
+        name: Pause aufheben
+        icon: mdi:play-circle
+        tap_action:
+          action: perform-action
+          perform_action: rasenpflege_assistent.suspend_irrigation
+          data:
+            config_entry_id: REPLACE_WITH_ENTRY_ID
+        show_state: false
+    - type: entities
+      title: Bewässerungsprognose
+      entities:
+      - sensor.rasen_nachster_automatischer_bewasserungsstart
+      - sensor.rasen_verbleibende_bewasserungsdauer
+    visibility:
+    - condition: state
+      entity: sensor.rasen_bewasserungsstatus
+      state_not: unknown
+  - type: grid
+    cards:
+    - type: heading
+      heading: Verbrauch & Verlauf
+      icon: mdi:history
+    - type: markdown
+      title: Bewässerungsverlauf
+      content: |-
+        {% set entity = 'sensor.rasen_wasserverbrauch_heute' %}
+        {% set records = state_attr(entity, 'recent_records') or [] %}{% for r in records %}{{ r.get('recorded_at') or r.get('date') }} · {{ r.get('liters') if r.get('liters') is not none else '—' }} L · {{ r.get('source_text') or r.get('source') }} · {{ r.get('reason_text') or '' }} · {{ ((r.get('active_seconds') or 0) / 60) | round(1) }} min{% if r.get('measurement_gap') %} · ⚠ {% endif %}
+
+        {% endfor %}
+      entity_id:
+      - sensor.rasen_wasserverbrauch_heute
+    - type: entities
+      entities:
+      - sensor.rasen_wasserverbrauch_heute
+      - sensor.rasen_erfasste_bewasserung_diese_woche
+      - sensor.rasen_erfasste_bewasserung_diesen_monat
+- title: Diagnose
+  path: diagnostics
+  icon: mdi:stethoscope
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: Daten & Modell
+      icon: mdi:database-check
+    - type: conditional
+      conditions:
+      - condition: state
+        entity: sensor.rasen_bewasserung_diagnose
+        state_not: unknown
+      card:
+        type: markdown
+        title: Bewässerungsfreigabe
+        content: |-
+          {% set entity = 'sensor.rasen_bewasserung_diagnose' %}
+          {% set reasons = state_attr(entity, 'automatic_blockers_text') or [] %}
+          **{{ state_translated(entity) }}**
+
+          {{ reasons | join('
+
+          ') }}
+
+          {{ state_attr(entity, 'action_hint') or '' }}
+        entity_id:
+        - sensor.rasen_bewasserung_diagnose
+    - type: markdown
+      title: Datenqualität
+      content: |-
+        {% set entity = 'sensor.rasen_datenqualitat' %}
+        **{{ state_translated(entity) }}**
+
+        {% set labels = {'soil_moisture_entity': 'Bodenfeuchte', 'soil_temperature_entity': 'Bodentemperatur', 'leaf_wetness_entity': 'Blattnässe', 'weather_entity': 'Wetter', 'temperature_entity': 'Außentemperatur', 'precipitation_entity': 'Regen', 'irrigation_flow': 'Durchfluss', 'irrigation_valve': 'Ventil', 'other_valve': 'Zweites Ventil', 'mower_location': 'Mäherposition'} %}
+        {% set reasons = {'accepted': 'Gültig', 'not_configured': 'Nicht eingerichtet', 'missing': 'Fehlt', 'unavailable': 'Nicht verfügbar', 'stale': 'Veraltet', 'invalid': 'Ungültig', 'invalid_or_stale': 'Ungültig oder veraltet'} %}
+        {% for key, value in (state_attr(entity, 'input_diagnostics') or {}).items() %}
+        **{{ labels.get(key, key) }}**: {{ reasons.get(value.get('reason'), '—') }} · {{ value.get('age_minutes') if value.get('age_minutes') is not none else '—' }} min
+
+        {% endfor %}
+      entity_id:
+      - sensor.rasen_datenqualitat
+    - type: entities
+      title: Erfasste Bewässerung
+      entities:
+      - sensor.rasen_wasserverbrauch_heute
+      - sensor.rasen_erfasste_bewasserung_diese_woche
+      - sensor.rasen_erfasste_bewasserung_diesen_monat
+    - type: markdown
+      title: Bodenmodell & Kalibrierung
+      content: |-
+        {% set entity = 'sensor.rasen_modellierte_bodenfeuchte' %}
+        {% set model = state_attr(entity, 'model_insights') or {} %}{% set calibration = model.get('calibration', {}) %}
+
+        Abweichung (Median): {{ calibration.get('median_deviation_percentage_points') if calibration.get('median_deviation_percentage_points') is not none else '—' }} Prozentpunkte
+
+        {{ (calibration.get('reasons_text') or []) | join('
+
+        ') }}
+
+        {{ (model.get('watering_response', {}).get('reasons_text') or []) | join('
+
+        ') }}
+      entity_id:
+      - sensor.rasen_modellierte_bodenfeuchte
+    - type: markdown
+      title: Bewässerungsmenge erklärt
+      content: |-
+        {% set entity = 'sensor.rasen_bewasserungsempfehlung' %}
+        {% set dose = state_attr(entity, 'watering_explanation') or {} %}
+
+        Fehlmenge zum Modellziel: {{ dose.get('deficit_to_target_mm', '—') }} mm
+
+        Auszubringen: {{ dose.get('recommended_gross_mm', '—') }} mm · {{ dose.get('recommended_liters', '—') }} L
+
+        Geschätzt wirksam im Boden: {{ dose.get('estimated_root_zone_credit_mm', '—') }} mm
+      entity_id:
+      - sensor.rasen_bewasserungsempfehlung
+    - type: markdown
+      title: Wochenvergleich
+      content: |-
+        {% set entity = 'sensor.rasen_modellierte_bodenfeuchte' %}
+        {% set model = state_attr(entity, 'model_insights') or {} %}{% set w = model.get('weekly_comparison', {}) %}{% set c = w.get('current', {}) %}{% set p = w.get('previous', {}) %}
+
+        Stunden jetzt/vorher: {{ c.get('hourly_snapshots', 0) }}/{{ p.get('hourly_snapshots', 0) }}
+
+        Regen jetzt/vorher: {{ c.get('observed_rain_mm') if c.get('observed_rain_mm') is not none else '—' }}/{{ p.get('observed_rain_mm') if p.get('observed_rain_mm') is not none else '—' }} mm
+
+        Feuchteänderung: {{ w.get('moisture_change_percentage_points') if w.get('moisture_change_percentage_points') is not none else '—' }} pp
+
+        {{ (model.get('sensor_review', {}).get('reasons_text') or []) | join('
+
+        ') }}
+
+        Änderung Regen / ET / Liter: {% set d = w.get('changes', {}) %}{{ d.get('observed_rain_mm') if d.get('observed_rain_mm') is not none else '—' }} mm / {{ d.get('estimated_et_mm') if d.get('estimated_et_mm') is not none else '—' }} mm / {{ d.get('recorded_liters') if d.get('recorded_liters') is not none else '—' }} L
+      entity_id:
+      - sensor.rasen_modellierte_bodenfeuchte
+  - type: grid
+    cards:
+    - type: heading
+      heading: Planung & Wasserbilanz
+      icon: mdi:chart-timeline-variant
+    - type: conditional
+      conditions:
+      - condition: state
+        entity: sensor.rasen_bewasserung_diagnose
+        state_not: unknown
+      card:
+        type: markdown
+        title: Zyklen und Sickerpausen
+        content: |-
+          {% set entity = 'sensor.rasen_bewasserung_diagnose' %}
+          {% set p = state_attr(entity, 'cycle_plan') or {} %}Aktiv / Pausen / Gesamt: {{ p.get('active_minutes') if p.get('active_minutes') is not none else '—' }} / {{ p.get('pause_minutes') if p.get('pause_minutes') is not none else '—' }} / {{ p.get('total_minutes') if p.get('total_minutes') is not none else '—' }} min
+
+          {{ (p.get('reasons_text') or []) | join('
+
+          ') }}
+        entity_id:
+        - sensor.rasen_bewasserung_diagnose
+    - type: markdown
+      title: Mähfenster – Datenlage
+      content: |-
+        {% set entity = 'sensor.rasen_datenqualitat' %}
+        {% set p = state_attr(entity, 'mowing_window_quality') or {} %}{{ p.get('current_dew_risk_text') or '' }}
+
+        {{ (p.get('missing_inputs_text') or []) | join('
+
+        ') }}
+
+        {{ p.get('reason_text') or '' }}
+
+        Prognosealter: {{ p.get('forecast_age_minutes') if p.get('forecast_age_minutes') is not none else '—' }} min
+
+        {{ (p.get('quality_reasons_text') or []) | join(' · ') }}
+
+        {{ (p.get('change') or {}).get('reason_text') or '' }}
+
+        {% set e = p.get('evidence') or {} %}{{ (e.get('blocking_text') or []) | join(' · ') }}
+
+        {{ (e.get('supporting_unknown_text') or []) | join(' · ') }}
+      entity_id:
+      - sensor.rasen_datenqualitat
+    - type: markdown
+      title: Bodenwasserbilanz
+      content: |-
+        {% set entity = 'sensor.rasen_modellierte_bodenfeuchte' %}
+        {% set m = state_attr(entity, 'model_diagnostics') or {} %}{% set e = m.get('explanation') or {} %}
+
+        {{ e.get('scope_text') or '' }}
+
+        {% for term in e.get('terms') or [] %}{{ term.get('text') }} {{ term.get('amount_mm') if term.get('amount_mm') is not none else '—' }} mm
+
+        {% endfor %}
+
+        {% set w = e.get('last_watering_credit') or {} %}{% if w %}{{ w.get('text') }} {{ w.get('model_credit_mm') if w.get('model_credit_mm') is not none else '—' }} mm{% endif %}
+      entity_id:
+      - sensor.rasen_modellierte_bodenfeuchte
+    - type: conditional
+      conditions:
+      - condition: state
+        entity: sensor.rasen_bewasserung_diagnose
+        state_not: unknown
+      card:
+        type: markdown
+        title: Letzte Bewässerung – Wasserbilanz
+        content: |-
+          {% set entity = 'sensor.rasen_bewasserung_diagnose' %}
+          {% set w = state_attr(entity, 'water_balance') or {} %}
+
+          {% if w.get('session_present') %}
+
+          Soll / erfasst / Rest: {% for key in ['target_liters', 'recorded_liters', 'remaining_liters'] %}{{ w.get(key) if w.get(key) is not none else '—' }}{% if not loop.last %} / {% endif %}{% endfor %} L
+
+          Modellgutschrift: {{ w.get('effective_model_mm') if w.get('effective_model_mm') is not none else '—' }} mm · {{ w.get('effective_model_liters') if w.get('effective_model_liters') is not none else '—' }} L
+
+          {{ w.get('delivery_quality_text') or '' }}
+
+          {% if w.get('volume_estimated') %}Menge aus Durchfluss geschätzt.{% endif %}
+
+          {{ w.get('reason_text') or '' }}
+
+          {{ w.get('restart_text') or '' }}
+
+          {% else %}—{% endif %}
+        entity_id:
+        - sensor.rasen_bewasserung_diagnose
+    - type: markdown
+      title: Mähfenster – Rückblick
+      content: |-
+        {% set entity = 'sensor.rasen_datenqualitat' %}
+        {% set p = state_attr(entity, 'mowing_window_quality') or {} %}{% set r = p.get('retrospective') or {} %}
+
+        {% for w in r.get('windows') or [] %}{{ as_local(as_datetime(w.get('start'))).strftime('%d.%m. %H:%M') }} · {{ w.get('status_text') }} · {{ w.get('sample_count', 0) }} Wetterpunkte
+
+        {{ (w.get('reasons_text') or []) | join(' · ') }}
+
+        {% else %}—
+
+        {% endfor %}
+
+        {{ r.get('scope_text') or '' }}
+      entity_id:
+      - sensor.rasen_datenqualitat
+    - type: markdown
+      title: Historische Modelllücken
+      content: |-
+        {% set entity = 'sensor.rasen_datenqualitat' %}
+        {% set g = state_attr(entity, 'data_gaps') or {} %}{{ g.get('impact_text') or '—' }}
+      entity_id:
+      - sensor.rasen_datenqualitat
+  - type: grid
+    cards:
+    - type: heading
+      heading: Rückblick & Messgrundlage
+      icon: mdi:chart-box
+    - type: markdown
+      title: Mähfenster – Zusammenfassung
+      content: |-
+        {% set entity = 'sensor.rasen_datenqualitat' %}
+        {% set p = state_attr(entity, 'mowing_window_quality') or {} %}{% set s = (p.get('retrospective') or {}).get('summary') or {} %}
+
+        {% for row in s.get('counts_text') or [] %}{{ row.get('count', 0) }} · {{ row.get('text') or '' }}
+
+        {% endfor %}
+
+        {{ s.get('scope_text') or '' }}
+      entity_id:
+      - sensor.rasen_datenqualitat
+    - type: conditional
+      conditions:
+      - condition: state
+        entity: sensor.rasen_bewasserung_diagnose
+        state_not: unknown
+      card:
+        type: markdown
+        title: Bewässerung – Sollvergleich
+        content: |-
+          {% set entity = 'sensor.rasen_bewasserung_diagnose' %}
+          {% set q = state_attr(entity, 'quantity_comparison') or {} %}{% set c = q.get('counts') or {} %}
+
+          {{ q.get('reason_text') or '' }}
+
+          Vergleichbare Sitzungen: {{ q.get('comparable_sessions', 0) }}
+
+          Median Sollabweichung: {{ q.get('median_difference_liters') if q.get('median_difference_liters') is not none else '—' }} L
+
+          Messlücken / Schätzungen / Quellenwechsel / unbekannt: {{ c.get('measurement_gaps', 0) }} / {{ c.get('estimated_sessions', 0) }} / {{ c.get('different_context', 0) }} / {{ c.get('unknown_sessions', 0) }}
+
+          {% for row in q.get('sessions') or [] %}{{ as_local(as_datetime(row.get('finished_at'))).strftime('%d.%m. %H:%M') }} · {{ row.get('status_text') or '' }} · {{ row.get('difference_liters') }} L
+
+          {% endfor %}
+
+          {{ q.get('scope_text') or '' }}
+        entity_id:
+        - sensor.rasen_bewasserung_diagnose
+    - type: markdown
+      title: Bodenfeuchte – Messgrundlage
+      content: |-
+        {% set entity = 'sensor.rasen_modellierte_bodenfeuchte' %}
+        {% set e = (state_attr(entity, 'model_insights') or {}).get('soil_evidence') or {} %}
+
+        {{ e.get('basis_text') or '—' }}
+
+        Aktuelle Bodenmessung: {{ e.get('current_sensor_percent') if e.get('current_sensor_percent') is not none else '—' }} %
+
+        Sensoranteil je gültiger Modellkorrektur: {{ (e.get('sensor_blend_fraction') * 100) | round(0) if e.get('sensor_blend_fraction') is not none else '—' }} %
+
+        Letzte Modellkorrektur: {% if e.get('last_correction_at') %}{{ as_local(as_datetime(e.get('last_correction_at'))).strftime('%d.%m. %H:%M') }}{% else %}—{% endif %}
+      entity_id:
+      - sensor.rasen_modellierte_bodenfeuchte

@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.16.1 · [Changelog](CHANGELOG.md)
+Version 3.17.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -85,6 +85,8 @@ Consumption sensors summarize known recorded quantities in the local calendar we
 Attribute labels and fixed values are provided in German and English. Technical keys remain stable for automations; nested explanations use the general Home Assistant language. Details and examples: [Attribute translations](docs/attributes.en.md).
 
 ## Diagnostic attributes and dashboard templates
+
+The [complete dashboard](docs/dashboard/dashboard.en.yaml) organizes lawn care into five views using native Home Assistant cards. See the [dashboard setup guide](docs/dashboard/README.en.md) for entity mapping and import instructions. The template works with v3.17.0 and is pasted into a new dashboard's raw configuration editor.
 
 Diagnostics read existing states without extra regular OpenWeatherMap queries. Live robot minutes update locally every 30 seconds. In-flight observations remain estimates and are discarded on restart.
 

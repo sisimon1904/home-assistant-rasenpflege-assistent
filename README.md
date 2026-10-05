@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.16.1 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.17.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -81,6 +81,8 @@ Die Aktionen `record_mowing`, `record_fertilizing` und `record_watering` akzepti
 Die Verbrauchssensoren summieren bekannte erfasste Mengen für die lokale Kalenderwoche (Montag bis heute) beziehungsweise den laufenden Kalendermonat. Attribute trennen Ventilmessungen, manuell gemeldete Mengen, manuelle Schätzungen, ungemessene Sitzungen und Sitzungen mit Messlücken. Unbekannte Mengen werden nicht erfunden; Summen mit Messlücken sind unvollständig. Neue Verbrauchswerte beginnen mit 3.7.0, frühere Sitzungen werden nicht rückwirkend aus der begrenzten Historie geschätzt. Das Verbrauchsjournal wird für etwa ein Jahr gehalten, der Pflegeverlauf weiterhin für die letzten 20 Einträge. Rückgängigmachen entfernt fehlerhafte manuelle Verbrauchseinträge. Tatsächlich gemessener Verbrauch einer gesteuerten Bewässerung bleibt erhalten; während kontrollierter Bewässerung ist Rückgängigmachen gesperrt.
 
 ## Diagnoseattribute und Dashboard-Vorlagen
+
+Das [vollständige Dashboard](docs/dashboard/dashboard.de.yaml) stellt alle Pflegebereiche in fünf Ansichten dar und benötigt keine zusätzlichen Karten. Einrichtung und Entitätszuordnung: [Dashboard-Anleitung](docs/dashboard/README.de.md). Die Vorlage ist mit v3.17.0 kompatibel und wird im Raw-Konfigurationseditor eines neuen Dashboards eingefügt.
 
 Die Diagnose liest vorhandene Zustände; sie löst keine zusätzlichen regelmäßigen OpenWeatherMap-Abfragen aus. Eine laufende Robotersitzung aktualisiert ihre Minuten lokal alle 30 Sekunden. Sie bleibt eine Schätzung und wird nach Neustart verworfen.
 
