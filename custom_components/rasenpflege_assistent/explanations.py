@@ -593,6 +593,86 @@ _MOWING_PLAN_EXPLANATIONS = {
         "Erhöhtes Taurisiko: Abtrocknen abwarten und Rasen vor dem Mähen prüfen.",
         "Elevated dew risk: allow drying and check the grass before mowing.",
     ),
+    "duration_not_robot": (
+        "Kein geeigneter Roboter-Durchgang.",
+        "Not an eligible robot observation.",
+    ),
+    "duration_context_changed": (
+        "Fläche, Quelle oder Erfassungseinstellungen geändert.",
+        "Area, source or observation settings changed.",
+    ),
+    "duration_program_changed": (
+        "Programm-/Flächenangaben während des Durchgangs geändert oder verloren.",
+        "Program/area metadata changed or disappeared during the observation.",
+    ),
+    "duration_program_different": (
+        "Anderes gemeldetes Programm oder andere Teilfläche.",
+        "Different reported program or partial area.",
+    ),
+    "duration_clock_unknown": (
+        "Zeitangaben fehlen, sind ungültig oder veraltet.",
+        "Timing is missing, invalid or too old.",
+    ),
+    "duration_interrupted": (
+        "Zu viele Unterbrechungen für einen vergleichbaren Durchgang.",
+        "Too many interruptions for a comparable observation.",
+    ),
+    "duration_invalid_length": (
+        "Aktiv-/Gesamtdauer erfüllt die Erfassungsgrenzen nicht.",
+        "Active/elapsed duration does not meet recording limits.",
+    ),
+    "duration_inactive": (
+        "Zu großer Anteil an Pause oder Rückkehr.",
+        "Too much inactive or return time.",
+    ),
+    "duration_duplicate": (
+        "Doppelter Durchgang; widersprüchliche Werte werden ausgeschlossen.",
+        "Duplicate observation; conflicting values are excluded.",
+    ),
+    "duration_program_unknown": (
+        "Programm-/Teilflächenangaben unbekannt; vollständige Fläche bleibt unbestätigt.",
+        "Program/partial-area metadata is unknown; full coverage remains unconfirmed.",
+    ),
+    "review_insufficient": (
+        "Zu wenige oder unvollständige spätere Wetterbeobachtungen.",
+        "Insufficient or incomplete later weather observations.",
+    ),
+    "review_unsuitable_observed": (
+        "Spätere Wetterbeobachtungen zeigen mindestens ein Mähhindernis.",
+        "Later weather observations show at least one mowing blocker.",
+    ),
+    "review_suitable_sampled": (
+        "Spätere Wetterstichproben waren geeignet; durchgehend trockener Rasen ist unbestätigt.",
+        "Later weather samples were suitable; continuous dry grass is unconfirmed.",
+    ),
+    "review_sample_scope": (
+        "Rückblick anhand vorhandener Wetterstichproben; keine Prüfung der tatsächlichen Rasennässe.",
+        "Review using existing weather samples; actual grass wetness is not verified.",
+    ),
+    "water_unmetered": (
+        "Wassermenge unbekannt; keine gemessene Gesamtmenge verfügbar.",
+        "Water volume unknown; no recorded total is available.",
+    ),
+    "water_partial": (
+        "Messlücken: Erfasste Teilmenge ist keine vollständige Gesamtmenge.",
+        "Measurement gaps: recorded partial volume is not a complete total.",
+    ),
+    "water_recorded": (
+        "Erfasste Wassermenge ohne gemeldete Messlücke.",
+        "Recorded water volume with no reported measurement gap.",
+    ),
+    "water_reason_unknown": (
+        "Abschlussgrund nicht aufgezeichnet.",
+        "Finish reason was not recorded.",
+    ),
+    "water_restart_recheck": (
+        "Ein neuer Start erfordert erneut alle Sicherheitsprüfungen; keine automatische Fortsetzung.",
+        "A new start requires all safety checks again; no automatic resumption.",
+    ),
+    "model_gap_impact": (
+        "Im Verlauf fehlt ein beobachteter Zeitraum. Frische Bodenmesswerte können die aktuelle Schätzung verbessern, aber die historische Lücke nicht schließen.",
+        "History contains an unobserved interval. Fresh soil readings can improve the current estimate without filling the historical gap.",
+    ),
     "mowing_days_disabled": ("Keine Mähtage erlaubt.", "No mowing days are allowed."),
     "mowing_forecast_stale": (
         "Die Stundenprognose ist veraltet oder ihr Zeitstempel ungültig.",

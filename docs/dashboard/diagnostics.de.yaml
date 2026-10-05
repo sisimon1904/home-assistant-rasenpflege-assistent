@@ -25,9 +25,9 @@ cards:
   primary: Datenqualität
   secondary: '{{ state_translated(entity) }}
 
-    {% set inputs = state_attr(entity, ''input_diagnostics'') or {} %}{% for key, value in inputs.items() %}{{ key
-    }}: {{ value.get(''reason'') }} · {{ value.get(''age_minutes'') if value.get(''age_minutes'') is not none else
-    ''—'' }} min
+    {% set inputs = state_attr(entity, ''input_diagnostics'') or {} %}{% for key, value in inputs.items()
+    %}{{ key }}: {{ value.get(''reason'') }} · {{ value.get(''age_minutes'') if value.get(''age_minutes'')
+    is not none else ''—'' }} min
 
     {% endfor %}'
   icon: mdi:database-check
@@ -67,8 +67,8 @@ cards:
 
     Fehlmenge zum Modellziel: {{ dose.get(''deficit_to_target_mm'', ''—'') }} mm
 
-    Auszubringen: {{ dose.get(''recommended_gross_mm'', ''—'') }} mm · {{ dose.get(''recommended_liters'', ''—'')
-    }} L
+    Auszubringen: {{ dose.get(''recommended_gross_mm'', ''—'') }} mm · {{ dose.get(''recommended_liters'',
+    ''—'') }} L
 
     Geschätzt wirksam im Boden: {{ dose.get(''estimated_root_zone_credit_mm'', ''—'') }} mm'
   icon: mdi:water-plus
@@ -83,8 +83,8 @@ cards:
 
     Stunden jetzt/vorher: {{ c.get(''hourly_snapshots'', 0) }}/{{ p.get(''hourly_snapshots'', 0) }}
 
-    Regen jetzt/vorher: {{ c.get(''observed_rain_mm'') if c.get(''observed_rain_mm'') is not none else ''—'' }}/{{
-    p.get(''observed_rain_mm'') if p.get(''observed_rain_mm'') is not none else ''—'' }} mm
+    Regen jetzt/vorher: {{ c.get(''observed_rain_mm'') if c.get(''observed_rain_mm'') is not none else
+    ''—'' }}/{{ p.get(''observed_rain_mm'') if p.get(''observed_rain_mm'') is not none else ''—'' }} mm
 
     Feuchteänderung: {{ w.get(''moisture_change_percentage_points'') if w.get(''moisture_change_percentage_points'')
     is not none else ''—'' }} pp
@@ -93,9 +93,10 @@ cards:
 
     '') }}
 
-    Änderung Regen / ET / Liter: {% set d = w.get(''changes'', {}) %}{{ d.get(''observed_rain_mm'') if d.get(''observed_rain_mm'')
-    is not none else ''—'' }} mm / {{ d.get(''estimated_et_mm'') if d.get(''estimated_et_mm'') is not none else
-    ''—'' }} mm / {{ d.get(''recorded_liters'') if d.get(''recorded_liters'') is not none else ''—'' }} L'
+    Änderung Regen / ET / Liter: {% set d = w.get(''changes'', {}) %}{{ d.get(''observed_rain_mm'') if
+    d.get(''observed_rain_mm'') is not none else ''—'' }} mm / {{ d.get(''estimated_et_mm'') if d.get(''estimated_et_mm'')
+    is not none else ''—'' }} mm / {{ d.get(''recorded_liters'') if d.get(''recorded_liters'') is not
+    none else ''—'' }} L'
   multiline_secondary: true
   icon: mdi:chart-box
   tap_action:
@@ -105,8 +106,8 @@ cards:
   primary: Zyklen und Sickerpausen
   secondary: '{% set p = state_attr(entity, ''cycle_plan'') or {} %}Aktiv / Pausen / Gesamt: {{ p.get(''active_minutes'')
     if p.get(''active_minutes'') is not none else ''—'' }} / {{ p.get(''pause_minutes'') if p.get(''pause_minutes'')
-    is not none else ''—'' }} / {{ p.get(''total_minutes'') if p.get(''total_minutes'') is not none else ''—'' }}
-    min
+    is not none else ''—'' }} / {{ p.get(''total_minutes'') if p.get(''total_minutes'') is not none else
+    ''—'' }} min
 
     {{ (p.get(''reasons_text'') or []) | join(''
 
@@ -127,12 +128,16 @@ cards:
 
     {{ p.get(''reason_text'') or '''' }}
 
-    Prognosealter: {{ p.get(''forecast_age_minutes'') if p.get(''forecast_age_minutes'') is not none else ''—''
-    }} min
+    Prognosealter: {{ p.get(''forecast_age_minutes'') if p.get(''forecast_age_minutes'') is not none else
+    ''—'' }} min
 
     {{ (p.get(''quality_reasons_text'') or []) | join('' · '') }}
 
-    {{ (p.get(''change'') or {}).get(''reason_text'') or '''' }}'
+    {{ (p.get(''change'') or {}).get(''reason_text'') or '''' }}
+
+    {% set e = p.get(''evidence'') or {} %}{{ (e.get(''blocking_text'') or []) | join('' · '') }}
+
+    {{ (e.get(''supporting_unknown_text'') or []) | join('' · '') }}'
   icon: mdi:weather-fog
   multiline_secondary: true
   tap_action:
@@ -140,8 +145,8 @@ cards:
 - type: custom:mushroom-template-card
   entity: sensor.rasen_modellierte_bodenfeuchte
   primary: Bodenwasserbilanz
-  secondary: '{% set m = state_attr(entity, ''model_diagnostics'') or {} %}{% set e = m.get(''explanation'') or
-    {} %}
+  secondary: '{% set m = state_attr(entity, ''model_diagnostics'') or {} %}{% set e = m.get(''explanation'')
+    or {} %}
 
     {{ e.get(''scope_text'') or '''' }}
 
@@ -156,3 +161,60 @@ cards:
   multiline_secondary: true
   tap_action:
     action: more-info
+- type: custom:mushroom-template-card
+  entity: sensor.rasen_bewasserung_diagnose
+  primary: Letzte Bewässerung – Wasserbilanz
+  icon: mdi:water-check
+  multiline_secondary: true
+  tap_action:
+    action: more-info
+  secondary: '{% set w = state_attr(entity, ''water_balance'') or {} %}
+
+    {% if w.get(''session_present'') %}
+
+    Soll / erfasst / Rest: {% for key in [''target_liters'', ''recorded_liters'', ''remaining_liters'']
+    %}{{ w.get(key) if w.get(key) is not none else ''—'' }}{% if not loop.last %} / {% endif %}{% endfor
+    %} L
+
+    Modellgutschrift: {{ w.get(''effective_model_mm'') if w.get(''effective_model_mm'') is not none else
+    ''—'' }} mm · {{ w.get(''effective_model_liters'') if w.get(''effective_model_liters'') is not none
+    else ''—'' }} L
+
+    {{ w.get(''delivery_quality_text'') or '''' }}
+
+    {% if w.get(''volume_estimated'') %}Menge aus Durchfluss geschätzt.{% endif %}
+
+    {{ w.get(''reason_text'') or '''' }}
+
+    {{ w.get(''restart_text'') or '''' }}
+
+    {% else %}—{% endif %}'
+- type: custom:mushroom-template-card
+  entity: sensor.rasen_datenqualitat
+  primary: Mähfenster – Rückblick
+  icon: mdi:weather-partly-rainy
+  multiline_secondary: true
+  tap_action:
+    action: more-info
+  secondary: '{% set p = state_attr(entity, ''mowing_window_quality'') or {} %}{% set r = p.get(''retrospective'')
+    or {} %}
+
+    {% for w in r.get(''windows'') or [] %}{{ as_local(as_datetime(w.get(''start''))).strftime(''%d.%m.
+    %H:%M'') }} · {{ w.get(''status_text'') }} · {{ w.get(''sample_count'', 0) }} Wetterpunkte
+
+    {{ (w.get(''reasons_text'') or []) | join('' · '') }}
+
+    {% else %}—
+
+    {% endfor %}
+
+    {{ r.get(''scope_text'') or '''' }}'
+- type: custom:mushroom-template-card
+  entity: sensor.rasen_datenqualitat
+  primary: Historische Modelllücken
+  icon: mdi:database-clock
+  multiline_secondary: true
+  tap_action:
+    action: more-info
+  secondary: '{% set g = state_attr(entity, ''data_gaps'') or {} %}{{ g.get(''impact_text'') or ''—''
+    }}'

@@ -169,6 +169,7 @@ class RuntimeState:
     model_initialized_at: str | None = None
     diagnostic_recording_since: str | None = None
     model_observations: list[ModelObservation] = field(default_factory=list)
+    mowing_advice_history: list[dict[str, Any]] = field(default_factory=list)
     current_day_evapotranspiration_mm: float = 0.0
     daily_temperature_history: list[float] = field(default_factory=list)
     mower_started_year: int | None = None
@@ -229,6 +230,7 @@ class RuntimeState:
             "model_initialized_at": self.model_initialized_at,
             "diagnostic_recording_since": self.diagnostic_recording_since,
             "model_observations": self.model_observations,
+            "mowing_advice_history": self.mowing_advice_history[-12:],
             "irrigation_suspended_until": self.irrigation_suspended_until,
             "irrigation_last_session": self.irrigation_last_session,
             "water_usage": self.water_usage,

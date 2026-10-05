@@ -43,8 +43,9 @@ secondary: '{{ state_translated(entity) }}
 
   {% set alt = p.get(''alternative'') or {} %}
 
-  Ausweichtermin: {% if alt.get(''start'') %}{{ as_local(as_datetime(alt.get(''start''))).strftime(''%d.%m. %H:%M'')
-  }}–{{ as_local(as_datetime(alt.get(''end''))).strftime(''%d.%m. %H:%M'') }}{% else %}—{% endif %}
+  Ausweichtermin: {% if alt.get(''start'') %}{{ as_local(as_datetime(alt.get(''start''))).strftime(''%d.%m.
+  %H:%M'') }}–{{ as_local(as_datetime(alt.get(''end''))).strftime(''%d.%m. %H:%M'') }}{% else %}—{% endif
+  %}
 
   {{ p.get(''quality_text'') or '''' }}
 
@@ -55,15 +56,27 @@ secondary: '{{ state_translated(entity) }}
 
   {% set s = p.get(''duration_suggestion'') or {} %}
 
-  Dauer-Vorschlag: {{ s.get(''suggested_minutes'') if s.get(''suggested_minutes'') is not none else ''—'' }} min
-  · {{ s.get(''sample_count'', 0) }} Durchgänge
+  Dauer-Vorschlag: {{ s.get(''suggested_minutes'') if s.get(''suggested_minutes'') is not none else ''—''
+  }} min · {{ s.get(''sample_count'', 0) }} Durchgänge
 
   {{ s.get(''reason_text'') or '''' }}
 
-  Prognosealter: {{ p.get(''forecast_age_minutes'') if p.get(''forecast_age_minutes'') is not none else ''—'' }}
-  min
+  Prognosealter: {{ p.get(''forecast_age_minutes'') if p.get(''forecast_age_minutes'') is not none else
+  ''—'' }} min
 
-  {{ (p.get(''change'') or {}).get(''reason_text'') or '''' }}'
+  {{ (p.get(''change'') or {}).get(''reason_text'') or '''' }}
+
+  {% set p = state_attr(entity, ''mowing_window'') or {} %}{% set s = p.get(''duration_suggestion'') or
+  {} %}
+
+  Verwendete Dauer: {{ s.get(''minimum_minutes'') if s.get(''minimum_minutes'') is not none else ''—''
+  }}–{{ s.get(''maximum_minutes'') if s.get(''maximum_minutes'') is not none else ''—'' }} min
+
+  {% for row in s.get(''excluded_text'') or [] %}{{ row.get(''count'') }} · {{ row.get(''text'') }}
+
+  {% endfor %}
+
+  {{ ((p.get(''evidence'') or {}).get(''supporting_unknown_text'') or []) | join('' · '') }}'
 icon: mdi:robot-mower
 icon_color: '{{ state_attr(entity, ''icon_color'') or ''grey'' }}'
 multiline_secondary: true

@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.14.0 · [Changelog](CHANGELOG.md)
+Version 3.15.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -396,3 +396,15 @@ See the [changelog](CHANGELOG.md) for details of previous versions.
 Stop controlled irrigation first. Delete the lawn entry from **Settings → Devices & services**. Unload closes the owned valve; if closure cannot be confirmed, unloading fails and supervision stays active. Remove the integration files through HACS afterwards and restart Home Assistant. Separately configured weather and device integrations are preserved.
 
 Download entry diagnostics and inspect irrigation readiness, automatic decision and repair issues. Automatic starts require fresh weather, a safe mower position and complete metering. For storage errors, check free space and write permissions; a successful save clears the issue. Review settings before enabling automation again.
+
+### Traceable care guidance and completed sessions
+
+The care plan adds `summary`: the first already prioritized action with availability, earliest time and explanation. Missing evidence preventing a mowing window appears in `mowing_window.evidence.blocking`; supporting uncertainty about robot programs appears separately under `supporting_unknown`. Gaps outside a recommended window remain visible under `excluded_horizon_inputs`.
+
+Duration suggestions expose their observations, active/elapsed minutes, minimum/maximum and counted exclusions. Lawn area and observation sources must match. Program/area metadata is considered only when actually reported by the mower source. Changes during a run exclude it from duration comparisons. Missing metadata confirms neither an identical program nor complete coverage. Older records without area context remain in maintenance history but cannot serve as comparable duration observations.
+
+`retrospective` compares elapsed, previously saved mowing windows with later reported weather points. At most twelve recommendations are retained for seven days; review uses up to 96 existing weather samples. It requires at least two distinct fresh report times, no more than 45 minutes apart or from the window boundaries. Reused, stale or conflicting reports cannot establish complete evidence. Results distinguish suitable sampled weather, observed blockers and insufficient evidence. **Neither continuous suitable weather nor dry grass surfaces is confirmed.**
+
+`water_balance` in irrigation status and readiness diagnostics separates target, recorded liters, remainder against that session's target and effective model credit. Measurement gaps leave the remainder unknown; flow-based quantities carry an estimate flag. Model liters require the saved session area, which may be absent in older records. Aborted irrigation never automatically resumes to fill a remainder. Current safety conditions must be checked before a new start.
+
+`data_gaps.impact_text` explains historical model gaps. A new soil reading can support the current state without reconstructing missing historical rainfall or evaporation. The [diagnostics card](docs/dashboard/diagnostics.en.yaml) shows these explanations and the water balance; the [care-plan card](docs/dashboard/care-plan.en.yaml) shows the compact next action.

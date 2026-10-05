@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.14.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.15.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -411,3 +411,15 @@ Für Einzelheiten früherer Versionen siehe den [Änderungsverlauf](CHANGELOG.md
 Die gesteuerte Bewässerung zunächst stoppen. Unter **Einstellungen → Geräte & Dienste** den Raseneintrag im Menü löschen. Ein laufendes eigenes Ventil wird beim Entladen geschlossen; kann HA die Schließung nicht bestätigen, wird das Entladen verweigert und die Überwachung bleibt aktiv. HACS kann anschließend die Integrationsdateien entfernen; danach Home Assistant neu starten. Die separat eingerichteten Wetter- und Geräteintegrationen bleiben erhalten.
 
 Bei Problemen die Diagnose des Raseneintrags herunterladen und die Sensoren **Bewässerungsbereitschaft**, **Automatikentscheidung** sowie die Reparaturmeldungen prüfen. Automatikstart benötigt verfügbare, frische Wetterdaten, eine sichere Mäherposition und vollständige Mengenmessung. Nach einer Speicherfehlermeldung zuerst freien Speicherplatz und Schreibrechte prüfen; die Meldung wird nach erfolgreichem Speichern aufgehoben. Vor dem erneuten Aktivieren die Einstellungen kontrollieren.
+
+### Nachvollziehbare Pflegehinweise und abgeschlossene Sitzungen
+
+Der Pflegeplan ergänzt `summary`: die erste bereits priorisierte Handlung mit Verfügbarkeit, frühestem Zeitpunkt und Erklärung. Fehlende Belege, die ein Mähfenster verhindern, stehen in `mowing_window.evidence.blocking`; zusätzliche Unsicherheit über das Roboterprogramm steht separat unter `supporting_unknown`. Lücken außerhalb eines empfohlenen Fensters bleiben unter `excluded_horizon_inputs` sichtbar.
+
+Der Dauer-Vorschlag zeigt die verwendeten Durchgänge, aktive/verstrichene Minuten, Minimum/Maximum und gezählte Ausschlussgründe. Fläche und Beobachtungsquellen müssen übereinstimmen. Programm-/Bereichsmerkmale werden nur berücksichtigt, wenn die Mäherquelle sie tatsächlich meldet. Änderungen während eines Durchgangs schließen ihn vom Dauervergleich aus. Fehlende Programmmerkmale bestätigen weder dasselbe Programm noch vollständige Flächenabdeckung. Ältere Einträge ohne Flächenkontext bleiben im Pflegeverlauf, dienen aber nicht als vergleichbare Dauermessung.
+
+`retrospective` vergleicht beendete, zuvor gespeicherte Mähfenster mit später gemeldeten Wetterpunkten. Maximal zwölf Empfehlungen werden sieben Tage gespeichert; die Auswertung verwendet höchstens 96 vorhandene Wetteraufnahmen. Mindestens zwei verschiedene aktuelle Berichtszeitpunkte, höchstens 45 Minuten Abstand zwischen ihnen und zu den Fenstergrenzen sind erforderlich. Wiederverwendete, veraltete oder widersprüchliche Meldungen liefern keine vollständige Evidenz. Die Ergebnisse unterscheiden passende Wetterpunkte, beobachtete Hindernisse und unzureichende Belege. **Weder durchgehend passendes Wetter noch trockene Grashalme werden dadurch bestätigt.**
+
+`water_balance` im Bewässerungsstatus und in der Bereitschaftsdiagnose trennt Sollmenge, erfasste Liter, Rest zum damaligen Soll und wirksame Modellgutschrift. Messlücken lassen die Restmenge unbekannt; durchflussbasierte Mengen sind als Schätzung gekennzeichnet. Modellliter werden nur mit der gespeicherten Sitzungsfläche berechnet; bei älteren Sitzungen kann diese Angabe fehlen. Ein Abbruch startet keine Restbewässerung. Vor einem neuen Start sind die aktuellen Sicherheitsbedingungen erneut zu prüfen.
+
+`data_gaps.impact_text` erklärt die Wirkung früherer Modelllücken. Eine neue Bodenmessung kann den aktuellen Zustand stützen; fehlender historischer Regen und Verdunstung werden damit nicht rekonstruiert. Die [Diagnosekarte](docs/dashboard/diagnostics.de.yaml) zeigt diese Hinweise und die Wasserbilanz, die [Pflegeplankarte](docs/dashboard/care-plan.de.yaml) die kompakte nächste Handlung.

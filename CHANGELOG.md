@@ -1,5 +1,26 @@
 # Changelog
 
+## 3.15.0
+
+### Added
+- Expose comparable mowing-duration observations, elapsed range and localized exclusion counts. Match lawn area, observation sources and explicitly reported program/area metadata; exclude runs whose metadata changes without claiming full coverage.
+- Review elapsed saved mowing windows against distinct later weather reports. Keep advice bounded to twelve records/seven days, require conservative point-sample coverage and report missing/conflicting evidence without confirming continuous weather or dry grass.
+- Explain completed irrigation targets, recorded delivery, uncertain remainders and effective soil-model credit using the saved session area. Mark flow-based estimates and require a new safety check rather than automatically resuming aborted watering.
+- Add a compact care-plan summary and distinguish blocking mowing evidence from supporting uncertainty. Explain why fresh soil readings do not reconstruct historical model gaps.
+- Extend German/English dashboards and documentation on existing entities, without additional regular weather polling or mower commands.
+
+### Fixed
+- Load optional malformed weather-history containers safely and discard invalid rows without preventing setup.
+- Handle missing or malformed last-irrigation finish reasons in status and readiness sensor attributes.
+- Preserve recorded irrigation/model evidence after area settings change; prevent backdated program records from replacing the latest observed comparison program.
+
+### Validation
+- Reproduce four failing weather-history/finish-reason regressions against 3.14.0 before correction.
+- Add 46 cases for bounded/reloaded advice, repeated/conflicting weather clocks, unknown water quantities, immutable finished-session area, source/program comparisons, attribute-only program changes, failed/cancelled persistence, supporting evidence and populated German/English dashboard rendering.
+- All 800 tests pass with 89.30% combined line/branch coverage. Ruff and Mypy pass; Mypy checks all 23 program modules.
+- Existing irrigation restart, soak-pause, sensor failure and safety regressions pass. The second valve remains read-only; existing dosing and safety policy is retained.
+- Weather review remains based on point samples, robot observations do not confirm coverage, and the soil model still requires field validation.
+
 ## 3.14.0
 
 ### Added

@@ -77,6 +77,7 @@ from .const import (
     CONF_LAST_WATERING,
     CONF_LAWN_TYPE,
     CONF_LEAF_WETNESS_ENTITY,
+    CONF_MOWING_ENTITY,
     CONF_MOWING_INTERVAL_FACTOR,
     CONF_MOWING_MODE,
     CONF_PRECIPITATION_ENTITY,
@@ -145,6 +146,7 @@ from .insights import (
 )
 from .models import LawnData, RuntimeState
 from .mowing_plan import MowingWindow, mowing_window
+from .review import program_context, remember_advice, restore_advice, review_advice
 from .storage import VerifiedStore as Store
 
 if TYPE_CHECKING:
@@ -328,7 +330,16 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 maintenance_history=restore_maintenance_history(
                     stored.get("maintenance_history"), dt_util.now()
                 ),
-                weather_samples=list(stored.get("weather_samples", []))[-96:],
+                weather_samples=[
+                    item
+                    for item in (stored.get("weather_samples") or [])
+                    if isinstance(item, dict)
+                ][-96:]
+                if isinstance(stored.get("weather_samples"), list)
+                else [],
+                mowing_advice_history=restore_advice(
+                    stored.get("mowing_advice_history"), dt_util.now()
+                ),
                 daily_effective_rain_mm=float(
                     stored.get("daily_effective_rain_mm", 0.0)
                 ),
@@ -349,7 +360,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 irrigation_session=stored.get("irrigation_session"),
                 irrigation_last_auto_date=stored.get("irrigation_last_auto_date"),
                 irrigation_suspended_until=stored.get("irrigation_suspended_until"),
-                irrigation_last_session=stored.get("irrigation_last_session"),
+                irrigation_last_session=stored.get("irrigation_last_session")
+                if isinstance(stored.get("irrigation_last_session"), dict)
+                else None,
                 water_usage=list(stored.get("water_usage", [])),
                 irrigation_last_status=stored.get("irrigation_last_status", "idle"),
                 irrigation_last_reason=stored.get("irrigation_last_reason"),
@@ -1263,6 +1276,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 "reasons_text": [reason_text(code, language) for code in gaps],
                 "last_model_gap_at": self.state.last_soil_model_gap_at,
                 "unintegrated_hours": self.state.last_soil_model_gap_hours,
+                "history_contains_gap": self.state.last_soil_model_gap_at is not None,
+                "impact_text": reason_text("model_gap_impact", language)
+                if self.state.last_soil_model_gap_at is not None
+                else None,
+                "recovery_basis": "fresh_soil_measurement"
+                if self.data and self.data.measured_soil_moisture_percent is not None
+                else "model_estimate",
                 "interval_gap_cause": "not_recorded"
                 if self.state.last_soil_model_gap_hours
                 else None,
@@ -1380,12 +1400,26 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 }
             )
             plan["missing_inputs"].append("mowing_wet_history_unknown")
+        mower_state = self.hass.states.get(self.settings.get(CONF_MOWING_ENTITY, ""))
+        current_program = program_context(mower_state.attributes) if mower_state else {}
         suggestion = duration_suggestion(
-            self.state.maintenance_history, self.settings, now
+            self.state.maintenance_history, self.settings, now, current_program
+        )
+        suggestion["current_program_known"] = bool(current_program)
+        program_uncertain = suggestion["program_comparability"] == "unknown" or (
+            suggestion["program_comparability"] == "reported" and not current_program
         )
         suggestion["reason_text"] = reason_text(
             suggestion["reason"], self.hass.config.language
         )
+        suggestion["excluded_text"] = [
+            {
+                "reason": code,
+                "text": reason_text(code, self.hass.config.language),
+                "count": count,
+            }
+            for code, count in suggestion["excluded"].items()
+        ]
         cache_age = (
             (now - fetched).total_seconds() / 60 if fetched and fetched <= now else None
         )
@@ -1398,6 +1432,34 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         return {
             **plan,
             "duration_suggestion": suggestion,
+            "retrospective": review_advice(
+                self.state.mowing_advice_history,
+                self.state.weather_samples,
+                now,
+                self.hass.config.language,
+            ),
+            "evidence": {
+                "blocking": list(plan["missing_inputs"]) + list(plan["quality_reasons"])
+                if plan["start"] is None
+                else [],
+                "blocking_text": [
+                    reason_text(code, self.hass.config.language)
+                    for code in (plan["missing_inputs"] + plan["quality_reasons"])
+                ]
+                if plan["start"] is None
+                else [],
+                "excluded_horizon_inputs": list(plan["missing_inputs"])
+                if plan["start"]
+                else [],
+                "supporting_unknown": ["duration_program_unknown"]
+                if program_uncertain
+                else [],
+                "supporting_unknown_text": [
+                    reason_text("duration_program_unknown", self.hass.config.language)
+                ]
+                if program_uncertain
+                else [],
+            },
             "wet_hold_until": wet_until.isoformat() if wet_until else None,
             "forecast_updated_at": fetched.isoformat() if fetched else None,
             "weather_age_minutes": weather.get("age_minutes"),
@@ -2094,9 +2156,17 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             + balance["interception_mm"] * day_fraction,
             2,
         )
+        observed_weather = self.hass.states.get(self.settings[CONF_WEATHER_ENTITY])
         self.state.weather_samples.append(
             {
                 "timestamp": now.isoformat(),
+                "reported_at": weather.get("reported_at"),
+                "stale": weather.get("stale", True),
+                "condition": observed_weather.state if observed_weather else None,
+                "precipitation": corrected_precipitation
+                if not self.state.daily_rain_unknown
+                else None,
+                "wind_speed": weather.get("wind_speed_m_s"),
                 "temperature": temperature,
                 "humidity": weather.get("humidity"),
                 "wind_speed_m_s": weather.get("wind_speed_m_s"),
@@ -2676,7 +2746,15 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             forecast_rain_mm=data.forecast_rain_24h_mm,
         )
         self.apply_live_irrigation_status(data)
-        await self._store.async_save(self.state.as_dict())
+        previous_advice = deepcopy(self.state.mowing_advice_history)
+        self.state.mowing_advice_history = remember_advice(
+            previous_advice, self.mowing_plan_details(data), dt_util.now()
+        )
+        try:
+            await self._store.async_save(self.state.as_dict())
+        except (OSError, HomeAssistantError, asyncio.CancelledError):
+            self.state.mowing_advice_history = previous_advice
+            raise
         self._record_mowing_advice(data, now)
         return data
 
@@ -2965,6 +3043,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         active_seconds: float | None = None,
         session_started_at: datetime | None = None,
         interruptions: int | None = None,
+        observation_metadata: dict[str, Any] | None = None,
     ) -> None:
         """Commit mowing atomically with other maintenance actions."""
         await self._async_maintenance_transaction(
@@ -2976,6 +3055,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 active_seconds=active_seconds,
                 session_started_at=session_started_at,
                 interruptions=interruptions,
+                observation_metadata=observation_metadata,
             )
         )
         await self.async_request_refresh()
@@ -3116,6 +3196,7 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         active_seconds: float | None = None,
         session_started_at: datetime | None = None,
         interruptions: int | None = None,
+        observation_metadata: dict[str, Any] | None = None,
     ) -> None:
         """Record mowing and acknowledge the mowing season for this year.
 
@@ -3170,7 +3251,13 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 if session_started_at
                 else None,
                 interruptions=interruptions,
-                duration_context=duration_context(self.settings),
+                duration_context=(observation_metadata or {}).get(
+                    "settings_context", duration_context(self.settings)
+                ),
+                program_context=deepcopy(
+                    (observation_metadata or {}).get("program_context", {})
+                ),
+                program_stable=(observation_metadata or {}).get("program_stable", True),
                 recorded_at=now.isoformat(),
             )
             await self._async_save_maintenance_locked()

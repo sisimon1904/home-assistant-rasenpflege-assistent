@@ -84,6 +84,7 @@ from .planning import (
     next_schedule_time,
     schedule_allowed,
 )
+from .review import irrigation_balance
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -1351,6 +1352,9 @@ class IrrigationController:
             if session
             else None,
             "last_session": self.state.irrigation_last_session,
+            "water_balance": irrigation_balance(
+                self.state.irrigation_last_session, self.hass.config.language
+            ),
             "last_stop_reason": self.state.irrigation_last_reason,
             "last_session_liters": self.state.irrigation_last_liters,
             "last_active_seconds": self.state.irrigation_last_active_seconds,
@@ -2818,6 +2822,9 @@ class IrrigationController:
             "liters": liters,
             "delivered_mm": round(liters / area, 3) if liters is not None else None,
             "effective_model_mm": 0.0,
+            "area_m2": area,
+            "meter_kind": session["meter_kind"],
+            "volume_estimated": session["meter_kind"] == "rate",
             "active_seconds": self.state.irrigation_last_active_seconds,
             "paused_seconds": self.state.irrigation_last_paused_seconds,
             "reason": reason,

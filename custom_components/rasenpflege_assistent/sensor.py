@@ -799,6 +799,7 @@ class LawnSensor(LawnEntity, SensorEntity):
         if key == "care_plan":
             data = self.coordinator.data
             irrigation = self.coordinator.irrigation
+            steps = self.coordinator.care_priority_details()
             return {
                 "mowing": {
                     "status": data.mower_status,
@@ -832,8 +833,9 @@ class LawnSensor(LawnEntity, SensorEntity):
                     ],
                 },
                 "forecast_estimated": True,
-                "prioritized_steps": self.coordinator.care_priority_details(),
+                "prioritized_steps": steps,
                 "mowing_window": self.coordinator.mowing_plan_details(),
+                "summary": (steps or [{}])[0],
             }
         if key in {
             "water_consumption_day",
@@ -861,6 +863,19 @@ class LawnSensor(LawnEntity, SensorEntity):
             details["action_hint"] = self.coordinator.irrigation_controller.action_hint(
                 language
             )
+            if (
+                isinstance(details.get("last_session"), dict)
+                and details["last_session"]
+            ):
+                details["last_session"] = {
+                    **details["last_session"],
+                    "reason_text": reason_text(
+                        details["last_session"].get("reason")
+                        if isinstance(details["last_session"].get("reason"), str)
+                        else "water_reason_unknown",
+                        language,
+                    ),
+                }
             details["automatic_blockers_text"] = [
                 reason_text(code, language) for code in details["automatic_blockers"]
             ]
@@ -943,7 +958,10 @@ class LawnSensor(LawnEntity, SensorEntity):
                 details["last_session"] = {
                     **details["last_session"],
                     "reason_text": reason_text(
-                        details["last_session"]["reason"], language
+                        details["last_session"].get("reason")
+                        if isinstance(details["last_session"].get("reason"), str)
+                        else "water_reason_unknown",
+                        language,
                     ),
                 }
         for code_key in (

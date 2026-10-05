@@ -35,7 +35,9 @@ from .const import (
     DEFAULT_MOWING_MIN_MINUTES,
 )
 from .explanations import reason_text
+from .guidance import duration_context
 from .insights import aware_time, finite_number
+from .review import program_context
 
 if TYPE_CHECKING:
     from .coordinator import LawnCoordinator
@@ -67,6 +69,9 @@ class MowingObserver:
         self.active_seconds = 0.0
         self.interruptions = 0
         self.observation_reason = reason
+        self.settings_context: str | None = None
+        self.program: dict[str, str | int | bool] = {}
+        self.program_stable = True
 
     def diagnostic_attributes(self) -> dict[str, Any]:
         """Expose an in-flight estimate; it never claims completed lawn coverage."""
@@ -106,6 +111,8 @@ class MowingObserver:
             "elapsed_minutes": round(elapsed / 60, 1),
             "inactive_minutes": round(max(0.0, elapsed - active_seconds) / 60, 1),
             "interruptions": self.interruptions,
+            "program_context": dict(self.program),
+            "program_stable": self.program_stable,
             "minimum_active_minutes": float(
                 self.coordinator.settings.get(
                     CONF_MOWING_MIN_MINUTES, DEFAULT_MOWING_MIN_MINUTES
@@ -196,6 +203,20 @@ class MowingObserver:
                 self._reset()
                 self.coordinator.async_update_listeners()
                 return
+            # Attribute-only metadata changes invalidate duration comparability.
+            if (
+                self.started_at
+                and new.state.casefold()
+                == self.coordinator.settings.get(
+                    CONF_MOWING_ACTIVE_STATE, "mowing"
+                ).casefold()
+                and (
+                    program_context(new.attributes) != self.program
+                    or duration_context(self.coordinator.settings)
+                    != self.settings_context
+                )
+            ):
+                self.program_stable = False
             if old.state == new.state:
                 return
             settings = self.coordinator.settings
@@ -214,6 +235,8 @@ class MowingObserver:
             if state == active:
                 if self.started_at is None:
                     self.started_at = now
+                    self.settings_context = duration_context(settings)
+                    self.program = program_context(new.attributes)
                 self.active_since = now
                 self.observation_reason = "robot_observing"
             elif state == done:
@@ -222,6 +245,12 @@ class MowingObserver:
                     self.active_seconds,
                     self.interruptions,
                 )
+                metadata = {
+                    "settings_context": self.settings_context,
+                    "program_context": self.program,
+                    "program_stable": self.program_stable
+                    and self.settings_context == duration_context(settings),
+                }
                 self._reset()
                 minimum = (
                     float(
@@ -240,6 +269,7 @@ class MowingObserver:
                         active_seconds=seconds,
                         session_started_at=started_at,
                         interruptions=interruptions,
+                        observation_metadata=metadata,
                     )
             elif state in {"paused", "returning"}:
                 if old.state.casefold() == active:

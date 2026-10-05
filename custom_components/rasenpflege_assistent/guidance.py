@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 from statistics import median
 from typing import Any
 
-from .const import DEFAULT_MOWING_MIN_MINUTES
+from .const import DEFAULT_AREA, DEFAULT_MOWING_MIN_MINUTES
 from .explanations import reason_text
 from .insights import aware_time, finite_number
 
@@ -51,6 +51,7 @@ def duration_context(settings: Mapping[str, Any]) -> str:
     return repr(
         (
             settings.get("mowing_entity"),
+            finite_number(settings.get("area", DEFAULT_AREA)),
             settings.get("mowed_entity"),
             settings.get("mowing_active_state", "mowing"),
             settings.get("mowing_done_state", "docked"),
@@ -60,7 +61,10 @@ def duration_context(settings: Mapping[str, Any]) -> str:
 
 
 def duration_suggestion(
-    history: object, settings: Mapping[str, Any], now: datetime
+    history: object,
+    settings: Mapping[str, Any],
+    now: datetime,
+    current_program: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Median elapsed minutes from 3–10 comparable observations, not coverage.
 
@@ -70,43 +74,83 @@ def duration_suggestion(
     """
     samples: dict[datetime, tuple[float, float]] = {}
     conflicts: set[datetime] = set()
+    excluded: dict[str, int] = {}
+    records = restore_maintenance_history(history, now)
     context = duration_context(settings)
     minimum = (
         finite_number(settings.get("mowing_min_minutes", DEFAULT_MOWING_MIN_MINUTES))
         or DEFAULT_MOWING_MIN_MINUTES
     )
-    if settings.get("mowing_mode", "manual") == "robot" and settings.get(
-        "mowing_entity"
-    ):
-        for event in restore_maintenance_history(history, now):
-            detail = event.get("details", {})
-            begin = aware_time(detail.get("session_started_at"))
-            end = aware_time(detail.get("recorded_at"))
-            seconds = finite_number(detail.get("active_seconds"))
-            interruptions = finite_number(detail.get("interruptions"))
-            if (
-                event["action"] != "mowing"
-                or detail.get("source") != "robot_estimate"
-                or detail.get("duration_context") != context
-                or begin is None
-                or end is None
-                or seconds is None
-                or interruptions is None
-                or not interruptions.is_integer()
-                or not 0 <= interruptions <= 1
-                or not now - timedelta(days=90) <= begin < end <= now
-            ):
-                continue
+    eligible_mode = settings.get("mowing_mode", "manual") == "robot" and bool(
+        settings.get("mowing_entity")
+    )
+    programs = [
+        (at, event.get("details", {}).get("program_context"))
+        for event in records
+        if event["action"] == "mowing"
+        and event.get("details", {}).get("source") == "robot_estimate"
+        and event.get("details", {}).get("duration_context") == context
+        and event.get("details", {}).get("program_stable", True) is True
+        and (at := aware_time(event.get("details", {}).get("recorded_at"))) is not None
+        and at <= now
+        and isinstance(event.get("details", {}).get("program_context"), dict)
+    ]
+    latest_program = (
+        dict(current_program)
+        if current_program
+        else max(programs, key=lambda item: item[0])[1]
+        if programs
+        else {}
+    )
+
+    def reject(reason: str) -> None:
+        excluded[reason] = excluded.get(reason, 0) + 1
+
+    for event in records:
+        if event["action"] != "mowing":
+            continue
+        detail = event.get("details", {})
+        begin, end = (
+            aware_time(detail.get("session_started_at")),
+            aware_time(detail.get("recorded_at")),
+        )
+        seconds, interruptions = (
+            finite_number(detail.get("active_seconds")),
+            finite_number(detail.get("interruptions")),
+        )
+        if not eligible_mode or detail.get("source") != "robot_estimate":
+            reject("duration_not_robot")
+        elif detail.get("duration_context") != context:
+            reject("duration_context_changed")
+        elif detail.get("program_stable", True) is not True:
+            reject("duration_program_changed")
+        elif (detail.get("program_context") or {}) != latest_program:
+            reject("duration_program_different")
+        elif (
+            begin is None
+            or end is None
+            or seconds is None
+            or interruptions is None
+            or not interruptions.is_integer()
+            or not now - timedelta(days=90) <= begin < end <= now
+        ):
+            reject("duration_clock_unknown")
+        elif not 0 <= interruptions <= 1:
+            reject("duration_interrupted")
+        else:
             elapsed = (
                 end.astimezone(timezone.utc) - begin.astimezone(timezone.utc)
             ).total_seconds()
-            if (
-                minimum * 60 <= seconds <= elapsed <= 12 * 3600
-                and seconds / elapsed >= 0.85
-            ):
+            if not minimum * 60 <= seconds <= elapsed <= 12 * 3600:
+                reject("duration_invalid_length")
+            elif seconds / elapsed < 0.85:
+                reject("duration_inactive")
+            else:
                 sample = (seconds / 60, elapsed / 60)
-                if end in samples and samples[end] != sample:
-                    conflicts.add(end)
+                if end in samples:
+                    reject("duration_duplicate")
+                    if samples[end] != sample:
+                        conflicts.add(end)
                 samples[end] = sample
     # Elapsed time includes the short normal return/pause, so the proposed
     # weather window does not underestimate time by using active seconds only.
@@ -131,6 +175,24 @@ def duration_suggestion(
         else None,
         "sample_count": len(values),
         "basis": "elapsed_observation",
+        "samples": [
+            {
+                "finished_at": at.isoformat(),
+                "active_minutes": active,
+                "elapsed_minutes": elapsed,
+            }
+            for at, (active, elapsed) in sorted(samples.items())
+            if at not in conflicts
+        ][-10:],
+        "minimum_minutes": min(values) if values else None,
+        "maximum_minutes": max(values) if values else None,
+        "excluded": excluded,
+        "program_context": deepcopy(latest_program),
+        "program_comparability": "not_applicable"
+        if not eligible_mode
+        else "reported"
+        if latest_program
+        else "unknown",
         "median_active_minutes": round(median([active for active, _ in chosen]), 1)
         if chosen
         else None,
