@@ -62,6 +62,10 @@ from .irrigation import IrrigationController
 from .mowing import MowingObserver
 from .notifications import async_setup_notifications
 
+# This integration is configured via HA config entries, never YAML. Declaring
+# the schema lets HA/Hassfest validate that setup contract explicitly.
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
 type LawnConfigEntry = ConfigEntry[LawnCoordinator]
 
 

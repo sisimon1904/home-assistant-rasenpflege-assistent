@@ -16,11 +16,12 @@
 - Display unknown or unavailable automatic permission as Unknown and disable its toggle instead of reporting Disabled.
 - Remove only the exact panel registered by this integration, preserving pre-existing or replacement panels at the same URL.
 - Serialize initial dashboard registration across concurrent lawn setups; preserve date-only display and separate chart endpoint labels.
+- Sort manifest metadata according to Hassfest requirements and declare config-entry-only setup explicitly.
 
 ### Validation
 - Add 28 server regressions covering panel ownership/concurrency, selected-entry permissions, stale/manual/physical care records, failed persistence, optional notification load failure, cooldown restoration and update bursts.
 - Add 12 Chromium browser regressions to GitHub Actions, covering all seven desktop/mobile areas, request races, live details, unknown permission, liter amounts, historical records, notifications, read-only/disconnected controls, direct links and inert sensor text.
-- All 986 Python tests and 12 browser tests pass locally; combined line/branch coverage is 89.83%. Ruff formatting/lint and Mypy checks pass across all 26 Python program modules.
+- All 986 Python tests and 12 browser tests pass locally; combined line/branch coverage is 90.05%. Ruff formatting/lint and Mypy checks pass across all 26 Python program modules.
 - Update German/English setup documentation and visually inspect desktop/mobile views. Browser fixtures emulate HA; physical HA/device behavior still requires installation checks.
 
 ## 3.17.0
