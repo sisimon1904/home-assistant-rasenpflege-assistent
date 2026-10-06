@@ -148,7 +148,8 @@ class CareNotifier:
             finished = aware_time(session.get("finished_at"))
             reason = session.get("reason")
             if (
-                reason
+                isinstance(reason, str)
+                and reason
                 and reason
                 not in {
                     "target_reached",

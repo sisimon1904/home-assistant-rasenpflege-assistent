@@ -226,7 +226,16 @@ async def test_failed_notification_settings_and_cooldown_do_not_publish(hass):
 
 
 @pytest.mark.parametrize(
-    "reason,expected", [("target_reached", 0), ("stopped_manually", 0), ("no_flow", 1)]
+    "reason,expected",
+    [
+        ("target_reached", 0),
+        ("stopped_manually", 0),
+        ("no_flow", 1),
+        (None, 0),
+        (True, 0),
+        (["bad"], 0),
+        ({"bad": 1}, 0),
+    ],
 )
 async def test_aborted_irrigation_notification(hass, reason, expected):
     item = notifier(hass)
