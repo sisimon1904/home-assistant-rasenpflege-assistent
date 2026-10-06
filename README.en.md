@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.17.0 · [Changelog](CHANGELOG.md)
+Version 3.18.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -20,7 +20,7 @@ The [source code overview](docs/source-code.md) documents file responsibilities 
 
 ## Integrated web dashboard
 
-Starting with **v3.17.0**, the integration serves a dedicated web interface at **`/rasenpflege-assistent`** on your Home Assistant web server. It appears as **Lawn care** in the sidebar, uses your existing HA login and discovers entity IDs automatically. Five responsive areas cover overview, care planning, mowing, irrigation and diagnostics. No YAML import or additional container is required. [Access and setup guide](docs/web-dashboard.en.md).
+Starting with **v3.17.0**, the integration serves a dedicated web interface at **`/rasenpflege-assistent`** on your Home Assistant web server. It appears as **Lawn care** in the sidebar, uses your existing HA login and discovers entity IDs automatically. Seven responsive areas cover overview with a daily plan, care planning, mowing, irrigation, trends, care log and diagnostics. Version 3.18.0 adds millimeter/liter irrigation targets, corrected manual care records and optional local HA notifications. The dashboard explains data age and evidence, remembers your lawn and view and supports direct links. No YAML import or additional container is required. [Access and setup guide](docs/web-dashboard.en.md).
 
 ## Weather stops and consumption budgets
 

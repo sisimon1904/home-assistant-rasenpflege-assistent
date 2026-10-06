@@ -1,5 +1,28 @@
 # Changelog
 
+## 3.18.0
+
+### Added
+- Extend the authenticated HA web dashboard to seven areas with a daily care-priority summary, trends and a care log. Show weather/forecast age, calculation time and available confidence/evidence alongside recommendations.
+- Plot the existing seven-day local model history with separate modeled and measured soil readings, recorded rain intervals and recent irrigation quantities. Preserve measurement timestamps, distinguish estimates/measurement gaps and never replace missing quantities with zero.
+- Record manual mowing, watering and fertilizing with optional historical timestamps, actual NPK product and fertilizer amount. Provide an identity-checked undo-and-reenter shortcut for the latest manual record; protect physical irrigation and automatic mower evidence.
+- Accept supervised irrigation targets in millimeters or liters and display available session flow. Existing server-side dosing and safety checks remain authoritative.
+- Remember the selected lawn and view per HA user in the browser and support validated direct view links.
+- Add opt-in local HA notifications for recommended care and abnormal irrigation interruptions, with persisted per-category cooldowns of 1, 6 or 24 hours. Default to disabled; normal manual stops are excluded. No external messaging or additional weather polling.
+
+### Fixed
+- Discard late history responses when switching to a lawn without a soil entity, and distinguish overlapping same-millisecond requests.
+- Preserve expanded diagnostic details and horizontal mobile navigation position across live redraws.
+- Display unknown or unavailable automatic permission as Unknown and disable its toggle instead of reporting Disabled.
+- Remove only the exact panel registered by this integration, preserving pre-existing or replacement panels at the same URL.
+- Serialize initial dashboard registration across concurrent lawn setups; preserve date-only display and separate chart endpoint labels.
+
+### Validation
+- Add 28 server regressions covering panel ownership/concurrency, selected-entry permissions, stale/manual/physical care records, failed persistence, optional notification load failure, cooldown restoration and update bursts.
+- Add 12 Chromium browser regressions to GitHub Actions, covering all seven desktop/mobile areas, request races, live details, unknown permission, liter amounts, historical records, notifications, read-only/disconnected controls, direct links and inert sensor text.
+- All 986 Python tests and 12 browser tests pass locally; combined line/branch coverage is 89.83%. Ruff formatting/lint and Mypy checks pass across all 26 Python program modules.
+- Update German/English setup documentation and visually inspect desktop/mobile views. Browser fixtures emulate HA; physical HA/device behavior still requires installation checks.
+
 ## 3.17.0
 
 ### Added

@@ -3108,6 +3108,48 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         await self._async_maintenance_transaction(self._async_undo_last_action_locked)
         await self.async_request_refresh()
 
+    async def async_undo_last_manual(self, timestamp: str) -> None:
+        """Undo the displayed latest manual record under the model transaction.
+
+        Compare identity inside the same lock as undo, so a newly arrived robot
+        or irrigation event cannot be accidentally removed by a stale browser.
+        Physical watering and automatic completion evidence are never editable
+        through this dashboard shortcut. The user can then record corrected care.
+        """
+
+        async def undo() -> None:
+            history = self.state.maintenance_history
+            if not history or history[-1].get("timestamp") != timestamp:
+                raise ServiceValidationError(
+                    "Care history changed; refresh before undoing"
+                )
+            event = history[-1]
+            details = event.get("details", {})
+            if (
+                event.get("action") not in {"mowing", "watering", "fertilizing"}
+                or details.get("source", "manual") != "manual"
+            ):
+                raise ServiceValidationError(
+                    "Only the latest manual record can be corrected"
+                )
+            if event["action"] == "watering":
+                usage = next(
+                    (
+                        row
+                        for row in self.state.water_usage
+                        if row.get("id") == details.get("usage_id")
+                    ),
+                    {},
+                )
+                if usage.get("source") not in {"manual_record", "manual_estimate"}:
+                    raise ServiceValidationError(
+                        "Physical irrigation records cannot be corrected here"
+                    )
+            await self._async_undo_last_action_locked()
+
+        await self._async_maintenance_transaction(undo)
+        await self.async_request_refresh()
+
     async def _async_mark_watered_locked(
         self,
         amount_mm: float | None = None,

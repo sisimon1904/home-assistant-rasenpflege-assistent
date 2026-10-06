@@ -14,6 +14,9 @@ Alle Python-Dateien besitzen einen englischen Modulheader mit Dateipfad, Zweck u
 | `diagnostic_types.py` | Typverträge für Wasserbilanz, Modellvertrauen und Speicherdiagnose. |
 | `everyday.py` | Lesende Pflegeprioritäten, zwei Wochenperioden, Sensorhinweise und Zyklusschätzungen. |
 | `models.py` | Berechnete `LawnData` und dauerhaft gespeicherte `RuntimeState`. |
+| `dashboard.py` | Lokales Webpanel, Eigentumsprüfung, leserechtsgeprüfter Pflegeverlauf und Administrator-Aktionen. |
+| `frontend/panel.js` | Sieben responsive Webansichten, sichere Textausgabe, Anfragezuordnung und lokale Ansichtseinstellungen. |
+| `notifications.py` | Optionale lokale HA-Hinweise mit getrennten, dauerhaft gespeicherten Einstellungen und Zeitabständen. |
 | `coordinator.py` | Messwertnormalisierung, Vorhersagecache, Bodenmodell und Pflege-Transaktionen. |
 | `calculations.py` | Reine Berechnungen für Wachstum, Verdunstung, Wasserbilanz und Empfehlungen. |
 | `planning.py` | Lokale Zeitfenster, Sommerzeit, Verbrauchsperioden und Tageszuordnung. |

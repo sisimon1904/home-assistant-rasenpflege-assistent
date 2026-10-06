@@ -12,6 +12,8 @@ Static JavaScript contains no user data and is registered once per HA process.
 
 from __future__ import annotations
 
+import asyncio
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -23,12 +25,15 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
+from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, INTEGRATION_VERSION
+from .const import CONF_AREA, DEFAULT_AREA, DOMAIN, INTEGRATION_VERSION
+from .insights import restore_history
 
 PANEL_PATH = "rasenpflege-assistent"
 ASSET_PATH = "/rasenpflege_assistent_static"
 _REGISTERED = f"{DOMAIN}_dashboard_registered"
+_OWNED_PANEL = f"{DOMAIN}_dashboard_owned_panel"
 ACTIONS = (
     "start_irrigation",
     "stop_irrigation",
@@ -38,6 +43,8 @@ ACTIONS = (
     "record_fertilizing",
     "enable_automatic",
     "disable_automatic",
+    "undo_last_manual",
+    "notification_settings",
 )
 
 
@@ -51,6 +58,15 @@ async def async_setup_dashboard(hass: HomeAssistant) -> None:
     """
     if getattr(hass, "http", None) is None:
         return
+    # Entries may finish setup concurrently; serialize the first route/command
+    # registration so there are no duplicate static routes or competing panels.
+    lock = hass.data.setdefault(f"{DOMAIN}_dashboard_setup_lock", asyncio.Lock())
+    async with lock:
+        await _async_register_dashboard(hass)
+
+
+async def _async_register_dashboard(hass: HomeAssistant) -> None:
+    """Register process-scoped resources while holding the setup lock."""
     if not hass.data.get(_REGISTERED):
         await hass.http.async_register_static_paths(
             [
@@ -63,6 +79,7 @@ async def async_setup_dashboard(hass: HomeAssistant) -> None:
         )
         websocket_api.async_register_command(hass, websocket_dashboard)
         websocket_api.async_register_command(hass, websocket_dashboard_action)
+        websocket_api.async_register_command(hass, websocket_dashboard_data)
         hass.data[_REGISTERED] = True
     if frontend.async_panel_exists(hass, PANEL_PATH):
         return
@@ -78,6 +95,9 @@ async def async_setup_dashboard(hass: HomeAssistant) -> None:
         embed_iframe=False,
         trust_external=False,
     )
+    # Store the actual registered object, not merely its URL. A replacement
+    # panel belongs to its new owner even if it reuses our navigation path.
+    hass.data[_OWNED_PANEL] = hass.data[frontend.DATA_PANELS][PANEL_PATH]
 
 
 @callback
@@ -91,7 +111,12 @@ def async_unload_dashboard(hass: HomeAssistant, entry_id: str) -> None:
         entry.entry_id != entry_id and entry.state is ConfigEntryState.LOADED
         for entry in hass.config_entries.async_entries(DOMAIN)
     ):
-        frontend.async_remove_panel(hass, PANEL_PATH, warn_if_unknown=False)
+        owned = hass.data.pop(_OWNED_PANEL, None)
+        if (
+            owned is not None
+            and hass.data.get(frontend.DATA_PANELS, {}).get(PANEL_PATH) is owned
+        ):
+            frontend.async_remove_panel(hass, PANEL_PATH, warn_if_unknown=False)
 
 
 @callback
@@ -173,7 +198,21 @@ async def websocket_dashboard_action(
     if "config_entry_id" in data:
         raise ServiceValidationError("The selected lawn cannot be overridden.")
     action = msg["action"]
-    if action in {"enable_automatic", "disable_automatic"}:
+    if action == "undo_last_manual":
+        validated = vol.Schema({vol.Required("timestamp"): str})(data)
+        await entry.runtime_data.async_undo_last_manual(validated["timestamp"])
+    elif action == "notification_settings":
+        validated = vol.Schema(
+            {
+                vol.Required("enabled"): bool,
+                vol.Required("interval_hours"): vol.In([1, 6, 24]),
+            }
+        )(data)
+        notifier = hass.data.get(f"{DOMAIN}_notifiers", {}).get(entry.entry_id)
+        if notifier is None:
+            raise ServiceValidationError("Notification settings are not available yet")
+        await notifier.async_configure(**validated)
+    elif action in {"enable_automatic", "disable_automatic"}:
         if data:
             raise ServiceValidationError(
                 "Automatic permission accepts no extra parameters."
@@ -190,3 +229,119 @@ async def websocket_dashboard_action(
             context=Context(user_id=connection.user.id),
         )
     connection.send_result(msg["id"])
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/dashboard_data",
+        vol.Required("config_entry_id"): str,
+    }
+)
+@websocket_api.async_response
+async def websocket_dashboard_data(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Return bounded care history only to readers of the entire selected lawn.
+
+    Strip previous rollback snapshots, hardware identities and model context.
+    Partial entity permissions must not expose diagnostic records indirectly.
+    This reads the existing local journal; it performs no weather/device calls.
+    """
+    entry = hass.config_entries.async_get_entry(msg["config_entry_id"])
+    if (
+        entry is None
+        or entry.domain != DOMAIN
+        or entry.state is not ConfigEntryState.LOADED
+    ):
+        raise ServiceValidationError("This lawn is not loaded")
+    registry = er.async_get(hass)
+    entities = [
+        entity
+        for entity in er.async_entries_for_config_entry(registry, entry.entry_id)
+        if entity.platform == DOMAIN and not entity.disabled
+    ]
+    if not entities or not all(
+        connection.user.permissions.check_entity(entity.entity_id, POLICY_READ)
+        for entity in entities
+    ):
+        connection.send_error(
+            msg["id"],
+            "unauthorized",
+            "Full lawn read access is required for care history",
+        )
+        return
+    coordinator = entry.runtime_data
+    state = coordinator.state
+    journal = []
+    for index, event in enumerate(state.maintenance_history[-20:]):
+        details = event.get("details", {})
+        manual = details.get("source", "manual") == "manual" and event.get(
+            "action"
+        ) in {"watering", "mowing", "fertilizing"}
+        if event.get("action") == "watering":
+            usage: dict[str, Any] = next(
+                (
+                    row
+                    for row in state.water_usage
+                    if row.get("id") == details.get("usage_id")
+                ),
+                {},
+            )
+            manual = manual and usage.get("source") in {
+                "manual_record",
+                "manual_estimate",
+            }
+        journal.append(
+            {
+                "action": event.get("action"),
+                "timestamp": event.get("timestamp"),
+                "details": {
+                    key: deepcopy(details.get(key))
+                    for key in (
+                        "recorded_at",
+                        "amount_mm",
+                        "amount_kg",
+                        "product_npk",
+                        "source",
+                        "historical",
+                    )
+                },
+                "can_undo": connection.user.is_admin
+                and manual
+                and index == len(state.maintenance_history[-20:]) - 1,
+            }
+        )
+    samples = []
+    previous_context = None
+    for row in restore_history(state.model_observations, dt_util.now()):
+        samples.append(
+            {
+                **{
+                    key: row.get(key)
+                    for key in (
+                        "timestamp",
+                        "modeled_percent",
+                        "measured_percent",
+                        "sensor_reported_at",
+                        "rain_mm",
+                        "rain_known",
+                        "et_mm",
+                    )
+                },
+                "context_changed": previous_context is not None
+                and previous_context != row["context"],
+            }
+        )
+        previous_context = row["context"]
+    notifier = hass.data.get(f"{DOMAIN}_notifiers", {}).get(entry.entry_id)
+    connection.send_result(
+        msg["id"],
+        {
+            "journal": list(reversed(journal)),
+            "observations": samples,
+            "area_m2": coordinator.settings.get(CONF_AREA, DEFAULT_AREA),
+            "notifications": notifier.preferences
+            if notifier and connection.user.is_admin
+            else None,
+        },
+    )

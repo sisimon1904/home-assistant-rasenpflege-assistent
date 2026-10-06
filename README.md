@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.17.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.18.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -20,7 +20,7 @@ Die [Quellcode-Übersicht](docs/source-code.md) erläutert Dateizuständigkeiten
 
 ## Integriertes Webdashboard
 
-Die Integration stellt ab **3.17.0** eine eigene Weboberfläche unter **`/rasenpflege-assistent`** auf deinem Home-Assistant-Webserver bereit. Sie erscheint als **Rasenpflege** in der Seitenleiste, nutzt die bestehende HA-Anmeldung und ermittelt Entitäten automatisch. Desktop und Smartphone zeigen Übersicht, Pflegeplan, Mähen, Bewässerung und Diagnose. Du brauchst keinen YAML-Import und keinen zusätzlichen Container. [URL, Einrichtung und Bedienung](docs/web-dashboard.de.md).
+Die Integration stellt ab **3.17.0** eine eigene Weboberfläche unter **`/rasenpflege-assistent`** auf deinem Home-Assistant-Webserver bereit. Sie erscheint als **Rasenpflege** in der Seitenleiste, nutzt die bestehende HA-Anmeldung und ermittelt Entitäten automatisch. Desktop und Smartphone zeigen sieben Bereiche: Übersicht mit Tagesplan, Pflegeplan, Mähen, Bewässerung, Verläufe, Pflegeprotokoll und Diagnose. Ab v3.18.0 lassen sich Bewässerungsziele in Millimetern oder Litern eingeben, manuelle Pflegeeinträge korrigiert neu erfassen und optionale HA-Benachrichtigungen einstellen. Die Oberfläche zeigt das Alter und die Messgrundlage der Empfehlungen und merkt sich Rasenfläche sowie Ansicht. Du brauchst keinen YAML-Import und keinen zusätzlichen Container. [URL, Einrichtung und Bedienung](docs/web-dashboard.de.md).
 
 ## Wetterstopps und Verbrauchslimits
 

@@ -190,3 +190,10 @@ Die Prüfung bestätigt feste übersetzte Ventilzustände, Sitzungsquellen und A
 Ruff-Formatierung, Ruff-Prüfung, Mypy für alle 24 Programmdateien, Python-Syntax, JSON/YAML, relative Dokumentationslinks und Git-Whitespace sind erfolgreich. Lesende Attribute erhalten Rohcodes und gespeicherte Daten; die Tests bestätigen ausbleibende Service-/Prognoseaufrufe. Bestehende Sicherheits-, Speicher-, Neustart-, Entlade- und Modellregressionen bestehen ebenfalls. Keine neuen Entitäten, regelmäßigen Wetterabfragen oder Mäherbefehle; das zweite Ventil bleibt lesend.
 
 Der Nachweis betrifft die tatsächliche HA-Übersetzungsladung und Python-/Template-Verträge, keinen visuellen Test sämtlicher Frontendkarten. Rohattribute in Entwicklerwerkzeugen/JSON bleiben technisch stabil; innere Objektschlüssel werden nicht rekursiv übersetzt. Gemeinsame Erklärungstexte folgen der allgemeinen HA-Sprache, während unterstützte Frontendbeschriftungen der jeweiligen Benutzersprache folgen. Die Hardware-, Feldvalidierungs-, Versionsmatrix- und Quality-Scale-Grenzen gelten weiter.
+
+
+## Ergänzende Prüfung für 3.18.0
+
+28 neue Serverregressionen prüfen Panel-Eigentum und gleichzeitige Registrierung, Leserechte und Administratoraktionen, veraltete Pflegeeinträge, geschützte physische/automatische Daten, Speicherfehler und optionale Benachrichtigungen einschließlich Neustart und Listener-Abmeldung. Alle 986 Python-Tests bestehen mit 89,83 % kombinierter Zeilen-/Zweigabdeckung. Ruff-Formatierung, Ruff-Lint und Mypy für 26 Programmmodule bestehen.
+
+12 neue Chromium-Regressionen prüfen die tatsächliche JavaScript-Komponente mit lokalen HA-Doubles. Die sieben Desktop-/Smartphone-Ansichten, Flächenwechsel mit verspäteten Antworten, geöffnete Details, unbekannte Automatik, Literziele, historische Erfassung, Benachrichtigungseinstellungen, Lesemodus, Verbindungsunterbrechung, Direktlinks und sichere Textausgabe bestehen. Screenshots der Übersicht, Verläufe und Pflegeprotokolle wurden visuell geprüft. Die Tests laufen zusätzlich als eigener GitHub-Actions-Job. Sie ersetzen keine Prüfung mit einer echten HA-Frontend-Instanz und physischen Geräten.

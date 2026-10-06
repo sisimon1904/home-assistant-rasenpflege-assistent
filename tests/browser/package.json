@@ -1,0 +1,7 @@
+{
+  "name": "lawn-care-dashboard-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {"test": "node --test test-panel.mjs"},
+  "devDependencies": {"playwright": "1.62.1"}
+}
