@@ -1,5 +1,27 @@
 # Changelog
 
+## 3.19.0
+
+### Added
+- Show care reasons and a conditional comparison of upcoming mowing, watering and fertilizing times directly in the dashboard, using existing recommendations and the 48-hour outlook.
+- Explain stale, unavailable and invalid configured inputs with practical checks; keep unconfigured optional inputs separate.
+- Extend weekly/monthly consumption with explicitly measured, estimated and uncertain valve quantities, separate manual sources and liters per square meter using the current lawn area. Preserve unknown amounts, measurement gaps and local calendar allocations.
+- Filter the visible care journal by care type and download up to 20 permission-filtered records as quoted CSV, including for read-only users. Neutralize spreadsheet formulas in user-entered text.
+- Add persisted notification quiet hours in the Home Assistant timezone, including overnight periods, and an optional changed-care-only mode. Returning mowing availability can trigger a new hint while category cooldowns remain authoritative.
+
+### Fixed
+- Refresh saved care history and model trends after relevant external Home Assistant state changes, coalescing update bursts without periodic polling.
+- Reload data when reattaching an existing dashboard and ignore stale discovery/data responses after detachment or connection changes.
+- Clear unavailable journal data after a failed refresh instead of presenting stale cached records.
+- Persist irrigation-abort identity to prevent repeated notifications for the same interruption after cooldown expiry or restart.
+
+### Validation
+- All 1,011 Python tests and 17 Chromium browser tests pass locally; combined line/branch coverage is 90.04%.
+- Ruff formatting/lint, JavaScript syntax and Mypy checks pass across all 26 Python program modules.
+- Cover HA-local quiet-hour boundaries and DST, legacy/malformed preferences, failed persistence, returning recommendations, abort deduplication, volume evidence and calendar allocation.
+- Browser regressions cover external changes, reattachment races, read-only filters/CSV downloads, quoting/formula protection, new preferences, sensor hints and mobile layouts.
+- Update German/English documentation and visually inspect desktop/mobile views. Browser fixtures emulate HA; physical device behavior still requires installation checks.
+
 ## 3.18.0
 
 ### Added
@@ -764,5 +786,6 @@
 - The OpenWeatherMap forecast is cached for one hour and is only read through
   Home Assistant's `weather.get_forecasts` action.
 - All Python source values and status keys are English.
+
 
 

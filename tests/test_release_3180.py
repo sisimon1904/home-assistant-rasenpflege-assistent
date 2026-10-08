@@ -260,7 +260,13 @@ async def test_malformed_optional_notification_data(hass, bad):
     item = notifier(hass)
     item.store.async_load = AsyncMock(return_value=bad)
     await item.async_initialize()
-    assert item.preferences == {"enabled": False, "interval_hours": 24}
+    assert item.preferences == {
+        "enabled": False,
+        "interval_hours": 24,
+        "quiet_start": "",
+        "quiet_end": "",
+        "changes_only": False,
+    }
 
 
 async def test_notification_stops_after_unload(hass):

@@ -29,6 +29,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import CONF_AREA, DEFAULT_AREA, DOMAIN, INTEGRATION_VERSION
 from .insights import restore_history
+from .planning import consumption_evidence
 
 PANEL_PATH = "rasenpflege-assistent"
 ASSET_PATH = "/rasenpflege_assistent_static"
@@ -206,6 +207,9 @@ async def websocket_dashboard_action(
             {
                 vol.Required("enabled"): bool,
                 vol.Required("interval_hours"): vol.In([1, 6, 24]),
+                vol.Optional("quiet_start"): str,
+                vol.Optional("quiet_end"): str,
+                vol.Optional("changes_only"): bool,
             }
         )(data)
         notifier = hass.data.get(f"{DOMAIN}_notifiers", {}).get(entry.entry_id)
@@ -340,6 +344,9 @@ async def websocket_dashboard_data(
             "journal": list(reversed(journal)),
             "observations": samples,
             "area_m2": coordinator.settings.get(CONF_AREA, DEFAULT_AREA),
+            "consumption": consumption_evidence(
+                state.water_usage, dt_util.as_local(dt_util.now()).date()
+            ),
             "notifications": notifier.preferences
             if notifier and connection.user.is_admin
             else None,

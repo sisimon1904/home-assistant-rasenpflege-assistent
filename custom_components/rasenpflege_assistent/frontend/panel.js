@@ -37,8 +37,31 @@ function icon(name) { const node = el("ha-icon"); node.setAttribute("icon", name
 const VIEWS = ["overview", "plan", "mowing", "water", "trends", "journal", "diagnostics"];
 Object.assign(WORDS.de, {good:"Gut",limited:"Eingeschränkt",insufficient:"Unzureichend",trends:"Verläufe",journal:"Pflegeprotokoll",dayPlan:"Tagesplan",rain:"Erfasster Regen",measured:"Sensorwert",waterEvents:"Bewässerung · erfasste Mengen",trendNote:"Modell und Messung sind getrennt. Regen zeigt erfasste Intervalle, keine vollständigen Tagessummen. Fehlende Daten bedeuten nicht null.",journalNote:"Bis zu 20 Pflegeeinträge. Nur der letzte manuelle Eintrag kann zurückgenommen und anschließend korrigiert neu erfasst werden. Physische Bewässerung und automatische Mähbeobachtungen bleiben geschützt.",undo:"Zurücknehmen und neu erfassen",confirmUndo:"Den letzten manuellen Pflegeeintrag zurücknehmen? Danach kannst du ihn korrigiert neu erfassen.",recordCare:"Pflege erfassen",careTime:"Zeitpunkt · lokale Zeit dieses Geräts (leer = jetzt)",validTime:"Bitte einen vergangenen Zeitpunkt angeben.",notifications:"Benachrichtigungen",notifyNote:"Optionale Hinweise in der Home-Assistant-Glocke bei empfohlener Pflege und Bewässerungsabbrüchen. Keine Push-Nachrichten an ein Telefon.",notifyInterval:"Mindestabstand je Hinweisart",save:"Speichern",hours:"Stunden",journalError:"Pflegeprotokoll ist nicht verfügbar. Vollständige Leserechte für die Rasenfläche erforderlich; danach erneut aktualisieren.",noJournal:"Noch keine Pflegeeinträge.",unit:"Einheit",confidence:"Verlässlichkeit",high:"Hoch",medium:"Mittel",low:"Gering",weatherAge:"Alter Wetter",forecastAge:"Alter Prognose",soilSource:"Bodenmodell · Messgrundlage",noSamples:"Noch keine gespeicherten Modellbeobachtungen.",partial:"Unvollständige oder unsichere Messung",historical:"Historisch erfasst",manual:"Manuell",robot_estimate:"Automatische Mähbeobachtung",completion_input:"Fertigmeldung",fertilizing:"Düngung",watering:"Bewässerung",mowing:"Mähen",autoUnknown:"Unbekannt",product:"Produkt · NPK (optional)",kg:"Düngermenge · kg (optional)",actualFlow:"Durchfluss · Messung/Schätzung"});
 Object.assign(WORDS.en, {good:"Good",limited:"Limited",insufficient:"Insufficient",trends:"Trends",journal:"Care log",dayPlan:"Daily plan",rain:"Recorded rain",measured:"Sensor reading",waterEvents:"Irrigation · recorded quantities",trendNote:"Model and measurements are separate. Rain shows recorded intervals, not complete daily totals. Missing data does not mean zero.",journalNote:"Up to 20 care records. Only the latest manual record can be undone and then entered again with corrections. Physical irrigation and automatic mower observations stay protected.",undo:"Undo and enter again",confirmUndo:"Undo the latest manual care record? You can then enter it again with corrections.",recordCare:"Record care",careTime:"Time · this device’s local time (empty = now)",validTime:"Enter a time in the past.",notifications:"Notifications",notifyNote:"Optional hints in Home Assistant’s notification drawer for recommended care and interrupted irrigation. No phone push notifications.",notifyInterval:"Minimum interval per notification category",save:"Save",hours:"hours",journalError:"Care history unavailable. Full lawn read access is required; refresh afterwards.",noJournal:"No care records yet.",unit:"Unit",confidence:"Confidence",high:"High",medium:"Medium",low:"Low",weatherAge:"Weather age",forecastAge:"Forecast age",soilSource:"Soil model · measurement evidence",noSamples:"No saved model observations yet.",partial:"Incomplete or uncertain measurement",historical:"Historical record",manual:"Manual",robot_estimate:"Automatic mower observation",completion_input:"Completion input",fertilizing:"Fertilizing",watering:"Watering",mowing:"Mowing",autoUnknown:"Unknown",product:"Product · NPK (optional)",kg:"Fertilizer amount · kg (optional)",actualFlow:"Flow · measured/estimated"});
+Object.assign(WORDS.de, {stale:"Veraltet",missing:"Fehlt",unavailable:"Nicht verfügbar",invalid:"Ungültig",invalid_or_stale:"Ungültig oder veraltet"});
+Object.assign(WORDS.en, {stale:"Stale",missing:"Missing",unavailable:"Unavailable",invalid:"Invalid",invalid_or_stale:"Invalid or stale"});
+Object.assign(WORDS.de, {measuredWater:"Gemessene Ventilmenge",flowEstimatedWater:"Geschätzte Ventilmenge",uncertainWater:"Ventilmenge · Messgrundlage unklar"});
+Object.assign(WORDS.en, {measuredWater:"Measured valve volume",flowEstimatedWater:"Estimated valve volume",uncertainWater:"Valve volume · uncertain evidence"});
 const missing = (v) => v == null || v === "unknown" || v === "unavailable";
 const finite = (v) => !missing(v) && v !== "" && Number.isFinite(Number(v));
+
+// Export only the currently visible, permission-filtered journal. Quote every
+// CSV cell and neutralize spreadsheet formulas in user-entered product text.
+export function careCsv(records) {
+  const cell = value => {
+    let text = value == null ? "" : String(value);
+    if (/^[\s]*[=+@-]/.test(text)) text = "'" + text;
+    return '"' + text.replaceAll('"','""') + '"';
+  };
+  const rows = [["action","recorded_at","logged_at","amount_mm","amount_kg","product_npk","source","historical"]];
+  for (const row of records) {
+    const d = row.details || {};
+    rows.push([row.action,d.recorded_at || row.timestamp,row.timestamp,d.amount_mm,d.amount_kg,d.product_npk,d.source,d.historical]);
+  }
+  return "\uFEFF" + rows.map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
+}
+
+Object.assign(WORDS.de, {why:"Warum jetzt – warum noch nicht?",possible:"Nächster sinnvoller Zeitpunkt",conditional:"Zeitpunkte sind bedingt durch Wetter und Voraussetzungen. Ohne ausreichende Daten bleibt der Zeitpunkt offen.",filter:"Einträge filtern",all:"Alle",export:"CSV herunterladen",consumption:"Wasserverbrauch · Kalenderzeiträume",perArea:"Liter je m² · heutige Fläche",physical:"Erfasste Ventilsitzungen",manualWater:"Manuell erfasste Menge",estimatedWater:"Manuelle Schätzung",volumeNote:"Ventilsitzungen können Messlücken enthalten. l/m² nutzt die heutige Fläche und ist bei Flächenänderungen ein Vergleichswert. Aktive Sitzungen sind nicht enthalten.",gaps:"Messlücken / unbekannte Mengen",quietStart:"Ruhezeit ab (HA-Zeit)",quietEnd:"Ruhezeit bis (HA-Zeit)",changesOnly:"Nur geänderte Pflegeempfehlungen",yes:"Ja",no:"Nein",quietNote:"Beide Zeiten leer lassen, um Ruhezeiten auszuschalten. Während der Ruhezeit werden keine neuen Hinweise veröffentlicht. Sicherheitsabschaltungen bleiben aktiv.",sensorProblem:"Daten prüfen",staleHint:"Sensor aktualisieren und dessen Verbindung sowie eingestellte maximale Datenalter prüfen.",missingHint:"Entität, Verfügbarkeit und Einheit in Home Assistant prüfen.",impact:"Diese Daten können Empfehlungen einschränken. Wetter und Regen beeinflussen Pflege und Wasserbilanz; Bodenwerte unterstützen das Modell; Tau und Blattnässe beeinflussen Mähfenster.",noProblem:"Keine Probleme an den aufgeführten Eingängen erkannt.",unknownVolume:"Unbekannte Menge bleibt offen."});
+Object.assign(WORDS.en, {why:"Why now – why wait?",possible:"Next useful care time",conditional:"Times depend on weather and prerequisites. Without sufficient evidence the time remains unknown.",filter:"Filter records",all:"All",export:"Download CSV",consumption:"Water use · calendar periods",perArea:"Liters per m² · current area",physical:"Recorded valve sessions",manualWater:"Manually recorded amount",estimatedWater:"Manual estimate",volumeNote:"Valve sessions can contain measurement gaps. l/m² uses the current area and is a comparison value after area changes. Active sessions are excluded.",gaps:"Measurement gaps / unknown quantities",quietStart:"Quiet hours from (HA time)",quietEnd:"Quiet hours until (HA time)",changesOnly:"Changed care recommendations only",yes:"Yes",no:"No",quietNote:"Leave both times empty to disable quiet hours. No new hints are published during quiet hours. Safety shutdowns remain active.",sensorProblem:"Check data",staleHint:"Update the sensor and check its connection and configured maximum data age.",missingHint:"Check the entity, availability and unit in Home Assistant.",impact:"These inputs may limit recommendations. Weather and rain affect care and the water balance; soil readings support the model; dew and leaf wetness affect mowing windows.",noProblem:"No problems detected for the listed inputs.",unknownVolume:"Unknown quantities remain unknown."});
 
 export class LawnCareDashboard extends HTMLElement {
   constructor() {
@@ -47,6 +70,7 @@ export class LawnCareDashboard extends HTMLElement {
     this._lawns = []; this._view = "overview"; this._entry = "";
     this._draft = {}; this._history = null; this._historyError = false;
     this._panelData = null; this._detailsContext = ""; this._preferencesLoaded = false;
+    this._dataRefreshTimer = null;
     this._routeChanged = () => { this.restoreRoute(); this.scheduleRender(); };
     this._busy = false; this._loading = false; this._message = null;
   }
@@ -59,11 +83,22 @@ export class LawnCareDashboard extends HTMLElement {
     const entities = Object.values(this.lawn?.entities || {});
     if (!this._loaded && !this._loading && this.isConnected) this.loadLawns();
     if (!previous || previous.connection !== value.connection || previous.connected !== value.connected || previous.language !== value.language || entities.some(id => previous.states[id] !== value.states[id])) this.scheduleRender();
-    if ((previous?.connection !== value.connection || previous?.connected === false && value.connected !== false) && this._loaded) this.loadLawns();
+    if ((previous?.connection !== value.connection || previous?.connected !== value.connected) && this._loaded) {
+      this._lawnToken = null; this._loading = false;
+      this._dataToken = null; this._historyToken = null;
+      if (value.connected !== false && this.isConnected) this.loadLawns();
+    }
+    else if (previous && this._loaded && entities.some(id => previous.states[id] !== value.states[id])) this.queuePanelData();
   }
   get hass() { return this._hass; }
-  connectedCallback() { window.addEventListener("hashchange",this._routeChanged); window.addEventListener("popstate",this._routeChanged); if (this._hass && !this._loaded) this.loadLawns(); this.scheduleRender(); }
-  disconnectedCallback() { window.removeEventListener("hashchange",this._routeChanged); window.removeEventListener("popstate",this._routeChanged); this._historyToken = null; this._dataToken = null; cancelAnimationFrame(this._frame); this._frame = null; }
+  connectedCallback() { window.addEventListener("hashchange",this._routeChanged); window.addEventListener("popstate",this._routeChanged); if (this._hass) this.loadLawns(); this.scheduleRender(); }
+  disconnectedCallback() { window.removeEventListener("hashchange",this._routeChanged); window.removeEventListener("popstate",this._routeChanged); this._historyToken = null; this._dataToken = null; this._lawnToken = null; this._loading = false; clearTimeout(this._dataRefreshTimer); this._dataRefreshTimer = null; cancelAnimationFrame(this._frame); this._frame = null; }
+  queuePanelData() {
+    // Coalesce HA update bursts without periodic polling. One follow-up is
+    // enough to pick up care records/model observations written externally.
+    if (!this.isConnected || this._dataRefreshTimer || this._hass?.connected === false) return;
+    this._dataRefreshTimer = setTimeout(() => { this._dataRefreshTimer = null; if (this.isConnected) this.loadPanelData(true); }, 350);
+  }
   get lawn() { return this._lawns.find(l => l.entry_id === this._entry); }
   get lang() { return (this._hass?.language || this._hass?.locale?.language || "de").toLowerCase().startsWith("de") ? "de" : "en"; }
   t(key) { return WORDS[this.lang][key] || key; }
@@ -114,19 +149,66 @@ export class LawnCareDashboard extends HTMLElement {
     this._entry = entry; this._draft = {}; this._message = null;
     this.saveRoute(); this.loadHistory(); this.loadPanelData(); this.scheduleRender();
   }
-  async loadPanelData() {
-    const token = {}; this._dataToken = token; this._panelData = null; this._dataError = false;
+  async loadPanelData(preserve=false) {
+    const token = {}; this._dataToken = token; if (!preserve) this._panelData = null; this._dataError = false;
     if (!this.lawn) return;
     try {
       const result = await this._hass.callWS({type:"rasenpflege_assistent/dashboard_data",config_entry_id:this._entry});
       if (token !== this._dataToken) return;
       this._panelData = result;
-    } catch (_) { if (token === this._dataToken) this._dataError = true; }
+    } catch (_) { if (token === this._dataToken) { this._dataError = true; this._panelData = null; } }
     this.scheduleRender();
   }
   qualityCard() {
     const quality = this.attrs("data_quality"), soil = this.attrs("soil_moisture");
     return this.card(this.t("quality"),"mdi:database-check",this.tag(this.text("data_quality"),this.state("data_quality")?.state === "good" ? "" : "orange"),this.row(this.t("updated"),this.date(this.state("last_calculation")?.state)),this.row(this.t("weatherAge"),this.num(quality.weather_age_minutes,"min")),this.row(this.t("forecastAge"),this.num(quality.forecast_age_minutes,"min")),this.row(this.t("confidence"),this.text("soil_model_confidence")),this.row(this.t("watering"),this.text("watering_confidence")),this.notes(soil.model_insights?.soil_evidence?.basis_text),el("div","hint",this.t("modelNote")));
+  }
+  inputProblems() {
+    const inputs = this.attrs("data_quality").input_diagnostics || {};
+    const problems = Object.entries(inputs).filter(([,value]) => value && !["accepted","not_configured"].includes(value.reason));
+    const names = {soil_moisture_entity:this.t("soil"),soil_temperature_entity:this.lang === "de" ? "Bodentemperatur" : "Soil temperature",leaf_wetness_entity:this.lang === "de" ? "Blattnässe" : "Leaf wetness",weather_entity:this.t("forecast"),temperature_entity:this.lang === "de" ? "Außentemperatur" : "Outdoor temperature",precipitation_entity:this.t("rain"),irrigation_flow:this.t("actualFlow"),irrigation_valve:this.lang === "de" ? "Ventil" : "Valve",other_valve:this.lang === "de" ? "Zweites Ventil" : "Second valve"};
+    return this.card(this.t("sensorProblem"),"mdi:alert-circle-outline",
+      ...problems.map(([key,value]) => el("div","notes",this.row(names[key] || key,this.t(value.reason)),el("div","",this.t(value.reason === "stale" ? "staleHint" : "missingHint")))),
+      this.notes(problems.length ? this.t("impact") : this.t("noProblem")));
+  }
+  whyCard() {
+    const care = this.attrs("care_plan"), mowing = this.attrs("mower_status"), watering = this.attrs("watering_recommendation");
+    return this.card(this.t("why"),"mdi:help-circle-outline",
+      this.row(this.t("mowing"),care.mowing?.status_text || this.text("mower_status")),
+      this.notes([care.mowing?.reason_text,mowing.mowing_window?.reason_text,mowing.mowing_window?.current_dew_risk_text]),
+      this.row(this.t("watering"),care.watering?.status_text || this.text("watering_recommendation")),
+      this.notes([watering.reason_text,care.watering?.blocker_text,...(watering.reasons_text || [])]),
+      this.row(this.t("fertilizing"),care.fertilizing?.status_text || "—"),
+      this.notes(care.fertilizing?.reasons_text));
+  }
+  possibleCard() {
+    const care = this.attrs("care_plan"), steps = care.outlook?.steps || [];
+    return this.card(this.t("possible"),"mdi:calendar-clock",
+      ...["mow_lawn","water_lawn","fertilize_lawn"].map(action => {
+        const step = steps.find(row => row.action === action || action === "water_lawn" && row.action === "prepare_watering");
+        return el("div","",this.row(step?.action_text || this.t({mow_lawn:"mowing",water_lawn:"watering",fertilize_lawn:"fertilizing"}[action]),this.date(step?.candidate_at || step?.not_before)),this.notes([step?.outlook_reason_text,step?.dependency_text]));
+      }),this.notes([this.t("conditional"),care.outlook?.scope_text]));
+  }
+  consumptionCard() {
+    const totals = this._panelData?.consumption || this.attrs("water_consumption_day"), area = this._panelData?.area_m2;
+    return this.card(this.t("consumption"),"mdi:water-check",
+      ...[["week","week"],["month","month"]].map(([prefix,label]) => el("div","",
+        this.row(this.t(label),this.num(totals[prefix+"_liters"],"L")),
+        this.row(this.t("perArea"),finite(area) && Number(area) > 0 && finite(totals[prefix+"_liters"]) ? this.num(Number(totals[prefix+"_liters"])/Number(area),"L/m²") : "—"),
+        this.row(this.t("physical"),this.num(totals[prefix+"_irrigation_liters"],"L")),
+        this.row(this.t("measuredWater"),this.num(totals[prefix+"_measured_liters"],"L")),
+        this.row(this.t("flowEstimatedWater"),this.num(totals[prefix+"_estimated_liters"],"L")),
+        this.row(this.t("uncertainWater"),this.num(totals[prefix+"_uncertain_liters"],"L")),
+        this.row(this.t("manualWater"),this.num(totals[prefix+"_manual_record_liters"],"L")),
+        this.row(this.t("estimatedWater"),this.num(totals[prefix+"_manual_estimate_liters"],"L")),
+        this.row(this.t("gaps"),`${this.num(totals[prefix+"_measurement_gap_sessions"])} / ${this.num(totals[prefix+"_unmetered_sessions"])}`))),
+      this.notes([this.t("volumeNote"),this.t("unknownVolume")]));
+  }
+  exportJournal(rows) {
+    const blob = new Blob([careCsv(rows)],{type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob), link = document.createElement("a");
+    link.href = url; link.download = "lawn-care-log.csv"; link.click();
+    setTimeout(() => URL.revokeObjectURL(url),1000);
   }
   choose(name, label, options, defaultValue) {
     const select = el("select"); select.name = name;
@@ -180,9 +262,14 @@ export class LawnCareDashboard extends HTMLElement {
     const rain = this.card(this.t("rain"),"mdi:weather-rainy",this.plot(rows,"rain_mm",this.t("rain"),"mm",null,true),this.notes(this.t("trendNote")));
     const records = this.attrs("water_consumption_day").recent_records || [];
     const irrigation = this.card(this.t("waterEvents"),"mdi:sprinkler",this.plot(records.map(row => ({timestamp:row.recorded_at || row.date,liters:row.undone ? null : row.liters})),"liters",this.t("recorded"),"L",null,true),...records.slice(0,10).map(row => this.row(this.date(row.recorded_at || row.date),`${this.num(row.liters,"L")} · ${row.source_text || "—"}${row.measurement_gap || row.allocation_estimated ? ` · ${this.t("partial")}` : ""}`)));
-    const cards = [soil,rain,irrigation,this.qualityCard()];
+    const cards = [soil,rain,irrigation,this.consumptionCard(),this.qualityCard()];
     if (this._dataError) cards.unshift(this.card(this.t("journal"),"mdi:alert",this.notes(this.t("journalError"))));
     return cards;
+  }
+  quietField(name,label,value) {
+    const input = el("input"); input.type = "time"; input.name = name; input.value = this._draft[name] ?? value ?? ""; input.disabled = this._busy || !this._canControl;
+    input.addEventListener("input",() => { this._draft[name] = input.value; });
+    return el("label","field",label,input);
   }
   optionalText(name, label, type="text") {
     const input = el("input","wide"); input.name = name; input.type = type; if (type === "datetime-local") input.step = "1"; input.value = this._draft[name] || ""; input.disabled = this._busy || !this._canControl;
@@ -215,9 +302,17 @@ export class LawnCareDashboard extends HTMLElement {
     this.scheduleRender();
   }
   journal() {
-    const rows = this._panelData?.journal || [];
+    const filter = this._draft.journal_filter || "all";
+    const rows = (this._panelData?.journal || []).filter(row => filter === "all" || row.action === filter);
     const log = this.card(this.t("journal"),"mdi:history",this.notes(this.t("journalNote")));
     log.classList.add("span2");
+    // Filters and export remain available to read-only users; they never send
+    // a write action, and operate only on server-authorized visible records.
+    const selector = this.choose("journal_filter",this.t("filter"),[["all",this.t("all")],["mowing",this.t("mowing")],["watering",this.t("watering")],["fertilizing",this.t("fertilizing")]],"all");
+    selector.querySelector("select").disabled = false;
+    const download = el("button","action",this.t("export")); download.type = "button"; download.disabled = !rows.length || this._dataError;
+    download.addEventListener("click",() => this.exportJournal(rows));
+    log.append(el("div","form",selector,download));
     if (this._dataError) log.append(this.notes(this.t("journalError")));
     else if (!this._panelData) log.append(this.notes(this.t("loading")));
     else if (!rows.length) log.append(this.notes(this.t("noJournal")));
@@ -234,24 +329,26 @@ export class LawnCareDashboard extends HTMLElement {
     const cards = [log,form];
     const preferences = this._panelData?.notifications;
     if (this._canControl && preferences) {
-      cards.push(this.card(this.t("notifications"),"mdi:bell-outline",this.notes(this.t("notifyNote")),el("div","form",this.choose("notify_enabled",this.t("status"),[["off",this.t("off")],["on",this.t("on")]],preferences.enabled ? "on" : "off"),this.choose("notify_interval",this.t("notifyInterval"),[1,6,24].map(hours => [String(hours),`${hours} ${this.t("hours")}`]),preferences.interval_hours),this.button(this.t("save"),"notification_settings",() => ({enabled:(this._draft.notify_enabled ?? (preferences.enabled ? "on" : "off")) === "on",interval_hours:Number(this._draft.notify_interval ?? preferences.interval_hours)})))));
+      cards.push(this.card(this.t("notifications"),"mdi:bell-outline",this.notes(this.t("notifyNote")),el("div","form",this.choose("notify_enabled",this.t("status"),[["off",this.t("off")],["on",this.t("on")]],preferences.enabled ? "on" : "off"),this.choose("notify_interval",this.t("notifyInterval"),[1,6,24].map(hours => [String(hours),`${hours} ${this.t("hours")}`]),preferences.interval_hours),this.choose("notify_changes",this.t("changesOnly"),[["off",this.t("no")],["on",this.t("yes")]],preferences.changes_only ? "on" : "off"),this.quietField("notify_start",this.t("quietStart"),preferences.quiet_start),this.quietField("notify_end",this.t("quietEnd"),preferences.quiet_end),this.notes(this.t("quietNote")),this.button(this.t("save"),"notification_settings",() => ({enabled:(this._draft.notify_enabled ?? (preferences.enabled ? "on" : "off")) === "on",interval_hours:Number(this._draft.notify_interval ?? preferences.interval_hours),changes_only:(this._draft.notify_changes ?? (preferences.changes_only ? "on" : "off")) === "on",quiet_start:this._draft.notify_start ?? preferences.quiet_start ?? "",quiet_end:this._draft.notify_end ?? preferences.quiet_end ?? ""})))));
     }
     return cards;
   }
 
   async loadLawns() {
     if (!this._hass || this._loading) return;
+    const token = {}; this._lawnToken = token;
     this._loading = true; this.scheduleRender();
     try {
       const result = await this._hass.callWS({type:"rasenpflege_assistent/dashboard"});
+      if (token !== this._lawnToken) return;
       this._lawns = result.lawns || []; this._canControl = result.can_control; this._version = result.version;
       const previousEntry = this._entry;
       this._entry = this._lawns.some(l => l.entry_id === this._entry) ? this._entry : this._lawns[0]?.entry_id || "";
       this._loaded = true; this._message = null; this._history = null; this._historyToken = null;
       if (previousEntry !== this._entry) this._draft = {};
       this.saveRoute(); this.loadHistory(); this.loadPanelData();
-    } catch (error) { this._loaded = true; this._message = {type:"error",text:this.t("refreshError") + " " + (error.message || "")}; }
-    finally { this._loading = false; this.scheduleRender(); }
+    } catch (error) { if (token === this._lawnToken) { this._loaded = true; this._message = {type:"error",text:this.t("refreshError") + " " + (error.message || "")}; } }
+    finally { if (token === this._lawnToken) { this._loading = false; this.scheduleRender(); } }
   }
 
   // Recorder history is fetched on lawn selection/explicit refresh only. Use
@@ -329,7 +426,7 @@ export class LawnCareDashboard extends HTMLElement {
     const history = this.card(this.t("history"),"mdi:chart-timeline-variant",this.chart(),el("div","hint",this.t("historyNote"))); history.classList.add("span2");
     const health = this.qualityCard();
     const daily = this.card(this.t("dayPlan"),"mdi:calendar-today",this.steps(plan.prioritized_steps),this.notes(plan.outlook?.scope_text)); daily.classList.add("span3");
-    return [hero,moisture,growth,rain,use,history,health,daily];
+    return [hero,moisture,growth,rain,use,history,health,daily,this.whyCard(),this.possibleCard(),this.inputProblems()];
   }
   meter(value) {
     const bar = el("div","meter"), fill = el("div","meter-fill");
@@ -363,7 +460,7 @@ export class LawnCareDashboard extends HTMLElement {
     const priorities = this.card(this.t("priority"),"mdi:format-list-numbered",this.steps(attrs.prioritized_steps)); priorities.classList.add("span2");
     const dose = this.card(this.t("fertilizer"),"mdi:flower",el("div","value compact",fertilizer.status_text || "—"),this.row(this.t("window"),fertilizer.window),this.row(this.t("npk"),status.npk),this.row(this.t("dose"),this.num(status.dose_g_m2,"g/m²")),this.row(this.t("total"),this.num(fertilizer.recommended_kg,"kg")),this.notes(fertilizer.reasons_text),el("div","actions",this.button(this.t("recordFert"),"record_fertilizing",{},"","confirmRecord")));
     const outlook = this.card(this.t("outlook"),"mdi:calendar-clock",this.steps(attrs.outlook?.steps,true),this.notes(attrs.outlook?.scope_text)); outlook.classList.add("span3");
-    return [priorities,dose,outlook];
+    return [priorities,dose,outlook,this.whyCard(),this.possibleCard()];
   }
   mowing() {
     const attrs = this.attrs("mower_status"), p = attrs.mowing_window || {}, alt = p.alternative || {}, suggestion = p.duration_suggestion || {};
@@ -395,7 +492,7 @@ export class LawnCareDashboard extends HTMLElement {
     const evidence = this.card(this.t("evidence"),"mdi:water-check",this.notes(model.soil_evidence?.basis_text),this.row(this.t("soil"),this.num(model.soil_evidence?.current_sensor_percent,"%")),this.row(this.t("updated"),this.date(model.soil_evidence?.last_correction_at)),this.notes(model.calibration?.reasons_text),this.notes(model.watering_response?.reasons_text),this.detail(soil));
     const balance = this.card(this.t("balance"),"mdi:water-percent",this.notes(soil.model_diagnostics?.explanation?.scope_text),...(soil.model_diagnostics?.explanation?.terms || []).map(term => this.row(term.text,this.num(term.amount_mm,"mm"))),this.notes([quality.data_gaps?.impact_text,...(model.weekly_comparison?.reasons_text || [])]),this.detail(soil.model_diagnostics || {}));
     const mowing = this.card(this.t("review"),"mdi:weather-partly-rainy",this.notes([window.current_dew_risk_text,window.reason_text,...(window.quality_reasons_text || [])]),...(window.retrospective?.summary?.counts_text || []).map(row => this.row(row.text,this.num(row.count))),this.notes(window.retrospective?.summary?.scope_text),this.detail(window));
-    const cards = [inputs,evidence,balance,mowing];
+    const cards = [inputs,evidence,balance,mowing,this.inputProblems()];
     if (this.lawn.irrigation_configured) cards.push(this.card(this.t("comparison"),"mdi:sprinkler",this.notes([...irrigation.automatic_blockers_text || [],irrigation.quantity_comparison?.reason_text,irrigation.water_balance?.reason_text,irrigation.water_balance?.delivery_quality_text,irrigation.quantity_comparison?.scope_text]),this.detail(irrigation)));
     return cards;
   }
@@ -424,7 +521,7 @@ export class LawnCareDashboard extends HTMLElement {
       button.addEventListener("click", () => { this._view = view; if (!this._busy) this._message = null; this.saveRoute(); this.scheduleRender(); }); rail.append(button);
     }
     const refresh = el("button","nav",icon("mdi:refresh"),this.t("refresh")); refresh.type = "button"; refresh.disabled = this._loading || this._busy; refresh.addEventListener("click",() => this.loadLawns()); rail.append(refresh);
-    rail.append(el("div","rail-foot",el("div","","Home Assistant"),el("div","",`${this.t("version")} ${this._version || "3.18.0"}`)));
+    rail.append(el("div","rail-foot",el("div","","Home Assistant"),el("div","",`${this.t("version")} ${this._version || "3.19.0"}`)));
     const main = el("main","main");
     if (this._message) { const notice = el("div",`notice ${this._message.type}`,this._message.text); notice.setAttribute("role",this._message.type === "error" ? "alert" : "status"); main.append(notice); }
     if (!connected) main.append(el("div","notice",this.t("offline")));

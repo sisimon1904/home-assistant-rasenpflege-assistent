@@ -115,6 +115,41 @@ def consumption_summary(records: list[dict[str, Any]], today: date) -> dict[str,
     return output
 
 
+def consumption_evidence(records: list[dict[str, Any]], today: date) -> dict[str, Any]:
+    """Split recorded valve quantities by evidence without inventing precision.
+
+    Manual records retain their separate source totals. Only an explicitly
+    complete, non-estimated valve record counts as measured. Legacy records,
+    gaps and missing quality flags remain uncertain. Calendar allocations and
+    unknown-volume counts use the same rules as the existing ledger summary.
+    """
+    output = consumption_summary(records, today)
+    groups: dict[str, list[dict[str, Any]]] = {
+        "measured": [],
+        "estimated": [],
+        "uncertain": [],
+    }
+    for record in records:
+        if record.get("source") != "irrigation":
+            continue
+        category = (
+            "uncertain"
+            if record.get("measurement_gap") is not False
+            or record.get("liters") is None
+            else "measured"
+            if record.get("volume_estimated") is False
+            else "estimated"
+            if record.get("volume_estimated") is True
+            else "uncertain"
+        )
+        groups[category].append(record)
+    for category, rows in groups.items():
+        totals = consumption_summary(rows, today)
+        for period in ("day", "week", "month"):
+            output[f"{period}_{category}_liters"] = totals[f"{period}_liters"]
+    return output
+
+
 def allocate_volume(
     start: datetime, end: datetime, liters: float
 ) -> list[dict[str, Any]]:

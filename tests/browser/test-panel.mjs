@@ -49,7 +49,7 @@ async function fixture(options={}) {
     states[entities.care_plan].attributes={prioritized_steps:[{action_text:"Watering",availability_text:"Check weather first",not_before:now}],outlook:{scope_text:"Conditional recommendation"}};
     states[entities.last_calculation].state=now;
     states[entities.water_consumption_day].attributes={recent_records:[{recorded_at:now,liters:250,source_text:"Manuelle Erfassung"},{recorded_at:new Date(Date.now()-86400000).toISOString(),liters:400,source_text:"Bewässerungssteuerung",measurement_gap:true}]};
-    window.meta={lawns:[{entry_id:"a",name:"Garden A",entities,irrigation_configured:true},{entry_id:"b",name:"Garden B",entities:{status:"sensor.b_status"},irrigation_configured:false}],can_control:!readOnly,version:"3.18.0"};
+    window.meta={lawns:[{entry_id:"a",name:"Garden A",entities,irrigation_configured:true},{entry_id:"b",name:"Garden B",entities:{status:"sensor.b_status"},irrigation_configured:false}],can_control:!readOnly,version:"3.19.0"};
     window.extra={area_m2:100,observations:Array.from({length:12},(_,i) => ({timestamp:new Date(Date.now()-(12-i)*1800000).toISOString(),sensor_reported_at:new Date(Date.now()-(12-i)*1800000).toISOString(),modeled_percent:60-i*.2,measured_percent:i === 5 ? null : 58-i*.1,rain_mm:i === 3 ? 1.5 : 0,rain_known:i !== 8,et_mm:.05})),journal:[{action:"mowing",timestamp:now,details:{recorded_at:now,source:"manual"},can_undo:!readOnly}],notifications:readOnly ? null : {enabled:false,interval_hours:24}};
     window.hass={states,language:language || "de",config:{time_zone:"Europe/Berlin"},user:{id:"user-a"},connection:{},connected:true,callApi:async () => [[]],callWS:async request => { window.calls.push(JSON.parse(JSON.stringify(request))); if (request.type.endsWith("/dashboard")) return window.meta; if (request.type.endsWith("/dashboard_data")) return window.extra; return null; }};
     window.panel.hass=window.hass;
@@ -84,6 +84,85 @@ test("late history response never belongs to a lawn without a soil entity",async
     await oldHistory;
   });
   assert.equal(await f.page.evaluate(() => panel._history),null);
+  await f.close();
+});
+
+test("external HA updates coalesce and refresh care journal and observations",async () => {
+  const f=await fixture();
+  await f.page.evaluate(() => {
+    calls.length=0;
+    extra={...extra,journal:[{action:"fertilizing",timestamp:new Date().toISOString(),details:{product_npk:"External record"}}]};
+    for(let i=0;i<5;i++) {
+      hass={...hass,states:{...hass.states,"sensor.a_care_plan":{...hass.states["sensor.a_care_plan"],state:String(i)}}};
+      panel.hass=hass;
+    }
+  });
+  await f.page.waitForFunction(() => panel._panelData?.journal[0]?.details.product_npk === "External record");
+  assert.equal(await f.page.evaluate(() => calls.filter(row => row.type.endsWith("/dashboard_data")).length),1);
+  await f.close();
+});
+
+test("reattaching the same panel refreshes data and rejects detached discovery",async () => {
+  const f=await fixture();
+  await f.page.evaluate(async () => {
+    const original=hass.callWS;
+    hass.callWS=request => request.type.endsWith("/dashboard") ? new Promise(resolve => {window.oldDiscovery=resolve;}) : original(request);
+    panel.loadLawns();
+    panel.remove();
+    hass.callWS=original;
+    extra={...extra,journal:[{action:"mowing",details:{source:"After reopen"}}]};
+    document.body.append(panel);
+    oldDiscovery({lawns:[],can_control:false});
+  });
+  await f.page.waitForFunction(() => panel._panelData?.journal[0]?.details.source === "After reopen");
+  assert.equal(await f.page.evaluate(() => panel._entry),"a");
+  await f.close();
+});
+
+test("read-only journal filtering and CSV export preserve quotes and block formulas",async () => {
+  const f=await fixture({readOnly:true,language:"en"});
+  await f.page.evaluate(() => {
+    panel._panelData.journal=[{action:"mowing",timestamp:"2026-10-01",details:{}},{action:"fertilizing",timestamp:"2026-10-02",details:{product_npk:'=SUM(1,2)\n"quoted"',amount_kg:1}}];
+    panel.scheduleRender();
+  });
+  await f.page.getByRole("button",{name:"Care log",exact:true}).click();
+  await f.page.locator('[name="journal_filter"]').selectOption("fertilizing");
+  const result=await f.page.evaluate(async () => {
+    const {careCsv}=await import("/panel.js");
+    const rows=panel._panelData.journal.filter(row => row.action === panel._draft.journal_filter);
+    return {csv:careCsv(rows),filterEnabled:!panel.shadowRoot.querySelector('[name="journal_filter"]').disabled,records:rows.length};
+  });
+  assert.equal(result.records,1); assert.equal(result.filterEnabled,true);
+  assert.ok(result.csv.includes("'=SUM(1,2)")); assert.ok(result.csv.includes('""quoted""'));
+  const download=await Promise.all([f.page.waitForEvent("download"),f.page.getByRole("button",{name:"Download CSV",exact:true}).click()]);
+  assert.equal(download[0].suggestedFilename(),"lawn-care-log.csv");
+  await f.close();
+});
+
+test("notification quiet hours and change-only preference are sent explicitly",async () => {
+  const f=await fixture();
+  await f.page.getByRole("button",{name:"Pflegeprotokoll",exact:true}).click();
+  await f.page.locator('[name="notify_changes"]').selectOption("on");
+  await f.page.locator('[name="notify_start"]').fill("22:00");
+  await f.page.locator('[name="notify_end"]').fill("07:00");
+  await f.page.getByRole("button",{name:"Speichern",exact:true}).last().click();
+  await f.page.waitForFunction(() => calls.some(row => row.action === "notification_settings"));
+  assert.deepEqual(await f.page.evaluate(() => calls.find(row => row.action === "notification_settings").data),{enabled:false,interval_hours:24,changes_only:true,quiet_start:"22:00",quiet_end:"07:00"});
+  await f.close();
+});
+
+test("care reasons, unknown times, input hints and normalized consumption are visible",async () => {
+  const f=await fixture({language:"en",mobile:true});
+  await f.page.evaluate(() => {
+    panel._panelData.consumption={week_liters:150,week_irrigation_liters:100,week_manual_record_liters:0,week_manual_estimate_liters:50,week_measurement_gap_sessions:1,week_unmetered_sessions:1};
+    hass={...hass,states:{...hass.states,"sensor.a_data_quality":{state:"limited",attributes:{input_diagnostics:{soil_moisture_entity:{reason:"stale"}}}}}};
+    panel.hass=hass;
+  });
+  await f.page.getByText("Why now – why wait?",{exact:true}).waitFor();
+  await f.page.getByText("Next useful care time",{exact:true}).waitFor();
+  await f.page.getByText("Update the sensor and check its connection and configured maximum data age.",{exact:true}).waitFor();
+  await f.page.getByRole("button",{name:"Trends",exact:true}).click();
+  await f.page.getByText("1.5 L/m²",{exact:true}).waitFor();
   await f.close();
 });
 
@@ -169,7 +248,7 @@ test("notification preferences are scoped, optional and keep their interval",asy
   await f.page.locator('[name="notify_interval"]').selectOption("6");
   await f.page.getByRole("button",{name:"Speichern",exact:true}).last().click();
   await f.page.getByText("Aktion erfolgreich ausgeführt.").waitFor();
-  assert.deepEqual(await f.page.evaluate(() => calls.find(call => call.action === "notification_settings").data),{enabled:true,interval_hours:6});
+  assert.deepEqual(await f.page.evaluate(() => calls.find(call => call.action === "notification_settings").data),{enabled:true,interval_hours:6,changes_only:false,quiet_start:"",quiet_end:""});
   await f.close();
 });
 
