@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) | **English**
 
-Version 3.19.0 · [Changelog](CHANGELOG.md)
+Version 3.20.0 · [Changelog](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -18,7 +18,7 @@ Use **Settings → Devices & services → Lawn Care Assistant → Menu → Recon
 See the [quality audit](docs/quality-audit.md) for checks and remaining Quality Scale requirements.
 The [source code overview](docs/source-code.md) documents file responsibilities and development rules (in German).
 
-**New in 3.19.0:** Care reasons and conditional times are visible directly. Filter the care log and download visible records as CSV. Weekly/monthly consumption distinguishes measured, estimated and uncertain valve quantities; l/m² explicitly uses the current area. Optional HA hints support quiet hours and changed-recommendation-only alerts. Care history and trends refresh after external care actions and when reopening the panel.
+The web dashboard shows care reasons, specific sensor checks and daily recorded water usage over 7 or 30 days. Download the full available water ledger as CSV, retaining unknown quantities and estimated date allocations. Care hints and irrigation interruptions have separate switches and minimum intervals, with shared quiet hours.
 
 ## Integrated web dashboard
 

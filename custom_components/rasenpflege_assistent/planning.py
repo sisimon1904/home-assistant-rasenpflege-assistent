@@ -150,6 +150,71 @@ def consumption_evidence(records: list[dict[str, Any]], today: date) -> dict[str
     return output
 
 
+def daily_consumption(
+    records: list[dict[str, Any]], today: date, days: int = 30
+) -> list[dict[str, Any]]:
+    """Return 7/30 local ledger dates, retaining allocations and unknowns.
+
+    These are recorded amounts, not proof of daily actual consumption. Empty
+    days have no record; unknown-only days retain a null volume. Source totals
+    and quality counts are carried alongside partial known quantities.
+    """
+    if days not in {7, 30}:
+        raise ValueError("Daily consumption supports 7 or 30 days")
+    # Index the ledger once. A live flow update must not scan a year of
+    # records thirty times on HA's event loop. Each record belongs at most
+    # once to a particular date, even with multiple allocations on that date.
+    first = today - timedelta(days=days - 1)
+    buckets: dict[date, list[dict[str, Any]]] = {}
+    for record in records:
+        dates: set[date] = set()
+        for allocation in record.get("allocations") or [record]:
+            try:
+                at = date.fromisoformat(allocation["date"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if first <= at <= today:
+                dates.add(at)
+        for raw in record.get("uncertainty_dates") or []:
+            try:
+                at = date.fromisoformat(raw)
+            except (TypeError, ValueError):
+                continue
+            if first <= at <= today:
+                dates.add(at)
+        for at in dates:
+            buckets.setdefault(at, []).append(record)
+    output = []
+    for offset in range(days - 1, -1, -1):
+        day = today - timedelta(days=offset)
+        totals = consumption_evidence(buckets.get(day, []), day)
+        known = totals["day_liters"]
+        unknown = totals["day_unmetered_sessions"]
+        output.append(
+            {
+                "date": day.isoformat(),
+                "liters": known if known > 0 or not unknown else None,
+                "sessions": totals["day_sessions"],
+                "unknown_sessions": unknown,
+                "gap_sessions": totals["day_measurement_gap_sessions"],
+                "allocation_estimated_sessions": totals[
+                    "day_allocation_estimated_sessions"
+                ],
+                **{
+                    kind: totals[f"day_{kind}_liters"]
+                    for kind in (
+                        "measured",
+                        "estimated",
+                        "uncertain",
+                        "manual_record",
+                        "manual_estimate",
+                    )
+                },
+            }
+        )
+    return output
+
+
 def allocate_volume(
     start: datetime, end: datetime, liters: float
 ) -> list[dict[str, Any]]:

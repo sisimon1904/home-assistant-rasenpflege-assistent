@@ -206,3 +206,13 @@ Der Nachweis betrifft die tatsächliche HA-Übersetzungsladung und Python-/Templ
 - 17 Chromium-Browserprüfungen bestanden, einschließlich externer Änderungen, Wiedereinblenden, Protokollfilter, CSV-Download/Quoting/Formelschutz, neuer Hinweisoptionen und mobiler Bedienung. Desktop-/Smartphone-Ansichten visuell geprüft.
 - Die bestehenden Tests für Ventilsicherheit, gemeinsame Durchflussmessung, Zeitüberschreitungen, Speicherfehler und Pflegezeitpunkte sind weiterhin erfolgreich. Es wurden keine Steuerregeln des Ventils oder Wetterabfragen geändert.
 - Die Browserprüfung verwendet HA-Testdaten. Reales Home Assistant, Sensoren, Ventile und agronomische Genauigkeit erfordern weiterhin Prüfung vor Ort.
+
+## Ergänzende Prüfung für 3.20.0
+
+Geprüft am 9. Oktober 2026 unter Python 3.14.8 und Home Assistant 2026.9.4: **1.030 Python-Tests bestanden, 89,99 % kombinierte Zeilen-/Zweigabdeckung**. Ruff-Formatierung/Lint, JavaScript-Syntax und Mypy für alle 26 Programmmodule sind erfolgreich.
+
+19 zusätzliche Python-Fälle prüfen zurückkehrende Pflegeempfehlungen während Ruhezeiten, Neustart und Mindestabstände, zurückgezogene Empfehlungen, getrennte Kategorien samt Migration und Speicherfehlern sowie vollständige berechtigungsgeprüfte Verbrauchsdaten und lokale Tagesaufteilungen. Die Tagesauswertung indiziert das vorhandene Protokoll einmal pro Abfrage statt es für jeden Tag erneut vollständig zu durchsuchen.
+
+21 Chromium-Browserprüfungen bestehen. Neue Fälle prüfen den tatsächlichen vollständigen CSV-Download mit 60 Verbrauchseinträgen im Lesemodus, leere unbekannte Mengen, Qualitäts-/Aufteilungsfelder, 7-/30-Tage-Auswahl, getrennte Hinweiskategorien, konkrete Eingangsdiagnosen und kleine Zahlen in beiden Sprachen. Desktop- und Smartphone-Screenshots der Verläufe wurden visuell geprüft. Die Prüfung verwendet HA-Testdaten und ersetzt keine Installation mit realen Sensoren und Ventilen.
+
+Die bestehenden Sicherheits-, Berechtigungs-, Speicher- und Neustartregressionen bleiben erfolgreich. Es entstehen keine neuen Entitäten oder regelmäßigen Wetterabfragen. Zweites Ventil und Diagnose bleiben lesend; Benachrichtigungseinstellungen ändern keine Ventilsicherheitsregeln. CSV und Diagramme beschreiben gespeicherte Einträge, keine lückenlose Messung des tatsächlichen Wasserverbrauchs.

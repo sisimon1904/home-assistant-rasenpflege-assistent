@@ -49,8 +49,10 @@ async function fixture(options={}) {
     states[entities.care_plan].attributes={prioritized_steps:[{action_text:"Watering",availability_text:"Check weather first",not_before:now}],outlook:{scope_text:"Conditional recommendation"}};
     states[entities.last_calculation].state=now;
     states[entities.water_consumption_day].attributes={recent_records:[{recorded_at:now,liters:250,source_text:"Manuelle Erfassung"},{recorded_at:new Date(Date.now()-86400000).toISOString(),liters:400,source_text:"Bewässerungssteuerung",measurement_gap:true}]};
-    window.meta={lawns:[{entry_id:"a",name:"Garden A",entities,irrigation_configured:true},{entry_id:"b",name:"Garden B",entities:{status:"sensor.b_status"},irrigation_configured:false}],can_control:!readOnly,version:"3.19.0"};
+    window.meta={lawns:[{entry_id:"a",name:"Garden A",entities,irrigation_configured:true},{entry_id:"b",name:"Garden B",entities:{status:"sensor.b_status"},irrigation_configured:false}],can_control:!readOnly,version:"3.20.0"};
     window.extra={area_m2:100,observations:Array.from({length:12},(_,i) => ({timestamp:new Date(Date.now()-(12-i)*1800000).toISOString(),sensor_reported_at:new Date(Date.now()-(12-i)*1800000).toISOString(),modeled_percent:60-i*.2,measured_percent:i === 5 ? null : 58-i*.1,rain_mm:i === 3 ? 1.5 : 0,rain_known:i !== 8,et_mm:.05})),journal:[{action:"mowing",timestamp:now,details:{recorded_at:now,source:"manual"},can_undo:!readOnly}],notifications:readOnly ? null : {enabled:false,interval_hours:24}};
+    window.extra.daily_consumption=Array.from({length:30},(_,i) => ({date:new Date(Date.now()-(29-i)*86400000).toISOString().slice(0,10),liters:i===28 ? null : i===29 ? 10 : 0,measured:i===29 ? 6 : 0,estimated:i===29 ? 4 : 0,manual_record:0,manual_estimate:0,uncertain:0,sessions:i>=28 ? 1 : 0,unknown_sessions:i===28 ? 1 : 0,gap_sessions:i===28 ? 1 : 0,allocation_estimated_sessions:0}));
+    window.extra.water_records=Array.from({length:60},(_,i) => ({date:"2026-10-01",recorded_at:now,liters:i===0 ? null : .04,source:"manual_record",volume_estimated:null,measurement_gap:i===0,allocation_estimated:false,allocations:[],uncertainty_dates:[]}));
     window.hass={states,language:language || "de",config:{time_zone:"Europe/Berlin"},user:{id:"user-a"},connection:{},connected:true,callApi:async () => [[]],callWS:async request => { window.calls.push(JSON.parse(JSON.stringify(request))); if (request.type.endsWith("/dashboard")) return window.meta; if (request.type.endsWith("/dashboard_data")) return window.extra; return null; }};
     window.panel.hass=window.hass;
   },options);
@@ -147,7 +149,7 @@ test("notification quiet hours and change-only preference are sent explicitly",a
   await f.page.locator('[name="notify_end"]').fill("07:00");
   await f.page.getByRole("button",{name:"Speichern",exact:true}).last().click();
   await f.page.waitForFunction(() => calls.some(row => row.action === "notification_settings"));
-  assert.deepEqual(await f.page.evaluate(() => calls.find(row => row.action === "notification_settings").data),{enabled:false,interval_hours:24,changes_only:true,quiet_start:"22:00",quiet_end:"07:00"});
+  assert.deepEqual(await f.page.evaluate(() => calls.find(row => row.action === "notification_settings").data),{enabled:false,interval_hours:24,care_enabled:true,irrigation_enabled:true,care_interval_hours:24,irrigation_interval_hours:24,changes_only:true,quiet_start:"22:00",quiet_end:"07:00"});
   await f.close();
 });
 
@@ -248,7 +250,7 @@ test("notification preferences are scoped, optional and keep their interval",asy
   await f.page.locator('[name="notify_interval"]').selectOption("6");
   await f.page.getByRole("button",{name:"Speichern",exact:true}).last().click();
   await f.page.getByText("Aktion erfolgreich ausgeführt.").waitFor();
-  assert.deepEqual(await f.page.evaluate(() => calls.find(call => call.action === "notification_settings").data),{enabled:true,interval_hours:6,changes_only:false,quiet_start:"",quiet_end:""});
+  assert.deepEqual(await f.page.evaluate(() => calls.find(call => call.action === "notification_settings").data),{enabled:true,interval_hours:6,care_enabled:true,irrigation_enabled:true,care_interval_hours:6,irrigation_interval_hours:24,changes_only:false,quiet_start:"",quiet_end:""});
   await f.close();
 });
 
@@ -287,5 +289,59 @@ test("plots separate missing readings and gaps; sensor text stays inert",async (
     return {lines:chart.querySelectorAll("polyline").length,points:chart.querySelectorAll("circle").length,images:panel.shadowRoot.querySelectorAll("img").length,text:panel.shadowRoot.textContent.includes("<img src=x")};
   });
   assert.deepEqual(result,{lines:0,points:2,images:0,text:true});
+  await f.close();
+});
+
+test("small nonzero quantities are not displayed as zero",async () => {
+  const f=await fixture();
+  const values=await f.page.evaluate(() => [panel.num(.01,"kg"),panel.num(.04,"L/m²"),panel.num(.0000001,"kg"),panel.num(0,"kg")]);
+  assert.equal(values[0],"0,01 kg"); assert.equal(values[1],"0,04 L/m²");
+  assert.notEqual(values[2],"0 kg"); assert.equal(values[3],"0 kg");
+  await f.close();
+});
+
+test("read-only daily chart switches period and exports the complete ledger",async () => {
+  const f=await fixture({readOnly:true,language:"en",mobile:true});
+  await f.page.getByRole("button",{name:"Trends",exact:true}).click();
+  assert.equal(await f.page.locator('[name="water_days"]').isEnabled(),true);
+  await f.page.locator('[name="water_days"]').selectOption("30");
+  const result=await f.page.evaluate(async () => {
+    const {waterCsv}=await import("/panel.js");
+    const chart=panel.shadowRoot.querySelector('svg[aria-label="Irrigation by day"]');
+    return {csv:waterCsv(panel._panelData.water_records),marks:chart.querySelectorAll("text").length,colors:new Set([...chart.querySelectorAll("rect")].map(row => row.getAttribute("fill"))).size};
+  });
+  assert.equal(result.csv.trim().split("\r\n").length,61);
+  assert.ok(result.csv.includes('"0.04"')); assert.ok(result.csv.includes('"","manual_record"'));
+  assert.equal(result.marks,1); assert.equal(result.colors,2);
+  const [download]=await Promise.all([f.page.waitForEvent("download"),f.page.getByRole("button",{name:"Export complete water ledger as CSV",exact:true}).click()]);
+  assert.equal(download.suggestedFilename(),"lawn-water-ledger.csv");
+  await f.close();
+});
+
+test("category notification switches retain independent intervals",async () => {
+  const f=await fixture();
+  await f.page.getByRole("button",{name:"Pflegeprotokoll",exact:true}).click();
+  await f.page.locator('[name="notify_care"]').selectOption("off");
+  await f.page.locator('[name="notify_irrigation"]').selectOption("on");
+  await f.page.locator('[name="notify_interval"]').selectOption("24");
+  await f.page.locator('[name="notify_irrigation_interval"]').selectOption("1");
+  await f.page.getByRole("button",{name:"Speichern",exact:true}).last().click();
+  await f.page.waitForFunction(() => calls.some(row => row.action==="notification_settings"));
+  const data=await f.page.evaluate(() => calls.find(row => row.action==="notification_settings").data);
+  assert.equal(data.care_enabled,false); assert.equal(data.irrigation_enabled,true);
+  assert.equal(data.care_interval_hours,24); assert.equal(data.irrigation_interval_hours,1);
+  await f.close();
+});
+
+test("diagnostic hints identify the affected flow and wetness decisions",async () => {
+  const f=await fixture({language:"en"});
+  await f.page.evaluate(() => {
+    hass={...hass,states:{...hass.states,"sensor.a_data_quality":{state:"limited",attributes:{input_diagnostics:{irrigation_flow:{reason:"unavailable"},leaf_wetness_entity:{reason:"stale",age_minutes:100,maximum_age_minutes:60}}}}}};
+    panel.hass=hass;
+  });
+  await f.page.getByRole("button",{name:"Diagnostics",exact:true}).click();
+  await f.page.getByText("Dosing and irrigation safety",{exact:true}).waitFor();
+  await f.page.getByText("Dew assessment and mowing windows",{exact:true}).waitFor();
+  await f.page.getByText("100 min / 60 min",{exact:true}).waitFor();
   await f.close();
 });

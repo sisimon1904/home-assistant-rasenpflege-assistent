@@ -42,11 +42,17 @@ class CareNotifier:
         )
         self.enabled = False
         self.interval_hours = 24
+        self.care_enabled = True
+        self.irrigation_enabled = True
+        self.care_interval_hours = 24
+        self.irrigation_interval_hours = 24
         self.quiet_start = ""
         self.quiet_end = ""
         self.changes_only = False
         self._signatures: dict[str, str] = {}
         self._sent: dict[str, str] = {}
+        self._care_observed = ""
+        self._care_pending = False
         self._lock = asyncio.Lock()
         self._stopped = False
         self._pending = False
@@ -60,6 +66,10 @@ class CareNotifier:
             "quiet_start": self.quiet_start,
             "quiet_end": self.quiet_end,
             "changes_only": self.changes_only,
+            "care_enabled": self.care_enabled,
+            "irrigation_enabled": self.irrigation_enabled,
+            "care_interval_hours": self.care_interval_hours,
+            "irrigation_interval_hours": self.irrigation_interval_hours,
         }
 
     @staticmethod
@@ -93,6 +103,24 @@ class CareNotifier:
             self.interval_hours = (
                 interval if type(interval) is int and interval in {1, 6, 24} else 24
             )
+            for category in ("care", "irrigation"):
+                setattr(
+                    self,
+                    f"{category}_enabled",
+                    data.get(f"{category}_enabled", True) is True,
+                )
+                hours = data.get(f"{category}_interval_hours")
+                setattr(
+                    self,
+                    f"{category}_interval_hours",
+                    hours
+                    if type(hours) is int and hours in {1, 6, 24}
+                    else self.interval_hours,
+                )
+            observed = data.get("care_observed")
+            if isinstance(observed, str) and len(observed) <= 512:
+                self._care_observed = observed
+                self._care_pending = data.get("care_pending") is True
             start, end = data.get("quiet_start", ""), data.get("quiet_end", "")
             if self.valid_quiet(start, end):
                 self.quiet_start, self.quiet_end = str(start), str(end)
@@ -124,14 +152,32 @@ class CareNotifier:
         quiet_start: str = "",
         quiet_end: str = "",
         changes_only: bool = False,
+        care_enabled: bool = True,
+        irrigation_enabled: bool = True,
+        care_interval_hours: int | None = None,
+        irrigation_interval_hours: int | None = None,
     ) -> None:
         """Persist opt-in before making it effective; failed writes change nothing."""
+        care_interval_hours = (
+            interval_hours if care_interval_hours is None else care_interval_hours
+        )
+        irrigation_interval_hours = (
+            interval_hours
+            if irrigation_interval_hours is None
+            else irrigation_interval_hours
+        )
         if (
             type(enabled) is not bool
             or type(interval_hours) is not int
             or interval_hours not in {1, 6, 24}
             or type(changes_only) is not bool
             or not self.valid_quiet(quiet_start, quiet_end)
+            or type(care_enabled) is not bool
+            or type(irrigation_enabled) is not bool
+            or type(care_interval_hours) is not int
+            or care_interval_hours not in {1, 6, 24}
+            or type(irrigation_interval_hours) is not int
+            or irrigation_interval_hours not in {1, 6, 24}
         ):
             raise HomeAssistantError("Invalid notification preferences")
         async with self._lock:
@@ -144,11 +190,23 @@ class CareNotifier:
                     "quiet_end": quiet_end,
                     "changes_only": changes_only,
                     "signatures": dict(self._signatures),
+                    "care_enabled": care_enabled,
+                    "irrigation_enabled": irrigation_enabled,
+                    "care_interval_hours": care_interval_hours,
+                    "irrigation_interval_hours": irrigation_interval_hours,
+                    "care_observed": self._care_observed,
+                    "care_pending": self._care_pending,
                 }
             )
             self.enabled, self.interval_hours = enabled, interval_hours
             self.quiet_start, self.quiet_end = quiet_start, quiet_end
             self.changes_only = changes_only
+            self.care_enabled, self.irrigation_enabled = (
+                care_enabled,
+                irrigation_enabled,
+            )
+            self.care_interval_hours = care_interval_hours
+            self.irrigation_interval_hours = irrigation_interval_hours
 
     def stop(self) -> None:
         """Prevent a queued notification from publishing after entry unload."""
@@ -182,7 +240,6 @@ class CareNotifier:
                 or self._stopped
                 or data is None
                 or not self.coordinator.last_update_success
-                or self.quiet_now()
             ):
                 return
             now = dt_util.utcnow()
@@ -211,7 +268,25 @@ class CareNotifier:
                     ]
                 ),
             }
-            if due:
+            if signatures["care"] != self._care_observed:
+                # Observe every successful update even during quiet hours.
+                # Keep only the current recommendation pending; a withdrawn
+                # recommendation must never produce a delayed stale hint.
+                observed = signatures["care"]
+                pending = bool(due)
+                await self.store.async_save(
+                    {
+                        **self.preferences,
+                        "sent": dict(self._sent),
+                        "signatures": dict(self._signatures),
+                        "care_observed": observed,
+                        "care_pending": pending,
+                    }
+                )
+                self._care_observed, self._care_pending = observed, pending
+            if self.quiet_now() or self._stopped:
+                return
+            if due and self.care_enabled:
                 candidates["care"] = (
                     ("Pflege empfohlen: " if de else "Care recommended: ")
                     + ", ".join(due)
@@ -222,24 +297,11 @@ class CareNotifier:
                     )
                 )
             session = self.coordinator.state.irrigation_last_session or {}
-            if not due and "care" in self._signatures:
-                # A recommendation that becomes unavailable and later returns
-                # is a new change, even if the care categories match. Preserve
-                # its cooldown so a flapping input cannot flood notifications.
-                reset_signatures = dict(self._signatures)
-                reset_signatures.pop("care")
-                await self.store.async_save(
-                    {
-                        **self.preferences,
-                        "sent": dict(self._sent),
-                        "signatures": reset_signatures,
-                    }
-                )
-                self._signatures = reset_signatures
             finished = aware_time(session.get("finished_at"))
             reason = session.get("reason")
             if (
                 isinstance(reason, str)
+                and self.irrigation_enabled
                 and reason
                 and reason
                 not in {
@@ -257,12 +319,20 @@ class CareNotifier:
                 signatures["irrigation"] = f"{session.get('finished_at')}|{reason}"
             for category, message in candidates.items():
                 signature = signatures[category]
+                if category == "care" and self.changes_only and not self._care_pending:
+                    continue
                 if (
-                    category == "irrigation" or self.changes_only
-                ) and self._signatures.get(category) == signature:
+                    category == "irrigation"
+                    and self._signatures.get(category) == signature
+                ):
                     continue
                 previous = aware_time(self._sent.get(category))
-                if previous and now - previous < timedelta(hours=self.interval_hours):
+                hours = (
+                    self.care_interval_hours
+                    if category == "care"
+                    else self.irrigation_interval_hours
+                )
+                if previous and now - previous < timedelta(hours=hours):
                     continue
                 sent = {**self._sent, category: now.isoformat()}
                 updated_signatures = {**self._signatures, category: signature}
@@ -271,10 +341,16 @@ class CareNotifier:
                         **self.preferences,
                         "sent": sent,
                         "signatures": updated_signatures,
+                        "care_observed": self._care_observed,
+                        "care_pending": self._care_pending
+                        if category != "care"
+                        else False,
                     }
                 )
                 self._sent = sent
                 self._signatures = updated_signatures
+                if category == "care":
+                    self._care_pending = False
                 if self._stopped:
                     return
                 persistent_notification.async_create(

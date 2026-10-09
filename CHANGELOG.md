@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.20.0
+
+### Added
+- Export every available completed water-ledger record as permission-filtered CSV, preserving unknown amounts, quality flags and local date allocations. Active sessions and private device/session identities are excluded; read-only users with full lawn access can export.
+- Compare recorded irrigation by local calendar day over 7 or 30 days, with stacked measured, flow-estimated, manual and uncertain quantities, plus explicit unknown-volume and measurement-gap markers.
+- Show input-specific diagnostic checks, data age and affected care decisions for configured sensors, weather, valves and mower status.
+- Configure care hints and abnormal irrigation interruption hints independently, with separate 1, 6 or 24-hour minimum intervals. Existing preferences migrate while the global switch and shared quiet hours remain available.
+
+### Fixed
+- Preserve returning care recommendations observed during quiet hours or cooldowns, including after restart, without notifying for recommendations withdrawn before delivery. Retain independent category cooldowns and changes-only behavior.
+- Display small nonzero quantities with unit-aware precision and scientific notation where needed instead of rounding them to zero.
+
+### Validation
+- All 1,030 Python tests and 21 Chromium browser tests pass locally; combined line/branch coverage is 89.99%.
+- Ruff formatting/lint, JavaScript syntax and Mypy checks pass across all 26 Python program modules.
+- Regression coverage includes quiet-hour transitions/restarts, separate notification settings, permission-filtered complete CSV downloads, unknown quantities, calendar allocations and small-number formatting in German and English.
+- Review desktop/mobile screenshots and update bilingual documentation. Browser fixtures emulate HA; physical device behavior still requires installation checks.
+
 ## 3.19.0
 
 ### Added

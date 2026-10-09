@@ -266,6 +266,10 @@ async def test_malformed_optional_notification_data(hass, bad):
         "quiet_start": "",
         "quiet_end": "",
         "changes_only": False,
+        "care_enabled": True,
+        "irrigation_enabled": True,
+        "care_interval_hours": 24,
+        "irrigation_interval_hours": 24,
     }
 
 
