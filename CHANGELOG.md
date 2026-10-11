@@ -1,5 +1,27 @@
 # Changelog
 
+## 3.21.0
+
+### Added
+- Recalculate recommendations on frost-threshold or temperature-availability changes from the configured air/soil inputs and existing HA weather source. Coalesce reports, cancel work on unload and preserve the normal forecast refresh timer. Positive temperature changes alone do not trigger extra calculations.
+- Explain mowing frost pauses with the recorded temperature, source, threshold and calculation timestamp. Keep calculation evidence separate from newer live inputs, including after failed updates.
+- Flag failed or overdue recommendation calculations throughout the dashboard, with the last successful calculation time. A live connection does not imply current recommendations.
+- Add an administrator-only, entry-scoped dashboard action to recalculate recommendations using existing HA states and saved forecasts. Do not call weather services or refresh forecast timestamps; missing/stale forecasts retain their existing uncertainty.
+- Export water-ledger entries for the current HA-local month or a custom inclusive date range. Match allocation and uncertainty dates, preserve complete cross-date records and retain read-only permissions, empty unknown quantities, quoting and formula protection.
+
+### Fixed
+- Use unrounded soil temperatures for frost decisions: small positive readings no longer become false zero-degree frost locks. Actual zero and negative readings still block mowing and irrigation.
+- Reject future-dated daily/hourly forecast caches as fresh after clock changes.
+- Keep water records with unknown or missing sources visible as uncertain chart quantities.
+- Handle null legacy uncertainty-date lists in consumption summaries without failing.
+
+### Validation
+- All 1,056 Python tests and 25 Chromium browser tests pass locally; combined line/branch coverage: 91.79%.
+- Ruff formatting/lint, Mypy for all 26 program modules and JavaScript syntax checks pass.
+- Add 26 Python cases across the preparatory audit and release regressions: frost recovery/boundaries, actual scheduled updates, input events, changes during persistence, unload/cancellation, failure retry, unchanged timers, cached forecast age, diagnostic evidence and WebSocket authorization.
+- Add four browser cases covering bilingual calculation evidence, stale recommendations, scoped recalculation, frost explanations and read-only range downloads. Visually review mobile/desktop layouts and update bilingual documentation.
+- The earlier reported persistent frost pause at 9.6 °C without a soil sensor was not reproduced as a permanent calculation failure. The release improves prompt threshold updates and traceable evidence; fixture-based tests do not replace real installation/device checks.
+
 ## 3.20.0
 
 ### Added

@@ -64,6 +64,30 @@ function csvRows(rows) {
   return "\uFEFF" + rows.map(row => row.map(cell).join(",")).join("\r\n") + "\r\n";
 }
 
+function waterDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const at = new Date(value+"T00:00:00Z");
+  return Number.isFinite(at.getTime()) && at.toISOString().slice(0,10) === value;
+}
+function localDate(value,zone) {
+  const at = new Date(value);
+  if (!Number.isFinite(at.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en",{timeZone:zone,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(at);
+  const get = type => parts.find(part => part.type === type)?.value;
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+export function filterWaterRecords(records,start,end,zone="UTC") {
+  // Match any allocated/uncertain local date but export the complete original
+  // row once. Cross-midnight quantities must not be silently redistributed.
+  if (!waterDate(start) || !waterDate(end) || start > end) throw new RangeError("Invalid water export dates");
+  return records.filter(record => {
+    const dates = Array.isArray(record.allocations) && record.allocations.length
+      ? record.allocations.map(row => row?.date)
+      : [waterDate(record.date) ? record.date : record.recorded_at ? localDate(record.recorded_at,zone) : null];
+    if (Array.isArray(record.uncertainty_dates)) dates.push(...record.uncertainty_dates);
+    return dates.some(day => waterDate(day) && start <= day && day <= end);
+  });
+}
 export function waterCsv(records) {
   // All available ledger rows, not merely the ten recent sensor attributes.
   // Preserve nulls as empty cells and keep calendar allocations explicit.
@@ -220,11 +244,23 @@ export class LawnCareDashboard extends HTMLElement {
       ...problems.map(([key,value]) => el("div","notes",this.row(names[key] || key,this.t(value.reason)),this.row(this.t("sensorClock"),`${this.num(value.age_minutes,"min")} / ${this.num(value.maximum_age_minutes,"min")}`),this.row(this.t("affected"),this.inputAdvice(key)[0]),el("div","",this.t(value.reason === "stale" ? "staleHint" : "missingHint")),this.notes(this.inputAdvice(key)[1]))),
       this.notes(problems.length ? this.t("impact") : this.t("noProblem")));
   }
+  frostNotes(evidence) {
+    if (!evidence?.active) return [];
+    return (evidence.triggers || []).map(row => `${this.lang === "de" ? "Frostpause" : "Frost pause"}: ${row.input === "soil" ? (this.lang === "de" ? "Boden" : "Soil") : (this.lang === "de" ? "Luft" : "Air")} ${this.num(row.temperature_c,"°C")} · ${row.source || "—"} · ${this.date(evidence.calculated_at)} (${this.lang === "de" ? "Grenze" : "Threshold"}: ≤ ${this.num(evidence.threshold_c,"°C")})`);
+  }
+  calculationWarning() {
+    const info = this.attrs("data_quality").update_diagnostics;
+    if (!info) return null;
+    const at = info.last_success_at, epoch = at ? new Date(at).getTime() : NaN;
+    if (!info.recommendations_stale && !(Number.isFinite(epoch) && Date.now()-epoch > 32*60000)) return null;
+    const text = this.lang === "de" ? "Empfehlungen sind veraltet oder die letzte Berechnung ist fehlgeschlagen. Letzte erfolgreiche Berechnung:" : "Recommendations are outdated or the last calculation failed. Last successful calculation:";
+    const notice = el("div","notice",`${text} ${this.date(at)}${info.last_attempt_failed && info.last_error_type ? " · "+info.last_error_type : ""}`); notice.setAttribute("role","status"); return notice;
+  }
   whyCard() {
     const care = this.attrs("care_plan"), mowing = this.attrs("mower_status"), watering = this.attrs("watering_recommendation");
     return this.card(this.t("why"),"mdi:help-circle-outline",
       this.row(this.t("mowing"),care.mowing?.status_text || this.text("mower_status")),
-      this.notes([care.mowing?.reason_text,mowing.mowing_window?.reason_text,mowing.mowing_window?.current_dew_risk_text]),
+      this.notes([care.mowing?.reason_text,...this.frostNotes(care.mowing?.frost_evidence || mowing.frost_evidence),mowing.mowing_window?.reason_text,mowing.mowing_window?.current_dew_risk_text]),
       this.row(this.t("watering"),care.watering?.status_text || this.text("watering_recommendation")),
       this.notes([watering.reason_text,care.watering?.blocker_text,...(watering.reasons_text || [])]),
       this.row(this.t("fertilizing"),care.fertilizing?.status_text || "—"),
@@ -253,6 +289,16 @@ export class LawnCareDashboard extends HTMLElement {
         this.row(this.t("gaps"),`${this.num(totals[prefix+"_measurement_gap_sessions"])} / ${this.num(totals[prefix+"_unmetered_sessions"])}`))),
       this.notes([this.t("volumeNote"),this.t("unknownVolume")]));
   }
+  exportWaterRange() {
+    // Read the current draft again: a date may have changed before the queued
+    // redraw replaces the previous enabled button and its event handler.
+    const period = this._draft.water_export_period, zone = this._hass?.config?.time_zone || "UTC", today = localDate(Date.now(),zone);
+    const start = period === "month" ? today.slice(0,7)+"-01" : this._draft.water_export_start;
+    const end = period === "month" ? today : this._draft.water_export_end;
+    if (this._dataError || !waterDate(start) || !waterDate(end) || start > end) return;
+    const selected = filterWaterRecords(this._panelData?.water_records || [],start,end,zone);
+    if (selected.length) this.downloadCsv(waterCsv(selected),"lawn-water-ledger-range.csv");
+  }
   dailyWaterCard() {
     const days = Number(this._draft.water_days || 7), rows = (this._panelData?.daily_consumption || []).slice(-days);
     const selector = this.choose("water_days",this.t("period"),[["7","7 "+this.t("days")],["30","30 "+this.t("days")]],"7"); selector.querySelector("select").disabled = false;
@@ -260,6 +306,28 @@ export class LawnCareDashboard extends HTMLElement {
     const download = el("button","action",this.t("exportWater")); download.type = "button"; download.disabled = !records.length || this._dataError;
     download.addEventListener("click",() => this.downloadCsv(waterCsv(records),"lawn-water-ledger.csv"));
     const card = this.card(this.t("dailyWater"),"mdi:chart-bar",el("div","form",selector,download),this.dailyWaterPlot(rows),this.notes([this.t("dailyNote"),this.t("ledgerNote")]));
+    const period = this._draft.water_export_period || "all", zone = this._hass?.config?.time_zone || "UTC", today = localDate(Date.now(),zone);
+    const range = this.choose("water_export_period",this.lang === "de" ? "CSV-Zeitraum" : "CSV date range",[["all",this.t("all")],["month",this.lang === "de" ? "Dieser Monat" : "This month"],["custom",this.lang === "de" ? "Eigener Zeitraum" : "Custom range"]],"all");
+    range.querySelector("select").disabled = false;
+    const fields = [range];
+    const start = period === "month" ? today.slice(0,7)+"-01" : this._draft.water_export_start;
+    const end = period === "month" ? today : this._draft.water_export_end;
+    if (period === "custom") {
+      for (const [name,label] of [["water_export_start",this.lang === "de" ? "Von" : "From"],["water_export_end",this.lang === "de" ? "Bis" : "Until"]]) {
+        const input = el("input"); input.type = "date"; input.name = name; input.value = this._draft[name] || "";
+        input.addEventListener("change",() => { this._draft[name] = input.value; this.scheduleRender(); });
+        fields.push(el("label","field",label,input));
+      }
+    }
+    if (period !== "all") {
+      const valid = waterDate(start) && waterDate(end) && start <= end;
+      const selected = valid ? filterWaterRecords(records,start,end,zone) : [];
+      const filtered = el("button","action",this.lang === "de" ? "Zeitraum als CSV" : "Export date range as CSV"); filtered.type = "button"; filtered.disabled = !valid || !selected.length || this._dataError;
+      filtered.addEventListener("click",() => this.exportWaterRange()); fields.push(filtered);
+      fields.push(this.notes(this.lang === "de" ? "Einträge mit einem Datum im Zeitraum werden vollständig exportiert. Mengen und Datumsaufteilungen können auch Tage außerhalb des Zeitraums enthalten." : "Matching records are exported in full. Quantities and date allocations may also include days outside the selected range."));
+      if (!valid) fields.push(this.notes(this.lang === "de" ? "Gültiges Start- und Enddatum in aufsteigender Reihenfolge wählen." : "Choose valid start and end dates in chronological order."));
+    }
+    card.append(el("div","form",fields));
     const table = el("details","",el("summary","",this.t("details")));
     for (const row of rows) table.append(this.row(this.date(row.date),`${this.num(row.liters,"L")}${row.unknown_sessions || row.gap_sessions ? " · ?" : ""}${row.allocation_estimated_sessions ? " · "+this.t("partial") : ""}`));
     card.append(table); card.classList.add("span3"); return card;
@@ -578,7 +646,7 @@ export class LawnCareDashboard extends HTMLElement {
   }
   mowing() {
     const attrs = this.attrs("mower_status"), p = attrs.mowing_window || {}, alt = p.alternative || {}, suggestion = p.duration_suggestion || {};
-    const main = this.card(this.t("mower"),"mdi:robot-mower",el("div","value compact",this.text("mower_status")),this.notes(attrs.recommendation_reason_text),this.row(this.t("last"),this.date(attrs.last_mowing_at || attrs.last_mowing)),this.row(this.t("nextMow"),this.date(attrs.next_mowing_at)),this.row(this.t("interval"),this.num(attrs.mowing_interval_days,this.t("days"))),this.row(this.t("wetUntil"),this.date(attrs.wet_until)),el("div","actions",this.button(this.t("recordMow"),"record_mowing",{},"","confirmRecord")),el("div","readonly",this.t("recordNote"))); 
+    const main = this.card(this.t("mower"),"mdi:robot-mower",el("div","value compact",this.text("mower_status")),this.notes([attrs.recommendation_reason_text,...this.frostNotes(attrs.frost_evidence)]),this.row(this.t("last"),this.date(attrs.last_mowing_at || attrs.last_mowing)),this.row(this.t("nextMow"),this.date(attrs.next_mowing_at)),this.row(this.t("interval"),this.num(attrs.mowing_interval_days,this.t("days"))),this.row(this.t("wetUntil"),this.date(attrs.wet_until)),el("div","actions",this.button(this.t("recordMow"),"record_mowing",{},"","confirmRecord")),el("div","readonly",this.t("recordNote"))); 
     const window = this.card(this.t("window"),"mdi:weather-fog",el("div","value compact",this.date(p.start)),this.row(this.t("finish"),this.date(p.end)),this.notes([p.current_dew_risk_text,p.reason_text,p.quality_text,...(p.quality_reasons_text || [])]),this.row(this.t("duration"),this.num(p.required_minutes,this.t("minutes"))),this.row(this.t("available"),this.num(p.available_minutes,this.t("minutes"))),this.row(this.t("alternative"),this.date(alt.start)),this.notes(p.missing_inputs_text)); window.classList.add("span2");
     const detail = this.card(this.t("diagnostics"),"mdi:chart-box",this.notes([suggestion.reason_text,p.change?.reason_text,...(p.evidence?.blocking_text || []),...(p.evidence?.supporting_unknown_text || [])]),this.detail(attrs)); detail.classList.add("span3");
     return [main,window,detail];
@@ -606,7 +674,17 @@ export class LawnCareDashboard extends HTMLElement {
     const evidence = this.card(this.t("evidence"),"mdi:water-check",this.notes(model.soil_evidence?.basis_text),this.row(this.t("soil"),this.num(model.soil_evidence?.current_sensor_percent,"%")),this.row(this.t("updated"),this.date(model.soil_evidence?.last_correction_at)),this.notes(model.calibration?.reasons_text),this.notes(model.watering_response?.reasons_text),this.detail(soil));
     const balance = this.card(this.t("balance"),"mdi:water-percent",this.notes(soil.model_diagnostics?.explanation?.scope_text),...(soil.model_diagnostics?.explanation?.terms || []).map(term => this.row(term.text,this.num(term.amount_mm,"mm"))),this.notes([quality.data_gaps?.impact_text,...(model.weekly_comparison?.reasons_text || [])]),this.detail(soil.model_diagnostics || {}));
     const mowing = this.card(this.t("review"),"mdi:weather-partly-rainy",this.notes([window.current_dew_risk_text,window.reason_text,...(window.quality_reasons_text || [])]),...(window.retrospective?.summary?.counts_text || []).map(row => this.row(row.text,this.num(row.count))),this.notes(window.retrospective?.summary?.scope_text),this.detail(window));
-    const cards = [inputs,evidence,balance,mowing,this.inputProblems()];
+    const update = quality.update_diagnostics || {}, calculated = update.calculated_inputs || {}, live = update.live_inputs || {};
+    const calculation = this.card(this.lang === "de" ? "Berechnung und aktuelle Eingänge" : "Calculation and current inputs","mdi:thermometer-alert",
+      this.notes(this.lang === "de" ? "Pflegeempfehlungen stammen aus der letzten erfolgreichen Berechnung. Aktuelle Sensorwerte können bereits neuer sein; die Berechnung erfolgt normalerweise alle 30 Minuten." : "Care recommendations come from the last successful calculation. Current sensor readings may already be newer; calculations normally run every 30 minutes."),
+      this.row(this.lang === "de" ? "Berechnet am" : "Calculated at",this.date(calculated.calculated_at)),
+      this.row(this.lang === "de" ? "Außentemperatur bei Berechnung" : "Outdoor temperature at calculation",this.num(calculated.air_temperature_c,"°C")),
+      this.row(this.lang === "de" ? "Bodentemperatur bei Berechnung" : "Soil temperature at calculation",this.num(calculated.soil_temperature_c,"°C")),
+      this.row(this.lang === "de" ? "Temperaturquelle bei Berechnung" : "Temperature source at calculation",calculated.temperature_source || "—"),
+      this.row(this.lang === "de" ? "Außentemperatur jetzt" : "Outdoor temperature now",this.num(live.air_temperature_c,"°C")),
+      this.row(this.lang === "de" ? "Bodentemperatur jetzt" : "Soil temperature now",this.num(live.soil_temperature_c,"°C")),
+      this.row(this.lang === "de" ? "Temperaturquelle jetzt" : "Temperature source now",live.temperature_source || "—"),this.detail(update));
+    const cards = [inputs,calculation,evidence,balance,mowing,this.inputProblems()];
     if (this.lawn.irrigation_configured) cards.push(this.card(this.t("comparison"),"mdi:sprinkler",this.notes([...irrigation.automatic_blockers_text || [],irrigation.quantity_comparison?.reason_text,irrigation.water_balance?.reason_text,irrigation.water_balance?.delivery_quality_text,irrigation.quantity_comparison?.scope_text]),this.detail(irrigation)));
     return cards;
   }
@@ -635,10 +713,12 @@ export class LawnCareDashboard extends HTMLElement {
       button.addEventListener("click", () => { this._view = view; if (!this._busy) this._message = null; this.saveRoute(); this.scheduleRender(); }); rail.append(button);
     }
     const refresh = el("button","nav",icon("mdi:refresh"),this.t("refresh")); refresh.type = "button"; refresh.disabled = this._loading || this._busy; refresh.addEventListener("click",() => this.loadLawns()); rail.append(refresh);
-    rail.append(el("div","rail-foot",el("div","","Home Assistant"),el("div","",`${this.t("version")} ${this._version || "3.20.0"}`)));
+    rail.append(this.button(this.lang === "de" ? "Empfehlungen neu berechnen" : "Recalculate recommendations","recalculate",{},"nav"));
+    rail.append(el("div","rail-foot",el("div","","Home Assistant"),el("div","",`${this.t("version")} ${this._version || "3.21.0"}`)));
     const main = el("main","main");
     if (this._message) { const notice = el("div",`notice ${this._message.type}`,this._message.text); notice.setAttribute("role",this._message.type === "error" ? "alert" : "status"); main.append(notice); }
     if (!connected) main.append(el("div","notice",this.t("offline")));
+    const calculationWarning = this.calculationWarning(); if (calculationWarning) main.append(calculationWarning);
     if (this._loading && !this.lawn) main.append(el("div","empty",this.t("loading")));
     else if (!this.lawn) main.append(el("div","empty",el("h2","",this.t("noLawns")),el("p","",this.t("noLawnsText"))));
     else {

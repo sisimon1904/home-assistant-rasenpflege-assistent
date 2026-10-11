@@ -36,6 +36,7 @@ ASSET_PATH = "/rasenpflege_assistent_static"
 _REGISTERED = f"{DOMAIN}_dashboard_registered"
 _OWNED_PANEL = f"{DOMAIN}_dashboard_owned_panel"
 ACTIONS = (
+    "recalculate",
     "start_irrigation",
     "stop_irrigation",
     "suspend_irrigation",
@@ -199,7 +200,16 @@ async def websocket_dashboard_action(
     if "config_entry_id" in data:
         raise ServiceValidationError("The selected lawn cannot be overridden.")
     action = msg["action"]
-    if action == "undo_last_manual":
+    if action == "recalculate":
+        if data:
+            raise ServiceValidationError("Recalculation accepts no extra parameters.")
+        try:
+            await entry.runtime_data.async_recalculate_cached()
+        except Exception as err:
+            raise ServiceValidationError(
+                "Recommendation recalculation failed; check diagnostics."
+            ) from err
+    elif action == "undo_last_manual":
         validated = vol.Schema({vol.Required("timestamp"): str})(data)
         await entry.runtime_data.async_undo_last_manual(validated["timestamp"])
     elif action == "notification_settings":

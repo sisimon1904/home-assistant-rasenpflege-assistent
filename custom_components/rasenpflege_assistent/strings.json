@@ -1508,6 +1508,9 @@
           },
           "wet_until": {
             "name": "Wet lawn hold until"
+          },
+          "frost_evidence": {
+            "name": "Frost decision evidence"
           }
         }
       },

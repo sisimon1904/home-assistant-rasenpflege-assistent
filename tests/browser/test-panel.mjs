@@ -24,6 +24,103 @@ before(async () => {
 });
 after(async () => { await browser?.close(); await new Promise(resolve => server?.close(resolve)); });
 
+test("stale recommendations remain visibly flagged and recalculation is admin scoped",async () => {
+  for (const readOnly of [false,true]) {
+    const f=await fixture({readOnly});
+    await f.page.evaluate(() => {
+      const key="sensor.a_data_quality";
+      hass={...hass,states:{...hass.states,[key]:{...hass.states[key],attributes:{...hass.states[key].attributes,update_diagnostics:{recommendations_stale:true,last_success_at:"2026-10-10T23:04:00Z",last_error_type:"HomeAssistantError"}}}}}; panel.hass=hass;
+    });
+    await f.page.getByText(/Empfehlungen sind veraltet/).waitFor();
+    const action=f.page.getByRole("button",{name:"Empfehlungen neu berechnen",exact:true});
+    assert.equal(await action.isDisabled(),readOnly);
+    if (!readOnly) {
+      await action.click();
+      await f.page.waitForFunction(() => calls.some(call => call.action === "recalculate"));
+      const request=await f.page.evaluate(() => calls.find(call => call.action === "recalculate"));
+      assert.equal(request.config_entry_id,"a"); assert.deepEqual(request.data,{});
+    }
+    await f.close();
+  }
+});
+
+test("frost explanation displays recorded source temperature and calculation time",async () => {
+  for (const language of ["de","en"]) {
+    const f=await fixture({language,mobile:true});
+    await f.page.evaluate(() => {
+      const key="sensor.a_care_plan";
+      hass={...hass,states:{...hass.states,[key]:{...hass.states[key],attributes:{...hass.states[key].attributes,mowing:{status_text:"Pause wegen Frost",frost_evidence:{active:true,calculated_at:"2026-10-10T23:04:00Z",threshold_c:0,triggers:[{input:"air",temperature_c:-.8,source:"sensor.outdoor"}]}}}}}};panel.hass=hass;
+    });
+    await f.page.getByRole("button",{name:language === "de" ? "Pflegeplan" : "Care plan",exact:true}).click();
+    await f.page.getByText(language === "de" ? /Frostpause: Luft.*sensor.outdoor/ : /Frost pause: Air.*sensor.outdoor/).waitFor();
+    assert.equal(await f.page.getByText(language === "de" ? /Frostpause: Luft −?[-]?0,8/ : /Frost pause: Air.*0.8/).count(),1);
+    await f.close();
+  }
+});
+
+test("read-only range CSV retains entire cross-date records and unknown quantities",async () => {
+  const f=await fixture({readOnly:true,mobile:true});
+  await f.page.evaluate(() => {
+    panel._panelData={...extra,water_records:[
+      {date:"2026-10-01",liters:1,source:"excluded"},
+      {date:"2026-10-02",liters:null,source:"manual_record"},
+      {date:"2026-10-03",liters:10,source:"irrigation",allocations:[{date:"2026-10-01",liters:4},{date:"2026-10-02",liters:6}]},
+      {recorded_at:"2026-10-01T22:30:00Z",liters:5,source:"local_midnight"},
+      {date:"2026-10-01",liters:null,source:"gap",uncertainty_dates:["2026-10-02"]}
+    ]};panel.scheduleRender();
+  });
+  await f.page.getByRole("button",{name:"Verläufe",exact:true}).click();
+  await f.page.locator('select[name="water_export_period"]').selectOption("custom");
+  const button=f.page.getByRole("button",{name:"Zeitraum als CSV",exact:true});
+  assert.equal(await button.isDisabled(),true);
+  await f.page.locator('input[name="water_export_start"]').fill("2026-10-02");
+  await f.page.locator('input[name="water_export_start"]').dispatchEvent("change");
+  await f.page.locator('input[name="water_export_end"]').fill("2026-10-02");
+  await f.page.locator('input[name="water_export_end"]').dispatchEvent("change");
+  const pending=f.page.waitForEvent("download"); await button.click();
+  const download=await pending; const csv=await readFile(await download.path(),"utf8");
+  assert.equal(csv.includes("excluded"),false);
+  assert.equal(csv.includes("local_midnight"),true);
+  assert.equal(csv.includes('"10"'),true);
+  assert.equal(csv.includes('"2026-10-02","","","manual_record"'),true);
+  assert.equal(csv.split("\r\n").filter(Boolean).length,5);
+  if (process.env.LAWN_SCREENSHOTS) await f.page.screenshot({path:`${process.env.LAWN_SCREENSHOTS}/321-range-mobile.png`});
+  await f.page.locator('input[name="water_export_start"]').fill("2026-10-03");
+  await f.page.locator('input[name="water_export_start"]').dispatchEvent("change");
+  await f.page.evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)));
+  assert.equal(await button.isDisabled(),true);
+  const result=await f.page.evaluate(async () => {
+    const {filterWaterRecords}=await import("/panel.js");
+    try {filterWaterRecords([],"2026-02-30","2026-03-01");return false;} catch(error) {return error instanceof RangeError;}
+  });
+  assert.equal(result,true);
+  assert.equal(await f.page.evaluate(() => calls.some(call => call.type.endsWith("/dashboard_action"))),false);
+  await f.close();
+});
+
+test("diagnostics distinguish calculated frost evidence from current warm inputs in both languages",async () => {
+  for (const language of ["de","en"]) {
+    const f=await fixture({language,mobile:true});
+    await f.page.evaluate(() => {
+      const key="sensor.a_data_quality";
+      hass={...hass,states:{...hass.states,[key]:{...hass.states[key],attributes:{...hass.states[key].attributes,update_diagnostics:{
+        calculated_inputs:{calculated_at:"2026-10-10T23:04:00Z",air_temperature_c:-1,soil_temperature_c:null,temperature_source:"sensor.old_outdoor",mower_status:"pause_frost"},
+        live_inputs:{air_temperature_c:9.6,soil_temperature_c:null,temperature_source:"sensor.new_outdoor"}
+      }}}}};
+      panel.hass=hass;
+    });
+    await f.page.getByRole("button",{name:language === "de" ? "Diagnose" : "Diagnostics",exact:true}).click();
+    await f.page.getByText(language === "de" ? "Berechnung und aktuelle Eingänge" : "Calculation and current inputs",{exact:true}).waitFor();
+    assert.equal(await f.page.getByText("-1 °C",{exact:true}).count(),1);
+    assert.equal(await f.page.getByText(language === "de" ? "9,6 °C" : "9.6 °C",{exact:true}).count(),1);
+    assert.equal(await f.page.getByText("sensor.old_outdoor",{exact:true}).count(),1);
+    assert.equal(await f.page.getByText("sensor.new_outdoor",{exact:true}).count(),1);
+    assert.equal(await f.page.evaluate(() => [...panel.shadowRoot.querySelectorAll(".card")].every(card => card.getBoundingClientRect().right <= innerWidth+1)),true);
+    if (process.env.LAWN_SCREENSHOTS) await f.page.screenshot({path:`${process.env.LAWN_SCREENSHOTS}/audit-diagnostics-${language}.png`,fullPage:true});
+    await f.close();
+  }
+});
+
 async function fixture(options={}) {
   const context = await browser.newContext({viewport:options.mobile ? {width:390,height:844} : {width:1440,height:1000}});
   const page = await context.newPage();
@@ -49,7 +146,7 @@ async function fixture(options={}) {
     states[entities.care_plan].attributes={prioritized_steps:[{action_text:"Watering",availability_text:"Check weather first",not_before:now}],outlook:{scope_text:"Conditional recommendation"}};
     states[entities.last_calculation].state=now;
     states[entities.water_consumption_day].attributes={recent_records:[{recorded_at:now,liters:250,source_text:"Manuelle Erfassung"},{recorded_at:new Date(Date.now()-86400000).toISOString(),liters:400,source_text:"Bewässerungssteuerung",measurement_gap:true}]};
-    window.meta={lawns:[{entry_id:"a",name:"Garden A",entities,irrigation_configured:true},{entry_id:"b",name:"Garden B",entities:{status:"sensor.b_status"},irrigation_configured:false}],can_control:!readOnly,version:"3.20.0"};
+    window.meta={lawns:[{entry_id:"a",name:"Garden A",entities,irrigation_configured:true},{entry_id:"b",name:"Garden B",entities:{status:"sensor.b_status"},irrigation_configured:false}],can_control:!readOnly,version:"3.21.0"};
     window.extra={area_m2:100,observations:Array.from({length:12},(_,i) => ({timestamp:new Date(Date.now()-(12-i)*1800000).toISOString(),sensor_reported_at:new Date(Date.now()-(12-i)*1800000).toISOString(),modeled_percent:60-i*.2,measured_percent:i === 5 ? null : 58-i*.1,rain_mm:i === 3 ? 1.5 : 0,rain_known:i !== 8,et_mm:.05})),journal:[{action:"mowing",timestamp:now,details:{recorded_at:now,source:"manual"},can_undo:!readOnly}],notifications:readOnly ? null : {enabled:false,interval_hours:24}};
     window.extra.daily_consumption=Array.from({length:30},(_,i) => ({date:new Date(Date.now()-(29-i)*86400000).toISOString().slice(0,10),liters:i===28 ? null : i===29 ? 10 : 0,measured:i===29 ? 6 : 0,estimated:i===29 ? 4 : 0,manual_record:0,manual_estimate:0,uncertain:0,sessions:i>=28 ? 1 : 0,unknown_sessions:i===28 ? 1 : 0,gap_sessions:i===28 ? 1 : 0,allocation_estimated_sessions:0}));
     window.extra.water_records=Array.from({length:60},(_,i) => ({date:"2026-10-01",recorded_at:now,liters:i===0 ? null : .04,source:"manual_record",volume_estimated:null,measurement_gap:i===0,allocation_estimated:false,allocations:[],uncertainty_dates:[]}));

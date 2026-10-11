@@ -216,3 +216,30 @@ Geprüft am 9. Oktober 2026 unter Python 3.14.8 und Home Assistant 2026.9.4: **1
 21 Chromium-Browserprüfungen bestehen. Neue Fälle prüfen den tatsächlichen vollständigen CSV-Download mit 60 Verbrauchseinträgen im Lesemodus, leere unbekannte Mengen, Qualitäts-/Aufteilungsfelder, 7-/30-Tage-Auswahl, getrennte Hinweiskategorien, konkrete Eingangsdiagnosen und kleine Zahlen in beiden Sprachen. Desktop- und Smartphone-Screenshots der Verläufe wurden visuell geprüft. Die Prüfung verwendet HA-Testdaten und ersetzt keine Installation mit realen Sensoren und Ventilen.
 
 Die bestehenden Sicherheits-, Berechtigungs-, Speicher- und Neustartregressionen bleiben erfolgreich. Es entstehen keine neuen Entitäten oder regelmäßigen Wetterabfragen. Zweites Ventil und Diagnose bleiben lesend; Benachrichtigungseinstellungen ändern keine Ventilsicherheitsregeln. CSV und Diagramme beschreiben gespeicherte Einträge, keine lückenlose Messung des tatsächlichen Wasserverbrauchs.
+
+## Prüfung des Entwicklungsstands nach 3.20.0 – 11. Oktober 2026
+
+1.042 Python-Tests und 22 Chromium-Browserprüfungen bestehen unter Python 3.14.8 / Home Assistant 2026.9.4. Die kombinierte Zeilen-/Zweigabdeckung beträgt 89,41 %. Ruff-Formatierung/Lint, Mypy für alle 26 Programmmodule und JavaScript-Syntax sind erfolgreich. Die bestehenden Regressionen für Ventilsicherheit, zweites Ventil, Neustart, Speicherung, Mengenbilanz, Berechtigungen und Benachrichtigungen bleiben erfolgreich.
+
+Bestätigte Korrekturen im Entwicklungsstand:
+
+- Die Bodentemperatur wird für Frostentscheidungen nicht mehr vorzeitig auf eine Nachkommastelle gerundet. Ein positiver Wert von 0,04 °C wurde zuvor als 0 °C behandelt; negative Werte und exakt null bleiben gesperrt.
+- Prognose-Caches mit einem zukünftigen Zeitstempel gelten nach einer rückwärts verstellten Uhr nicht als frisch. Tages- und Stundenprognosen verwenden dieselbe Prüfung.
+- Verbrauchseinträge mit unbekannter oder fehlender Quelle bleiben im Diagramm als unklare Messgrundlage sichtbar, statt bei bekannter Gesamtmenge aus allen gestapelten Quellen zu verschwinden.
+- Ein explizit leeres `uncertainty_dates: null` älterer Verbrauchseinträge führt bei Zeitraumsummen nicht mehr zu einem Fehler.
+
+Zwölf zusätzliche Python-Fälle prüfen Grenztemperaturen für Mähen und Bewässerung, Frost-Erholung mit/ohne aktuelle Nässe, den tatsächlichen HA-Aktualisierungstimer bei häufigen Ventilmeldungen, Cache-Zeitstempel, Quellen und unveränderliche Berechnungsevidenz bei späteren Live-Änderungen oder Fehlern. Ein zusätzlicher Browserfall prüft die getrennte Anzeige berechneter und aktueller Temperaturen/Quellen in beiden Sprachen und auf dem Smartphone. Die deutsche mobile Diagnose wurde visuell geprüft.
+
+Die gemeldete stehengebliebene Frostpause bei aktuell 9,6 °C ohne Bodensensor wurde nicht als dauerhafter Berechnungsfehler reproduziert. Die nächste erfolgreiche Berechnung hebt die Frostpause ohne Neustart auf; Ventilmeldungen verschieben den regulären 30-Minuten-Timer nicht. Live-Eingangsdiagnosen können neuer sein als gespeicherte Empfehlungen. Neue Diagnosefelder bewahren daher die Temperaturen, Quelle und Uhrzeit der letzten erfolgreichen Berechnung getrennt von aktuell gelesenen Eingängen. Bei einem erneuten Fall ist diese Evidenz erforderlich; die genaue Ursache der früheren Meldung bleibt offen.
+
+Dies ist ein lokaler geprüfter Entwicklungsstand, noch keine veröffentlichte Version. Browser und Geräteprüfungen verwenden Testdoubles; reale Hardware sowie weitere HA-Versionen sind damit nicht vollständig validiert.
+
+## Ergänzende Prüfung für 3.21.0
+
+Geprüft am 11. Oktober 2026 unter Python 3.14.8 / Home Assistant 2026.9.4: **1.056 Python-Tests und 25 Chromium-Browserprüfungen erfolgreich**; kombinierte Zeilen-/Zweigabdeckung 91.79%. Ruff-Formatierung/Lint, Mypy für 26 Programmmodule und JavaScript-Syntax bestehen.
+
+14 zusätzliche Release-Fälle prüfen tatsächliche HA-Zustandsereignisse für Luft-, Boden- und Wettertemperaturen, frostfreie Berichtserien ohne zusätzliche Berechnungen, Eingangsänderungen während Speicherung, Listener-Abmeldung und Task-Abbruch beim Entladen, Fehler und Wiederholung, Überalterung, unveränderte Prognosezeitstempel sowie Administratorrechte, leere Nutzdaten und datensparsame Fehlermeldungen der neuen Aktion. Zusammen mit den zwölf Fällen des vorbereitenden Audits sind 26 neue Python-Fälle enthalten.
+
+Vier zusätzliche Browserfälle gegenüber 3.20.0 prüfen berechnete gegenüber aktuellen Temperaturen in Deutsch/Englisch, sichtbare Veralterung und Administratoraktion, konkrete Frostbegründung sowie echten CSV-Zeitraumdownload im Lesemodus. Datumsauswahl, leere unbekannte Liter, vollständige Datumsaufteilungen, Unsicherheitsdaten und HA-lokale Mitternacht werden berücksichtigt. Desktop-/Smartphone-Ansichten wurden visuell geprüft.
+
+Eingangs- und manuelle Neuberechnungen rufen keine Wetter-Services auf und setzen den regulären Aktualisierungstimer nicht zurück. Alte Prognosen behalten ihre Unsicherheit. Die früher gemeldete dauerhaft stehengebliebene Frostpause bei 9,6 °C ohne Bodensensor wurde nicht reproduziert; erfolgreiche Berechnungen heben die Pause ohne Neustart auf. Die neue Aktualisierung und getrennte Berechnungsevidenz verbessern Reaktion und Nachvollziehbarkeit, beweisen aber nicht die Ursache der ursprünglichen Meldung. Reale Geräte- und HA-Frontend-Prüfungen sowie weitere Versionskombinationen bleiben außerhalb der lokalen Testdoubles.

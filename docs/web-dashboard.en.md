@@ -74,3 +74,17 @@ Care history and saved model observations refresh in coalesced batches when lawn
 - **Small quantities:** Unit-aware decimal precision avoids showing small nonzero liters, kilograms, millimeters or liters per square meter as zero. Very small nonzero values use scientific notation.
 
 The charts and CSV reuse the saved ledger and the existing authenticated connection; they do not add regular weather or device polling. Second-valve data remains read-only.
+
+## Calculated and current temperatures in 3.21.0
+
+The “Calculation and current inputs” diagnostic card compares air/soil temperatures and their temperature source from the last successful calculation with current HA inputs. Recommendations normally recalculate every 30 minutes; a newer sensor reading does not mean the saved care status has already been recalculated. Calculation evidence survives live valve updates and failed refreshes. Missing soil sensors do not imply a zero-degree temperature. The card reads existing HA states without device or weather requests.
+
+## Refreshes and exports in 3.21.0
+
+- **Frost transitions:** Re-evaluate air/soil inputs and the existing weather source when their frost or availability classification changes. Reuse saved forecasts without weather-service calls. Changes entirely within the positive-temperature range do not trigger extra calculations. Keep the normal 30-minute refresh schedule. After failure, another relevant report or the scheduled refresh can retry.
+- **Frost evidence:** Care plan and mowing views show the temperature, source, threshold and calculation timestamp that produced the pause. This does not confirm that the lawn is currently frozen; newer inputs are shown separately in Diagnostics.
+- **Outdated recommendations:** Show a warning after calculation failure, without a successful calculation, or after more than 32 minutes without success. Retain the last successful timestamp. Missing entities and connection loss remain separate indicators.
+- **Recalculate:** Administrators can select “Recalculate recommendations” for the selected lawn. It uses existing HA inputs and forecast caches without requesting weather data or making old forecasts fresh. Read-only users cannot execute it. Existing irrigation policies and the independent safety watchdog remain authoritative.
+- **CSV date range:** In Trends, choose “This month” (first day through today in HA's timezone) or valid inclusive custom dates. The full export remains available. Match any allocation or uncertainty date in the range; legacy records use their date or HA-local recorded timestamp. Export each matching record once, in full. Its quantity may therefore include dates outside the selected interval; the file is not a recalculated interval total. Preserve unknown quantities, sources and quality data. Exclude active sessions and retain existing read permissions.
+
+No new entities, regular weather polling or mower commands. The second valve remains read-only.

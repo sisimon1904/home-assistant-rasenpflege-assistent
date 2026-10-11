@@ -808,6 +808,7 @@ class LawnSensor(LawnEntity, SensorEntity):
                     "wet_until": data.mower_wet_until,
                     "reason": data.mowing_reason,
                     "reason_text": reason_text(data.mowing_reason, language),
+                    "frost_evidence": self.coordinator.mowing_frost_details(),
                 },
                 "watering": {
                     "status": data.watering_status,
@@ -945,6 +946,7 @@ class LawnSensor(LawnEntity, SensorEntity):
                 ),
             }
         if key == "mower_status":
+            details["frost_evidence"] = self.coordinator.mowing_frost_details()
             details["mowing_window"] = self.coordinator.mowing_plan_details()
             observer = getattr(self.coordinator, "mowing_observer", None)
             details["live_robot_session"] = (

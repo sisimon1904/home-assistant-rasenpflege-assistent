@@ -1508,6 +1508,9 @@
           },
           "wet_until": {
             "name": "Nassrasenpause bis"
+          },
+          "frost_evidence": {
+            "name": "Datengrundlage der Frostsperre"
           }
         }
       },

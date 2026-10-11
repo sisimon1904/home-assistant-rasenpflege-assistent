@@ -80,7 +80,7 @@ def consumption_summary(records: list[dict[str, Any]], today: date) -> dict[str,
                 if start <= day <= today:
                     selected.append(liters)
             if not selected:
-                for raw_day in record.get("uncertainty_dates", []):
+                for raw_day in record.get("uncertainty_dates") or []:
                     try:
                         day = date.fromisoformat(raw_day)
                     except (TypeError, ValueError):
@@ -120,8 +120,9 @@ def consumption_evidence(records: list[dict[str, Any]], today: date) -> dict[str
 
     Manual records retain their separate source totals. Only an explicitly
     complete, non-estimated valve record counts as measured. Legacy records,
-    gaps and missing quality flags remain uncertain. Calendar allocations and
-    unknown-volume counts use the same rules as the existing ledger summary.
+    gaps, unknown source labels and missing quality flags remain uncertain.
+    Calendar allocations and unknown-volume counts use the same rules as the
+    existing ledger summary.
     """
     output = consumption_summary(records, today)
     groups: dict[str, list[dict[str, Any]]] = {
@@ -130,11 +131,12 @@ def consumption_evidence(records: list[dict[str, Any]], today: date) -> dict[str
         "uncertain": [],
     }
     for record in records:
-        if record.get("source") != "irrigation":
+        if record.get("source") in ("manual_record", "manual_estimate"):
             continue
         category = (
             "uncertain"
-            if record.get("measurement_gap") is not False
+            if record.get("source") != "irrigation"
+            or record.get("measurement_gap") is not False
             or record.get("liters") is None
             else "measured"
             if record.get("volume_estimated") is False

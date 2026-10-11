@@ -31,10 +31,11 @@ from homeassistant.const import (
     UnitOfSpeed,
     UnitOfTemperature,
 )
-from homeassistant.core import HomeAssistant, State
+from homeassistant.core import HomeAssistant, State, callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_conversion import (
@@ -210,6 +211,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         self._last_calculation_success_at: str | None = None
         self._last_calculation_failure_at: str | None = None
         self._last_calculation_error_type: str | None = None
+        self._last_calculated_inputs: dict[str, Any] | None = None
+        self._input_refresh_task: asyncio.Task | None = None
+        self._input_frost_signature: tuple[bool | None, bool | None] | None = None
         # Process-local advice change tracking: entity reads stay side-effect free.
         self._previous_mowing_advice: dict[str, Any] | None = None
         self._mowing_advice_change: dict[str, Any] = {
@@ -828,7 +832,10 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
         else:
             cached = self._forecast_cache
             updated_at = self._forecast_updated_at
-        if updated_at is not None and now - updated_at < FORECAST_CACHE_INTERVAL:
+        if (
+            updated_at is not None
+            and timedelta(0) <= now - updated_at < FORECAST_CACHE_INTERVAL
+        ):
             return cached
         weather_entity = self.settings[CONF_WEATHER_ENTITY]
         try:
@@ -1612,13 +1619,72 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             self.hass.config.language,
         )
 
+    def mowing_frost_details(self) -> dict[str, Any]:
+        """Explain the recorded frost decision without mixing newer HA inputs."""
+        data = self.data
+        triggers = []
+        if data is not None and data.mower_status == "pause_frost":
+            for kind, value, source in (
+                ("air", data.current_temperature, data.temperature_source),
+                (
+                    "soil",
+                    data.soil_temperature,
+                    self.settings.get(CONF_SOIL_TEMPERATURE_ENTITY),
+                ),
+            ):
+                if value is not None and value <= 0:
+                    triggers.append(
+                        {"input": kind, "temperature_c": value, "source": source}
+                    )
+        return {
+            "active": bool(data and data.mower_status == "pause_frost"),
+            "calculated_at": data.last_calculation_at if data else None,
+            "threshold_c": 0,
+            "triggers": triggers,
+        }
+
     def update_diagnostics(self) -> dict[str, Any]:
-        """Expose process-local refresh outcomes without retaining error text."""
+        """Separate successful calculation evidence from current HA inputs.
+
+        Live diagnostics may already reflect a new sensor report while the
+        recommendation still comes from the previous scheduled calculation.
+        Keep its original evidence stable even during live irrigation updates.
+        """
+        now = dt_util.now()
+        air, source, _ = self._read_temperature(now)
+        last = aware_time(self._last_calculation_success_at)
+        age = max(0.0, (now - last).total_seconds() / 60) if last else None
+        failed = bool(
+            self._last_calculation_failure_at
+            and (
+                last is None
+                or (failure := aware_time(self._last_calculation_failure_at))
+                is not None
+                and failure > last
+            )
+        )
         return {
             "last_success_at": self._last_calculation_success_at,
             "last_failure_at": self._last_calculation_failure_at,
             "last_error_type": self._last_calculation_error_type,
             "last_update_success": self.last_update_success,
+            "calculation_age_minutes": round(age, 1) if age is not None else None,
+            "last_attempt_failed": failed or not self.last_update_success,
+            "recommendations_stale": failed
+            or not self.last_update_success
+            or age is None
+            or last is not None
+            and last > now
+            or age > UPDATE_INTERVAL.total_seconds() / 60 + 2,
+            "calculated_inputs": dict(self._last_calculated_inputs)
+            if self._last_calculated_inputs is not None
+            else None,
+            "live_inputs": {
+                "observed_at": now.isoformat(),
+                "air_temperature_c": air,
+                "temperature_source": source,
+                "soil_temperature_c": self._read_soil_temperature(),
+            },
         }
 
     def _read_soil_moisture(self) -> tuple[float | None, str]:
@@ -1793,7 +1859,9 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 )
             if not -90 <= value <= 70:
                 return None
-            return round(value, 1)
+            # Frost decisions use the actual sign. Rounding a positive 0.04 C
+            # to zero here would falsely block both mowing and irrigation.
+            return value
         except (TypeError, ValueError, HomeAssistantError):
             return None
 
@@ -2287,6 +2355,109 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 else max(self.state.temperature_max, temperature)
             )
 
+    def _record_calculation_success(self, data: LawnData) -> None:
+        """Freeze successful recommendation evidence, separate from live reads."""
+        self._last_calculation_success_at = dt_util.utcnow().isoformat()
+        self._last_calculated_inputs = {
+            "calculated_at": data.last_calculation_at,
+            "air_temperature_c": data.current_temperature,
+            "temperature_source": data.temperature_source,
+            "soil_temperature_c": data.soil_temperature,
+            "mower_status": data.mower_status,
+        }
+        # Use the inputs actually calculated, not a report arriving during save.
+        self._input_frost_signature = (
+            None if data.current_temperature is None else data.current_temperature <= 0,
+            None if data.soil_temperature is None else data.soil_temperature <= 0,
+        )
+
+    def _record_calculation_failure(self, err: Exception) -> None:
+        """Record error type without exposing service responses or credentials."""
+        self._last_calculation_failure_at = dt_util.utcnow().isoformat()
+        self._last_calculation_error_type = type(err).__name__
+
+    def _current_frost_signature(self) -> tuple[bool | None, bool | None]:
+        """Track threshold/availability changes, not every positive report."""
+        air, _, _ = self._read_temperature(dt_util.now())
+        soil = self._read_soil_temperature()
+        return (None if air is None else air <= 0, None if soil is None else soil <= 0)
+
+    def subscribe_temperature_inputs(self, entry: ConfigEntry) -> None:
+        """Refresh frost transitions from HA inputs using only saved forecasts.
+
+        Coalesce reports in one tracked task. Do not move the normal coordinator
+        timer: repeated input changes must not postpone regular forecast reads.
+        Unload cancels the listener and any pending refresh.
+        """
+        stopped = False
+        entities = {
+            entity
+            for key in (
+                CONF_TEMPERATURE_ENTITY,
+                CONF_SOIL_TEMPERATURE_ENTITY,
+                CONF_WEATHER_ENTITY,
+            )
+            if (entity := self.settings.get(key))
+        }
+
+        async def refresh() -> None:
+            try:
+                while (
+                    not stopped
+                    and self._current_frost_signature() != self._input_frost_signature
+                ):
+                    await self.async_recalculate_cached()
+            except (
+                HomeAssistantError,
+                OSError,
+                ValueError,
+                TypeError,
+                RuntimeError,
+            ) as err:
+                _LOGGER.warning("Lawn input refresh failed: %s", type(err).__name__)
+            finally:
+                self._input_refresh_task = None
+
+        @callback
+        def changed(_event) -> None:
+            if (
+                not stopped
+                and self._input_refresh_task is None
+                and self._current_frost_signature() != self._input_frost_signature
+            ):
+                self._input_refresh_task = entry.async_create_background_task(
+                    self.hass, refresh(), "lawn_frost_input_refresh", eager_start=False
+                )
+
+        @callback
+        def cancel() -> None:
+            nonlocal stopped
+            stopped = True
+            if self._input_refresh_task is not None:
+                self._input_refresh_task.cancel()
+
+        entry.async_on_unload(
+            async_track_state_change_event(self.hass, list(entities), changed)
+        )
+        entry.async_on_unload(cancel)
+
+    async def async_recalculate_cached(self) -> None:
+        """Recalculate existing HA inputs without weather-service calls or timer reset."""
+        try:
+            async with self._state_lock:
+                data = await self._async_calculate_locked(refresh_forecasts=False)
+                self._record_calculation_success(data)
+                self.data = data
+                self.last_update_success = True
+                self.last_exception = None
+        except Exception as err:
+            self._record_calculation_failure(err)
+            self.last_update_success = False
+            self.last_exception = err
+            self.async_update_listeners()
+            raise
+        self.async_update_listeners()
+
     async def _async_update_data(self) -> LawnData:
         """Serialize model updates against transactional maintenance writes.
 
@@ -2299,13 +2470,14 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
                 data = await self._async_calculate_locked()
             except Exception as err:
                 # Record the exception type only, then preserve HA error handling.
-                self._last_calculation_failure_at = dt_util.utcnow().isoformat()
-                self._last_calculation_error_type = type(err).__name__
+                self._record_calculation_failure(err)
                 raise
-            self._last_calculation_success_at = dt_util.utcnow().isoformat()
+            self._record_calculation_success(data)
             return data
 
-    async def _async_calculate_locked(self) -> LawnData:
+    async def _async_calculate_locked(
+        self, *, refresh_forecasts: bool = True
+    ) -> LawnData:
         """Calculate all current recommendations.
 
         The caller owns the model lock throughout sampling and persistence.
@@ -2355,8 +2527,16 @@ class LawnCoordinator(DataUpdateCoordinator[LawnData]):
             precipitation_increment_mm=precipitation_increment,
             precipitation_intensity_mm_h=precipitation_intensity,
         )
-        forecast = await self._async_forecast("daily")
-        hourly_forecast = await self._async_forecast("hourly")
+        forecast = (
+            await self._async_forecast("daily")
+            if refresh_forecasts
+            else self._forecast_cache
+        )
+        hourly_forecast = (
+            await self._async_forecast("hourly")
+            if refresh_forecasts
+            else self._hourly_forecast_cache
+        )
         weather_state = self.hass.states.get(settings[CONF_WEATHER_ENTITY])
         provider_updated_at = (
             getattr(weather_state, "last_reported", weather_state.last_updated)

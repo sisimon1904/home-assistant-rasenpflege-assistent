@@ -365,6 +365,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LawnConfigEntry) -> bool
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
         await async_setup_dashboard(hass)
         await async_setup_notifications(coordinator)
+        coordinator.subscribe_temperature_inputs(entry)
         return True
     except BaseException:
         if await coordinator.irrigation_controller.async_shutdown():

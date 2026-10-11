@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](README.en.md)
 
-Version 3.20.0 · [Änderungsverlauf](CHANGELOG.md)
+Version 3.21.0 · [Änderungsverlauf](CHANGELOG.md)
 
 [![Validate](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml/badge.svg)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/actions/workflows/validate.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/sisimon1904/home-assistant-rasenpflege-assistent)](https://github.com/sisimon1904/home-assistant-rasenpflege-assistent/releases)
@@ -18,7 +18,7 @@ Die Wetterquelle lässt sich über **Einstellungen → Geräte & Dienste → Ras
 Prüfumfang und offene Quality-Scale-Anforderungen stehen im [Qualitätsaudit](docs/quality-audit.md).
 Die [Quellcode-Übersicht](docs/source-code.md) erläutert Dateizuständigkeiten und Regeln für die Weiterentwicklung.
 
-Das Web-Dashboard zeigt Pflegebegründungen, konkrete Sensorprüfungen und Wasserverbrauch nach Tagen für 7 oder 30 Tage. Das gesamte verfügbare Wasserprotokoll lässt sich als CSV herunterladen; unbekannte Mengen und geschätzte Datumsaufteilungen bleiben erkennbar. Pflegehinweise und Bewässerungsabbrüche haben getrennte Schalter und Mindestabstände sowie gemeinsame Ruhezeiten.
+Das Web-Dashboard zeigt Pflegebegründungen, konkrete Sensorprüfungen und Wasserverbrauch nach Tagen für 7 oder 30 Tage. Das gesamte verfügbare Wasserprotokoll lässt sich als CSV herunterladen; unbekannte Mengen und geschätzte Datumsaufteilungen bleiben erkennbar. Pflegehinweise und Bewässerungsabbrüche haben getrennte Schalter und Mindestabstände sowie gemeinsame Ruhezeiten. Frostwechsel aktualisieren die Empfehlungen zeitnah aus vorhandenen Prognosedaten. Das Dashboard zeigt die Datengrundlage von Frostpausen und veraltete Berechnungen; Administratoren können Empfehlungen gezielt neu berechnen.
 
 ## Integriertes Webdashboard
 
