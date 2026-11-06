@@ -352,7 +352,7 @@ async def test_date_only_due_time_stays_on_local_calendar_day(hass):
         assert (
             due.date() == tomorrow
             and due.hour == 0
-            and due.utcoffset() == timedelta(hours=2)
+            and due.utcoffset() == datetime.combine(tomorrow, datetime.min.time(), tzinfo=ZoneInfo("Europe/Berlin")).utcoffset()
         )
     finally:
         dt_util.set_default_time_zone(previous_zone)
