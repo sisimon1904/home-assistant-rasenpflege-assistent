@@ -28,9 +28,7 @@ def _version_from(path: Path, pattern: str) -> str:
 
 def main() -> None:
     """Reject any partially updated release before slow test dependencies."""
-    manifest = json.loads(
-        (INTEGRATION / "manifest.json").read_text(encoding="utf-8")
-    )
+    manifest = json.loads((INTEGRATION / "manifest.json").read_text(encoding="utf-8"))
     version = manifest["version"]
 
     # Match release headings only; historical versions elsewhere must not count.
