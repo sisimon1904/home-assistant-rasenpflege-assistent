@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.21.3
+
+### Fixed
+- Restore a dependency-consistent Python CI environment: the pinned Home Assistant pytest fixture package is installed without overriding its required Home Assistant and SQLAlchemy versions.
+- Remove the unresolvable Home Assistant 2026.10/2026.11 pytest matrix. Print the actually installed test versions and keep `pip check` active.
+- Preserve the browser test job and existing regression, lint, type-check and coverage checks.
+
+### Compatibility scope
+- This restores the existing fixture-based regression suite, but does **not** establish runtime compatibility with Home Assistant 2026.11. A separately supported HA 2026.11 fixture release is required before reinstating the version-specific test matrix.
+- No runtime code, device-control behavior, configuration, entities or dashboards are changed.
+
+
 ## 3.21.2
 
 ### Fixed
