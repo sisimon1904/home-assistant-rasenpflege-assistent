@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.21.4
+
+### Fixed
+- Synchronize the integration version constant with the manifest (3.21.4), fixing the device/diagnostics metadata consistency regression.
+- Fix a date-only mowing deadline regression test that incorrectly assumed UTC+02:00 year-round for Europe/Berlin. Assert the actual timezone offset on the due date, including winter time and DST changes.
+- Preserve the already corrected dependency-consistent CI setup, regression coverage, irrigation safety behavior and entity IDs.
+
+### Validation
+- The changes address both failures observed in GitHub Actions runs 42292887914, 42292881187 and 42292877300 (1,054 passed, two failed before this patch).
+- Fresh GitHub Actions results must be checked before publishing a release.
+
+
 ## 3.21.3
 
 ### Fixed
