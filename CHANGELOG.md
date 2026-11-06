@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.21.1
+
+### Changed
+- Add a Home Assistant 2026.11.0 compatibility CI job alongside the previous 2026.10.4 baseline. Run the Python regression suite, formatting, linting, type checking and dependency consistency checks against both versions.
+- Preserve existing entity IDs, irrigation safety behavior, settings, and web dashboard interfaces; no migration or device-control changes are introduced.
+- Update the integration version and bilingual documentation for the compatibility maintenance release.
+
+### Validation
+- The GitHub Actions compatibility matrix is added for verification on `main`; passing results must be confirmed in Actions. No physical Home Assistant installation or valve hardware test is claimed.
+
+
 ## 3.21.0
 
 ### Added
