@@ -2,7 +2,9 @@
 #
 # Run formatting, lint, typing, regression/coverage and Chromium dashboard checks
 # on pushes and PRs. Browser fixtures use HA doubles without physical devices.
-# Python and the HA test package are pinned for repeatability. The combined
+# Home Assistant is pinned per matrix row; pip resolves a compatible test helper
+# together with HA rather than overwriting the helper's exact dependency pins.
+# The combined
 # coverage threshold is 83 percent; publish its XML report for review.
 #
 name: Tests
@@ -35,10 +37,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
-      - run: python -m pip install pytest ruff==0.16.10 mypy==2.4.0 pytest-cov pytest-homeassistant-custom-component==0.13.367
-      # Exercise both the previous supported HA release and HA 2026.11.
-      # Install the selected core version after the test helper so its API is used.
-      - run: python -m pip install "homeassistant==${{ matrix.ha-version }}"
+      # Resolve the HA version and its matching pytest fixtures in one transaction.
+      # The fixture package pins HA and SQLAlchemy; installing HA afterwards
+      # breaks that relationship and makes pip check fail before tests start.
+      - name: Install matching Home Assistant and test dependencies
+        run: |
+          python -m pip install \
+            "homeassistant==${{ matrix.ha-version }}" \
+            "pytest-homeassistant-custom-component>=0.13.367" \
+            pytest pytest-cov ruff==0.16.10 mypy==2.4.0
+          python -m pip freeze | grep -Ei '^(homeassistant|pytest-homeassistant-custom-component|sqlalchemy)=='
       - run: python -m pip check
       - run: python -m ruff format --check custom_components tests
       - run: python -m ruff check custom_components tests
