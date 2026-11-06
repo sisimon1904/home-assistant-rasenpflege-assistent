@@ -349,11 +349,11 @@ async def test_date_only_due_time_stays_on_local_calendar_day(hass):
         c.coordinator.data.next_mowing_date = tomorrow
         result = c.coordinator.mowing_plan_details()
         due = datetime.fromisoformat(result["earliest_due_at"])
-        assert (
-            due.date() == tomorrow
-            and due.hour == 0
-            and due.utcoffset() == datetime.combine(tomorrow, datetime.min.time(), tzinfo=ZoneInfo("Europe/Berlin")).utcoffset()
+        # ISO strings check local midnight, the date and the correct DST offset.
+        expected_due = datetime.combine(
+            tomorrow, datetime.min.time(), tzinfo=ZoneInfo("Europe/Berlin")
         )
+        assert due.isoformat() == expected_due.isoformat()
     finally:
         dt_util.set_default_time_zone(previous_zone)
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## 3.21.5
+
+### Fixed
+- Correct the Ruff formatting failure in the date-only mowing deadline regression test and compare the complete ISO 8601 local-midnight value, including the correct DST offset.
+- Add a dependency-free CI guard that verifies the version in the integration manifest, runtime constant, German/English README headers and newest changelog entry.
+- Run the version guard before Home Assistant test dependencies are installed and include the new validation script in Ruff format and lint checks.
+- Apply all release files in one atomic Git commit, preventing intermediate, inconsistent GitHub Actions runs.
+
+### Validation
+- Investigated GitHub Actions runs 42294145022, 42294149243, 42294153987, 42294161689 and 42294166253: all failed Ruff formatting on the same test line, while browser tests and separate Hassfest/HACS validation passed.
+- The full Python regression suite did not execute in those five runs because formatting failed first. New CI results must confirm the fix.
+
+
 ## 3.21.4
 
 ### Fixed

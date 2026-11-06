@@ -1,10 +1,9 @@
 # .github/workflows/tests.yml
 #
-# Run formatting, lint, typing, regression/coverage and Chromium dashboard checks
-# on pushes and PRs. Browser fixtures use HA doubles without physical devices.
-# The pytest fixture package pins its matching Home Assistant dependencies.
-# The combined
-# coverage threshold is 83 percent; publish its XML report for review.
+# Check release versions, formatting, lint, typing, regression/coverage and
+# Chromium dashboard behavior on pushes and PRs. Browser fixtures use HA
+# doubles without physical hardware. Python fixtures pin matching Home Assistant
+# dependencies. Overall coverage must reach 83 percent; publish the XML report.
 #
 name: Tests
 
@@ -32,6 +31,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
+      # Fail early on partial version bumps before installing large HA packages.
+      - name: Validate release version consistency
+        run: python scripts/check_release_versions.py
       # The fixture package pins its own exact HA/SQLAlchemy versions.
       # Install the tested fixture set unchanged; never override its pins.
       - name: Install pinned Home Assistant test fixtures
@@ -40,8 +42,8 @@ jobs:
         run: |
           python -c "from importlib.metadata import version; print('HA:', version('homeassistant')); print('Fixtures:', version('pytest-homeassistant-custom-component')); print('SQLAlchemy:', version('SQLAlchemy'))"
       - run: python -m pip check
-      - run: python -m ruff format --check custom_components tests
-      - run: python -m ruff check custom_components tests
+      - run: python -m ruff format --check custom_components tests scripts
+      - run: python -m ruff check custom_components tests scripts
       - run: python -m mypy
       - run: python -m pytest -q --cov=custom_components.rasenpflege_assistent --cov-branch --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=83
 
