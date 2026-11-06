@@ -2,8 +2,7 @@
 #
 # Run formatting, lint, typing, regression/coverage and Chromium dashboard checks
 # on pushes and PRs. Browser fixtures use HA doubles without physical devices.
-# Home Assistant is pinned per matrix row; pip resolves a compatible test helper
-# together with HA rather than overwriting the helper's exact dependency pins.
+# The pytest fixture package pins its matching Home Assistant dependencies.
 # The combined
 # coverage threshold is 83 percent; publish its XML report for review.
 #
@@ -28,25 +27,18 @@ jobs:
       - run: npm test --prefix tests/browser
   pytest:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        ha-version: ['2026.10.4', '2026.11.0']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
-      # Resolve the HA version and its matching pytest fixtures in one transaction.
-      # The fixture package pins HA and SQLAlchemy; installing HA afterwards
-      # breaks that relationship and makes pip check fail before tests start.
-      - name: Install matching Home Assistant and test dependencies
+      # The fixture package pins its own exact HA/SQLAlchemy versions.
+      # Install the tested fixture set unchanged; never override its pins.
+      - name: Install pinned Home Assistant test fixtures
+        run: python -m pip install pytest ruff==0.16.10 mypy==2.4.0 pytest-cov pytest-homeassistant-custom-component==0.13.367
+      - name: Show actual Home Assistant test version
         run: |
-          python -m pip install \
-            "homeassistant==${{ matrix.ha-version }}" \
-            "pytest-homeassistant-custom-component>=0.13.367" \
-            pytest pytest-cov ruff==0.16.10 mypy==2.4.0
-          python -m pip freeze | grep -Ei '^(homeassistant|pytest-homeassistant-custom-component|sqlalchemy)=='
+          python -c "from importlib.metadata import version; print('HA:', version('homeassistant')); print('Fixtures:', version('pytest-homeassistant-custom-component')); print('SQLAlchemy:', version('SQLAlchemy'))"
       - run: python -m pip check
       - run: python -m ruff format --check custom_components tests
       - run: python -m ruff check custom_components tests
@@ -56,5 +48,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-ha-${{ matrix.ha-version }}
+          name: coverage
           path: coverage.xml
