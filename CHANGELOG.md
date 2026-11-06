@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.21.2
+
+### Fixed
+- Fix the GitHub Actions Home Assistant compatibility matrix dependency installation. Install the selected Home Assistant core and its matching pytest fixture package in a single pip resolution instead of installing an outdated fixture package and overwriting its pinned Home Assistant/SQLAlchemy versions.
+- Keep `pip check` enabled so incompatible test dependencies fail visibly, rather than suppressing conflicts.
+- Print the resolved Home Assistant, fixture package and SQLAlchemy versions for CI troubleshooting.
+
+### Validation
+- Both HA 2026.10.4 and 2026.11.0 matrix jobs were previously blocked by the fixture dependency mismatch before tests ran. The workflow is corrected, but its new results must be verified in GitHub Actions.
+- No lawn logic, entity IDs, configuration, irrigation safety behavior or dashboard contracts are changed.
+
+
 ## 3.21.1
 
 ### Changed
